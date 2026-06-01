@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Tracker Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:    #070b14;
+  --bg2:   #0d1526;
+  --bg3:   #131d30;
+  --bg4:   #1a2640;
+  --bd:    #1e2d45;
+  --t1:    #e4eaf5;
+  --t2:    #8ea3bd;
+  --t3:    #4e6380;
+  --blue:  #3b82f6;
+  --blue2: #1d4ed8;
+  --green: #22c55e;
+  --red:   #ef4444;
+  --org:   #f97316;
+  --yel:   #eab308;
+  --pur:   #a855f7;
+  --teal:  #14b8a6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:14px;scroll-behavior:smooth}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
+/* ── Header ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--bd);height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:8px;font-size:1.05rem;font-weight:700;letter-spacing:-.01em}
+.logo em{color:var(--blue);font-style:normal}
+.hdr-r{display:flex;align-items:center;gap:10px}
+/* ── Buttons ── */
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:.82rem;font-weight:500;transition:.15s all;white-space:nowrap}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue2)}
+.btn-g{background:var(--bg3);color:var(--t2);border:1px solid var(--bd)}.btn-g:hover{background:var(--bg4)}
+.btn-d{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}.btn-d:hover{background:rgba(239,68,68,.2)}
+.btn-s{padding:4px 10px;font-size:.76rem}
+/* ── Summary bar ── */
+.sbar{background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;padding:10px 20px;gap:24px}
+.sitem{min-width:130px}
+.slbl{font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.sval{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ssub{font-size:.78rem;margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--t2)}
+/* ── Tabs ── */
+.tabs{display:flex;padding:0 20px;background:var(--bg2);border-bottom:1px solid var(--bd);overflow-x:auto}
+.tab{padding:13px 18px;font-size:.88rem;font-weight:500;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.tab:hover{color:var(--t1)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+/* ── Layout ── */
+.content{padding:20px;max-width:1380px;margin:0 auto}
+.pane{display:none}.pane.active{display:block}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-bottom:20px}
+@media(max-width:768px){.g2{grid-template-columns:1fr}.sbar{gap:14px}}
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:16px}
+.card:hover{border-color:var(--blue);transition:.2s}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.ct{font-size:.72rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+.ctl{font-size:.95rem;font-weight:600}
+/* ── KPI ── */
+.kv{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ks{font-size:.8rem;color:var(--t2);margin-top:3px}
+/* ── Table ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+thead tr{border-bottom:2px solid var(--bd)}
+th{padding:9px 12px;text-align:left;color:var(--t3);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:500;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid rgba(30,45,69,.6);white-space:nowrap;vertical-align:middle}
+tr:hover td{background:var(--bg3)}
+tr:last-child td{border-bottom:none}
+.mono{font-variant-numeric:tabular-nums;font-family:'SFMono-Regular',Consolas,monospace}
+/* ── Badges ── */
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:500;white-space:nowrap}
+.bdg-e{background:rgba(59,130,246,.15);color:var(--blue)}
+.bdg-a{background:rgba(168,85,247,.15);color:var(--pur)}
+.bdg-g{background:rgba(34,197,94,.15);color:var(--green)}
+.bdg-r{background:rgba(239,68,68,.15);color:var(--red)}
+.bdg-o{background:rgba(249,115,22,.15);color:var(--org)}
+.bdg-y{background:rgba(234,179,8,.15);color:var(--yel)}
+.bdg-t{background:rgba(20,184,166,.15);color:var(--teal)}
+/* ── Risk dots ── */
+.rdots{display:flex;gap:2px;align-items:center}
+.rd{width:7px;height:7px;border-radius:50%;background:var(--bd)}
+.rd.f{background:var(--org)}.rd.f.lo{background:var(--green)}.rd.f.hi{background:var(--red)}
+/* ── Opportunity cards ── */
+.ocard{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;overflow:hidden;transition:.2s border-color;display:flex;flex-direction:column}
+.ocard:hover{border-color:var(--blue)}
+.ohdr{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:flex-start}
+.osym{font-size:1.1rem;font-weight:700;font-family:monospace}
+.oname{font-size:.82rem;color:var(--t2);margin-top:2px}
+.obody{padding:14px 16px;flex:1}
+.ometrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.oml{font-size:.68rem;color:var(--t3);text-transform:uppercase}
+.omv{font-size:.9rem;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums}
+.atext{font-size:.8rem;color:var(--t2);line-height:1.65;margin-bottom:10px}
+.clist{list-style:none;margin-bottom:8px}
+.clist li{font-size:.79rem;color:var(--t2);padding:3px 0 3px 16px;position:relative}
+.clist li::before{content:'→';position:absolute;left:0;color:var(--green);font-size:.75rem}
+.rlist li::before{content:'⚠';color:var(--org)}
+/* ── Conviction ── */
+.conv{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.ctf{background:rgba(34,197,94,.12);color:var(--green)}
+.cf{background:rgba(59,130,246,.12);color:var(--blue)}
+.cm{background:rgba(234,179,8,.12);color:var(--yel)}
+.cs{background:rgba(249,115,22,.12);color:var(--org)}
+/* ── Charts ── */
+.ctr{position:relative}
+.csm{height:180px}.cmd{height:280px}.clg{height:350px}
+/* ── Section header ── */
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.st{font-size:1rem;font-weight:600}
+/* ── Filter bar ── */
+.fbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.fbtn{padding:5px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--t2);font-size:.8rem;cursor:pointer;transition:.15s}
+.fbtn:hover{border-color:var(--blue);color:var(--t1)}.fbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+/* ── Modal ── */
+.mover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center}
+.mover.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:24px;width:90%;max-width:460px}
+.mtl{font-size:1rem;font-weight:600;margin-bottom:18px}
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:.78rem;color:var(--t2);margin-bottom:5px}
+.fi{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:.88rem}
+.fi:focus{outline:none;border-color:var(--blue)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fsel{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:.88rem}
+.fsel option{background:var(--bg3)}
+/* ── Spinner ── */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* ── Status ── */
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-live{background:var(--green);animation:pulse 2s infinite}
+.dot-off{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+/* ── Macro analysis ── */
+.asec{margin-bottom:20px}
+.asec h3{font-size:.92rem;font-weight:600;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+.abl{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:10px}
+.abl h4{font-size:.88rem;font-weight:600;margin-bottom:6px}
+.abl p{font-size:.82rem;color:var(--t2);line-height:1.7}
+.abl ul{padding-left:16px;margin-top:6px}
+.abl li{font-size:.82rem;color:var(--t2);line-height:1.7}
+/* ── Scenarios ── */
+.scens{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+@media(max-width:680px){.scens{grid-template-columns:1fr}}
+.sc{padding:14px;border-radius:8px}
+.sc-b{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2)}.sc-b .scl{color:var(--green)}
+.sc-n{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2)}.sc-n .scl{color:var(--blue)}
+.sc-r{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2)}.sc-r .scl{color:var(--red)}
+.scl{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.sct{font-size:.8rem;color:var(--t2);line-height:1.6}
+/* ── Allocation bar ── */
+.abar{height:7px;border-radius:4px;overflow:hidden;display:flex;gap:1px;margin-bottom:6px}
+.aseg{height:100%;border-radius:2px;transition:width .4s}
+.alegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.alg-item{display:flex;align-items:center;gap:5px;font-size:.76rem;color:var(--t2)}
+.alg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+/* ── Empty state ── */
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}
+.empty-i{font-size:2.5rem;margin-bottom:10px}
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+/* ── Perf pill ── */
+.pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:.78rem;font-weight:500;font-variant-numeric:tabular-nums}
+.pill-g{background:rgba(34,197,94,.12);color:var(--green)}
+.pill-r{background:rgba(239,68,68,.12);color:var(--red)}
+.pill-n{background:rgba(78,99,128,.2);color:var(--t3)}
+/* ── Progress bar (risk) ── */
+.riskbar{height:5px;border-radius:3px;background:var(--bd);margin-top:6px;overflow:hidden}
+.riskfill{height:100%;border-radius:3px;transition:width .4s}
+/* ── Divider ── */
+.div{border:none;border-top:1px solid var(--bd);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<header class="hdr">
+  <div class="logo">📈 <em>Portfolio</em>&nbsp;Tracker&nbsp;<span style="font-size:.72rem;color:var(--t3);font-weight:400">Pro</span></div>
+  <div class="hdr-r">
+    <span class="dot dot-live" id="statusDot" title="Statut flux données"></span>
+    <span id="updateTime" style="font-size:.76rem;color:var(--t3)">—</span>
+    <button class="btn btn-g btn-s" onclick="openAddModal()">＋ Position</button>
+    <button class="btn btn-p btn-s" id="refreshBtn" onclick="refreshAll()">↻ Actualiser</button>
+  </div>
+</header>
+
+<!-- ══════════════════ SUMMARY BAR ══════════════════ -->
+<div class="sbar" id="summaryBar">
+  <div class="sitem"><div class="slbl">Valeur totale</div><div class="sval" id="sTotalVal">—</div><div class="ssub neu" id="sTotalCost">—</div></div>
+  <div class="sitem"><div class="slbl">P&L total</div><div class="sval" id="sTotalPL">—</div><div class="ssub" id="sTotalPLPct">—</div></div>
+  <div class="sitem"><div class="slbl">Variation jour</div><div class="sval" id="sDayPL">—</div><div class="ssub" id="sDayPLPct">—</div></div>
+  <div class="sitem"><div class="slbl">Positions</div><div class="sval" id="sPositions">—</div><div class="ssub neu" id="sBestPos">—</div></div>
+</div>
+
+<!-- ══════════════════ TABS ══════════════════ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('dashboard',this)">📊 Tableau de Bord</div>
+  <div class="tab" onclick="switchTab('portfolio',this)">💼 Portefeuille</div>
+  <div class="tab" onclick="switchTab('opportunities',this)">🔍 Opportunités</div>
+  <div class="tab" onclick="switchTab('analysis',this)">📋 Analyse Macro</div>
+</div>
+
+<!-- ══════════════════ CONTENT ══════════════════ -->
+<div class="content">
+
+  <!-- ─── DASHBOARD ─── -->
+  <div id="pane-dashboard" class="pane active">
+    <div class="g4" id="kpiGrid">
+      <div class="card"><div class="ch"><div class="ct">Meilleure perf.</div><span style="font-size:1.3rem">🚀</span></div><div class="kv pos" id="kBest">—</div><div class="ks" id="kBestSym">—</div></div>
+      <div class="card"><div class="ch"><div class="ct">Pire perf.</div><span style="font-size:1.3rem">📉</span></div><div class="kv neg" id="kWorst">—</div><div class="ks" id="kWorstSym">—</div></div>
+      <div class="card"><div class="ch"><div class="ct">Plus-value latente</div><span style="font-size:1.3rem">💰</span></div><div class="kv" id="kUnrPL">—</div><div class="ks" id="kUnrPLPct">—</div></div>
+      <div class="card"><div class="ch"><div class="ct">Nb positions</div><span style="font-size:1.3rem">📦</span></div><div class="kv" id="kNbPos">—</div><div class="ks" id="kNbETF">—</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="ch"><div class="ctl">Allocation du portefeuille</div></div>
+        <div id="allocBar" class="abar"></div>
+        <div id="allocLegend" class="alegend"></div>
+        <div class="ctr cmd" style="margin-top:14px"><canvas id="allocChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ctl">Performance par position (%)</div></div>
+        <div class="ctr cmd"><canvas id="perfChart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ctl">Récapitulatif des positions</div><span id="dashSpin" class="spin" style="display:none"></span></div>
+      <div class="tw"><table id="dashTable">
+        <thead><tr><th>Symbole</th><th>Nom</th><th>Type</th><th>Secteur</th><th>Qté</th><th>PRU</th><th>Cours</th><th>Valeur</th><th>P&L</th><th>Perf.</th><th>Poids</th></tr></thead>
+        <tbody id="dashTbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ─── PORTFOLIO ─── -->
+  <div id="pane-portfolio" class="pane">
+    <div class="sh">
+      <div class="st">Mes positions <span id="portCount" class="bdg bdg-e" style="font-size:.78rem;margin-left:6px">0</span></div>
+      <button class="btn btn-p btn-s" onclick="openAddModal()">＋ Ajouter position</button>
+    </div>
+    <div class="tw">
+      <table id="portTable">
+        <thead><tr><th>Symbole</th><th>Nom</th><th>Type</th><th>Secteur</th><th>Qté</th><th>PRU</th><th>Cours actuel</th><th>Valeur</th><th>P&L €</th><th>Perf. %</th><th>Variation jour</th><th>52S Haut</th><th>52S Bas</th><th>Actions</th></tr></thead>
+        <tbody id="portTbody"></tbody>
+      </table>
+    </div>
+    <div class="g3" id="sparkCards"></div>
+  </div>
+
+  <!-- ─── OPPORTUNITIES ─── -->
+  <div id="pane-opportunities" class="pane">
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:.82rem;color:var(--t2)">
+      ⚠️ <strong style="color:var(--yel)">Avertissement :</strong> Ces recommandations sont purement indicatives et ne constituent pas un conseil en investissement. Elles sont basées sur une analyse qualitative et ne garantissent aucun rendement. Investir comporte des risques de perte en capital. Vérifiez l'éligibilité PEA avant tout investissement.
+    </div>
+    <div class="fbar" id="filterBar">
+      <button class="fbtn active" onclick="filterOpps('all',this)">Tout</button>
+      <button class="fbtn" onclick="filterOpps('renewable',this)">☀️ Renouvelables</button>
+      <button class="fbtn" onclick="filterOpps('battery',this)">🔋 Batteries</button>
+      <button class="fbtn" onclick="filterOpps('rareearth',this)">⛏️ Terres Rares</button>
+      <button class="fbtn" onclick="filterOpps('infra',this)">⚡ Infrastructure</button>
+      <button class="fbtn" onclick="filterOpps('etf',this)">📊 ETF Thématiques</button>
+    </div>
+    <div class="g3" id="oppGrid"></div>
+  </div>
+
+  <!-- ─── MACRO ANALYSIS ─── -->
+  <div id="pane-analysis" class="pane">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="macroTop">
+
+      <div class="card asec">
+        <h3>🌍 Contexte macro (Juin 2025)</h3>
+        <div class="abl">
+          <h4>Marchés actions</h4>
+          <p>Les marchés européens affichent une résilience notable portée par une rotation sectorielle favorable vers l'industrie, l'énergie et les valeurs de transition. Le STOXX 600 bénéficie du cycle de baisses de taux de la BCE, amorcé dès septembre 2024, désormais à 2,75 %. Les small & mid caps européens retrouvent de l'attrait après deux années de sous-performance relative.</p>
+        </div>
+        <div class="abl">
+          <h4>Taux &amp; Inflation</h4>
+          <p>L'inflation zone euro est revenue sous les 2 % (objectif BCE). La BCE a procédé à 4 baisses depuis 2024, offrant un environnement favorable aux actifs de croissance et aux énergies renouvelables (coût de financement en baisse). Les taux longs se stabilisent autour de 2,5–3 % en Allemagne.</p>
+        </div>
+        <div class="abl">
+          <h4>Risques principaux</h4>
+          <ul>
+            <li>Regain de tensions géopolitiques (Ukraine, Moyen-Orient)</li>
+            <li>Dérapage budgétaire en France (risque de notation)</li>
+            <li>Rebond inflationniste lié à l'énergie</li>
+            <li>Ralentissement économique en Chine impactant les exportateurs européens</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card asec">
+        <h3>📈 Secteurs favorisés</h3>
+        <div class="abl">
+          <h4>Énergies renouvelables &amp; Transition</h4>
+          <p>Catalyseurs : Green Deal européen, objectif 45 % ENR en 2030, RePowerEU, baisse des coûts de financement. Les opérateurs d'ENR profitent de PPAs (Power Purchase Agreements) à long terme sécurisant la visibilité des revenus.</p>
+        </div>
+        <div class="abl">
+          <h4>Technologies de batteries &amp; Stockage</h4>
+          <p>Accélération de la demande portée par : électrification des transports, stockage résidentiel/industriel, gigafactories européennes. Pénurie potentielle de matériaux critiques (lithium, manganèse, graphite) créant des opportunités dans toute la chaîne de valeur.</p>
+        </div>
+        <div class="abl">
+          <h4>Matériaux critiques &amp; Terres rares</h4>
+          <p>Le Critical Raw Materials Act européen (2024) sécurise les approvisionnements. Eramet, CMOC, les recycleurs de batteries bénéficient de la politique de souveraineté industrielle européenne et des subventions à l'extraction/raffinage locaux.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card asec" style="margin-bottom:16px">
+      <h3>🎯 Allocation recommandée (stratégie PEA)</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Position</th><th>Type</th><th>Secteur</th><th>Alloc. %</th><th>Conviction</th><th>Stop-Loss</th><th>Objectif</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Amundi MSCI World (CW8)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Monde</td><td>20 %</td><td><span class="conv cf">Forte</span></td><td>-15 %</td><td>+20 %/an</td></tr>
+            <tr><td><strong>Amundi Small Cap Europe (SMCX)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Small Cap Europe</td><td>15 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+25 %</td></tr>
+            <tr><td><strong>iShares Clean Energy (IQQH)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>ENR</td><td>12 %</td><td><span class="conv ctf">Très forte</span></td><td>-20 %</td><td>+35 %</td></tr>
+            <tr><td><strong>Encavis (ECV.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Solaire/Éolien</td><td>10 %</td><td><span class="conv ctf">Très forte</span></td><td>-15 %</td><td>+40 %</td></tr>
+            <tr><td><strong>Mersen (MRN.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Composants batteries</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+45 %</td></tr>
+            <tr><td><strong>Siemens Energy (ENR.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Infra. énergie</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-20 %</td><td>+35 %</td></tr>
+            <tr><td><strong>Eramet (ERA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Matériaux critiques</td><td>8 %</td><td><span class="conv cm">Moyenne</span></td><td>-22 %</td><td>+50 %</td></tr>
+            <tr><td><strong>Voltalia (VLTSA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>ENR France</td><td>8 %</td><td><span class="conv cf">Forte</span></td><td>-20 %</td><td>+60 %</td></tr>
+            <tr><td><strong>Waga Energy (WAGA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Biométhane</td><td>5 %</td><td><span class="conv cm">Moyenne</span></td><td>-25 %</td><td>+55 %</td></tr>
+            <tr><td><strong>Forsee Power (FORSE.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Batteries transport</td><td>2 %</td><td><span class="conv cs">Spéculative</span></td><td>-35 %</td><td>+100 %</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card asec" style="margin-bottom:16px">
+      <h3>⚠️ Plan de gestion du risque</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="abl"><h4>Stop-Loss</h4>
+          <ul>
+            <li>ETF : -15 % à -20 % depuis le PRU</li>
+            <li>Actions large cap : -20 % depuis le PRU</li>
+            <li>Small caps spéculatives : -30 % à -35 %</li>
+            <li>Stop trailing sur positions en forte plus-value</li>
+          </ul>
+        </div>
+        <div class="abl"><h4>Prise de profit</h4>
+          <ul>
+            <li>Allégement 30 % à +35 % sur les convictions fortes</li>
+            <li>Prise de profit totale si fondamentaux dégradés</li>
+            <li>Réallocation vers les positions sous-performantes</li>
+            <li>Rééquilibrage trimestriel systématique</li>
+          </ul>
+        </div>
+        <div class="abl"><h4>Conditions de renforcement</h4>
+          <ul>
+            <li>Repli &gt; 10 % sans dégradation des fondamentaux</li>
+            <li>Publication de résultats meilleurs qu'attendu</li>
+            <li>Confirmation d'un catalyseur identifié</li>
+          </ul>
+        </div>
+        <div class="abl"><h4>Conditions de vente</h4>
+          <ul>
+            <li>Atteinte du stop-loss défini</li>
+            <li>Dégradation du business model ou des fondamentaux</li>
+            <li>Opportunité plus attractive disponible</li>
+            <li>Atteinte de l'objectif de cours cible</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card asec">
+      <h3>📊 Scénarios de marché (horizon 12-18 mois)</h3>
+      <div class="scens">
+        <div class="sc sc-b">
+          <div class="scl">🟢 Scénario haussier (+30 à +50 %)</div>
+          <div class="sct">Accélération de la transition énergétique, baisses de taux BCE supplémentaires, retour des flux sur les small caps européennes, catalyseurs sectoriels (Critical Raw Materials Act mis en œuvre, contrats ENR massifs). Objectif portefeuille : +40 à +55 %.</div>
+        </div>
+        <div class="sc sc-n">
+          <div class="scl">🔵 Scénario central (+15 à +25 %)</div>
+          <div class="sct">Croissance modérée, inflation maîtrisée, maintien de la politique de transition européenne. La sélection de valeurs de qualité avec des catalyseurs clairs permet de surperformer l'indice. Objectif portefeuille : +18 à +28 %.</div>
+        </div>
+        <div class="sc sc-r">
+          <div class="scl">🔴 Scénario baissier (-15 à -25 %)</div>
+          <div class="sct">Récession en zone euro, rebond inflationniste, crise géopolitique majeure ou krach obligataire. Les stops-loss limitent la perte maximale du portefeuille à -18 %. Diversification ETF monde joue son rôle d'amortisseur.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ══════════════════ MODAL ADD POSITION ══════════════════ -->
+<div id="addModal" class="mover" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mtl">➕ Ajouter / Modifier une position</div>
+    <div class="fg"><label class="fl">Symbole Yahoo Finance (ex: VLTSA.PA, CW8.PA)</label>
+      <input type="text" class="fi" id="mSymbol" placeholder="VLTSA.PA" oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="fg"><label class="fl">Nom affiché</label>
+      <input type="text" class="fi" id="mName" placeholder="Voltalia"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Type</label>
+        <select class="fsel" id="mType"><option value="Action">Action</option><option value="ETF">ETF</option></select></div>
+      <div class="fg"><label class="fl">Secteur</label>
+        <input type="text" class="fi" id="mSector" placeholder="Énergies Renouv."></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Quantité</label>
+        <input type="number" class="fi" id="mQty" placeholder="10" min="0.001" step="any"></div>
+      <div class="fg"><label class="fl">Prix de revient unitaire (€)</label>
+        <input type="number" class="fi" id="mBuy" placeholder="15.50" min="0.001" step="any"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn btn-p" style="flex:1" onclick="saveHolding()">Enregistrer</button>
+      <button class="btn btn-g" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ SCRIPT ══════════════════ -->
+<script>
+/* ════════════════════════════════════════
+   DATA
+════════════════════════════════════════ */
+const DEFAULT_HOLDINGS = [
+  {id:1,symbol:'CW8.PA',   name:'Amundi MSCI World',           type:'ETF',    sector:'Monde',              qty:5,  buy:415.00},
+  {id:2,symbol:'PAEEM.PA', name:'Amundi MSCI Emerg. Markets',  type:'ETF',    sector:'Émergents',           qty:10, buy:28.50},
+  {id:3,symbol:'IQQH.DE',  name:'iShares Global Clean Energy', type:'ETF',    sector:'Énergies Prop.',      qty:30, buy:15.80},
+  {id:4,symbol:'VLTSA.PA', name:'Voltalia',                    type:'Action', sector:'Énergies Renouv.',    qty:40, buy:9.20},
+  {id:5,symbol:'ERA.PA',   name:'Eramet',                      type:'Action', sector:'Matériaux Critiques', qty:8,  buy:58.00},
+  {id:6,symbol:'UMI.BR',   name:'Umicore',                     type:'Action', sector:'Tech. Batteries',     qty:25, buy:11.50},
+  {id:7,symbol:'ALFEN.AS', name:'Alfen',                       type:'Action', sector:'Stockage Énergie',    qty:10, buy:24.00},
+  {id:8,symbol:'MRN.PA',   name:'Mersen',                      type:'Action', sector:'Composants',          qty:15, buy:28.50},
+];
+
+const OPPORTUNITIES = [
+  {
+    id:'o1', symbol:'ECV.DE', name:'Encavis AG', sector:'Énergies Renouvelables', category:'renewable',
+    risk:4, conviction:'Très forte conviction', convClass:'ctf',
+    targetPrice:20, stopLoss:10.50, horizon:'12-18 mois', potReturn:'+35-50%',
+    peaEligible:false, maxInvest:150,
+    analysis:'Encavis est l\'un des principaux opérateurs d\'énergies renouvelables en Europe avec +3 GW de capacité installée (solaire + éolien). La société génère des revenus très prévisibles via des PPAs de long terme (durée moyenne >15 ans). Le passage sous contrôle de KKR en 2023 a renforcé la structure financière et la capacité d\'acquisition.',
+    catalysts:['Acquisition de nouveaux projets solaires en Italie et Espagne','Revalorisation du pipeline à +6 GW d\'ici 2027','Baisse des coûts de financement favorisant les projets capital-intensifs','Contexte réglementaire européen très favorable (REPowerEU)'],
+    risks:['Baisse des prix spot de l\'électricité','Hausse soudaine des taux de financement','Risque exécution sur les acquisitions','Réglementation tarifaire changeante en Allemagne'],
+  },
+  {
+    id:'o2', symbol:'VLTSA.PA', name:'Voltalia', sector:'Énergies Renouvelables', category:'renewable',
+    risk:5, conviction:'Forte conviction', convClass:'cf',
+    targetPrice:15, stopLoss:7.00, horizon:'12-18 mois', potReturn:'+55-80%',
+    peaEligible:true, maxInvest:150,
+    analysis:'Voltalia est un producteur français d\'énergies renouvelables (solaire, éolien, hydraulique, biogaz) présent dans 20 pays. La société dispose d\'un carnet de commandes solide et d\'une forte exposition aux marchés émergents à forte croissance (Brésil, Afrique). Sa filiale services représente un revenu récurrent croissant.',
+    catalysts:['Mise en service de nouveaux projets au Brésil (1,5 GW pipeline)','Développement du segment services B2B','Potentiel contrats PPA industriels en Europe','Baisse de l\'endettement avec les premiers projets en service'],
+    risks:['Risque de change sur les marchés émergents','Délais administratifs sur les permis','Concurrence accrue sur les appels d\'offres','Risque de taux sur le refinancement'],
+  },
+  {
+    id:'o3', symbol:'MRN.PA', name:'Mersen', sector:'Tech. Batteries / Composants', category:'battery',
+    risk:4, conviction:'Forte conviction', convClass:'cf',
+    targetPrice:46, stopLoss:22.00, horizon:'12-24 mois', potReturn:'+40-55%',
+    peaEligible:true, maxInvest:150,
+    analysis:'Mersen est un spécialiste mondial des matériaux à base de graphite et carbone, essentiels pour les électrodes de batteries lithium-ion. La société est un fournisseur clé des gigafactories européennes (Northvolt, ACC, Stellantis) et bénéficie de la montée en puissance de l\'industrie EV. Marges solides et génération de cash flow soutenue.',
+    catalysts:['Montée en puissance des commandes gigafactory en Europe','Contrats exclusifs avec constructeurs automobiles européens','Croissance du segment semi-conducteurs (carbure de silicium)','M&A potentiel dans le secteur des matériaux avancés'],
+    risks:['Ralentissement de l\'électrification automobile','Pression sur les prix des matières premières','Concurrence asiatique (Chine) sur les matériaux de base','Risque de capacité sur les sites de production'],
+  },
+  {
+    id:'o4', symbol:'ALFEN.AS', name:'Alfen N.V.', sector:'Stockage Énergie / EV Charging', category:'battery',
+    risk:6, conviction:'Conviction moyenne', convClass:'cm',
+    targetPrice:35, stopLoss:14.00, horizon:'12-18 mois', potReturn:'+40-70%',
+    peaEligible:false, maxInvest:150,
+    analysis:'Alfen est un acteur néerlandais intégré dans les énergies intelligentes : bornes de recharge EV, systèmes de stockage par batteries (Eve), et postes de transformation intelligents. La société est bien positionnée sur les appels d\'offres de réseaux électriques intelligents (smart grid) en Europe. Valorisation déprimée après correction de 2023.',
+    catalysts:['Carnet de commandes stockage batteries en forte croissance','Contrats smart grid avec gestionnaires de réseaux européens','Expansion géographique (UK, Belgique, Allemagne)','Amélioration des marges sur le segment bornes EV'],
+    risks:['Forte concurrence sur les bornes de recharge','Risque d\'exécution sur les grands projets','Dépendance aux subventions et appels d\'offres publics','Inflation des coûts de composants électroniques'],
+  },
+  {
+    id:'o5', symbol:'ENR.DE', name:'Siemens Energy AG', sector:'Infrastructure Énergie', category:'infra',
+    risk:5, conviction:'Forte conviction', convClass:'cf',
+    targetPrice:72, stopLoss:35.00, horizon:'12-18 mois', potReturn:'+35-50%',
+    peaEligible:false, maxInvest:150,
+    analysis:'Siemens Energy est un leader mondial des équipements de transition énergétique : turbines à gaz, transformateurs, lignes HVDC, éoliennes offshore (via Siemens Gamesa). Après une période difficile liée à des problèmes de garanties sur les turbines à vent, la société a procédé à une restructuration profonde et retrouve une trajectoire positive. Carnet de commandes historique (+120 Md€).',
+    catalysts:['Résolution des problèmes de garanties Gamesa (provision en cours de consommation)','Forte demande en transformateurs et interconnexions électriques','Contrats gigantesques sur les réseaux HVDC en Europe','Croissance de la demande en centres de données (IA)'],
+    risks:['Surcoûts persistants sur les projets éoliens offshore','Risque d\'exécution sur le carnet de commandes massif','Concurrence de GE Vernova et ABB','Exposition aux marchés émergents volatils'],
+  },
+  {
+    id:'o6', symbol:'ERA.PA', name:'Eramet S.A.', sector:'Matériaux Critiques / Terres Rares', category:'rareearth',
+    risk:6, conviction:'Conviction moyenne', convClass:'cm',
+    targetPrice:90, stopLoss:42.00, horizon:'12-24 mois', potReturn:'+40-60%',
+    peaEligible:true, maxInvest:150,
+    analysis:'Eramet est un groupe minier et métallurgique français stratégique dans les matériaux critiques : manganèse (batteries haute énergie NMC), nickel, lithium (Centenario en Argentine). La société est un fournisseur clé de la chaîne de valeur des batteries électriques européennes. Le Critical Raw Materials Act (2024) est un catalyseur réglementaire majeur.',
+    catalysts:['Montée en puissance du projet lithium Centenario (Argentine)','Hausse des prix du manganèse et nickel avec l\'électrification','Contrats lithium avec batteries/OEM européens','Intégration verticale vers le raffinage de matériaux batteries'],
+    risks:['Volatilité des prix des métaux (manganèse, nickel)','Risque pays (Gabon, Argentine)','Capex élevé sur les nouveaux projets','Concurrence des producteurs asiatiques et africains'],
+  },
+  {
+    id:'o7', symbol:'WAGA.PA', name:'Waga Energy', sector:'Biométhane / Gaz Vert', category:'renewable',
+    risk:6, conviction:'Conviction moyenne', convClass:'cm',
+    targetPrice:55, stopLoss:22.00, horizon:'18-24 mois', potReturn:'+45-70%',
+    peaEligible:true, maxInvest:150,
+    analysis:'Waga Energy est un pionnier français du biométhane issu des décharges via sa technologie propriétaire WAGABOX. Elle transforme le biogaz des centres d\'enfouissement en biométhane injecté directement dans le réseau de gaz naturel. Modèle économique récurrent avec des contrats long terme. Présence en France, USA, Canada, Europe.',
+    catalysts:['Accélération des déploiements aux États-Unis (Inflation Reduction Act)','Nouveaux contrats avec Véolia, Suez et gestionnaires de décharges','Réglementation européenne favorisant le gaz vert','Potentiel de passage en BFI positif en 2026'],
+    risks:['Financement de la croissance (dilution potentielle)','Dépendance aux subsides et tarifs de rachat','Risque technologique sur les unités WAGABOX','Concurrence émergente sur le biométhane'],
+  },
+  {
+    id:'o8', symbol:'FORSE.PA', name:'Forsee Power', sector:'Batteries Transport', category:'battery',
+    risk:7, conviction:'Spéculative', convClass:'cs',
+    targetPrice:8.50, stopLoss:2.20, horizon:'18-24 mois', potReturn:'+80-150%',
+    peaEligible:true, maxInvest:50,
+    analysis:'Forsee Power conçoit et fabrique des systèmes de batteries pour les transports lourds : bus, cars, bateaux, engins industriels. La société est positionnée sur un segment de niche à forte croissance avec des barrières à l\'entrée liées à la certification et l\'homologation. Elle bénéficie des plans de décarbonation des flottes publiques (bus électriques). Position spéculative en raison de la faible capitalisation et des pertes actuelles.',
+    catalysts:['Commandes de bus électriques en Europe (VDL, Iveco, CAF)','Électrification des flottes maritimes fluviales','Potentiel de partnership ou acquisition par un industriel','Atteinte du seuil de rentabilité opérationnelle'],
+    risks:['Besoin de financement avant l\'atteinte du BFI positif','Concurrence des acteurs asiatiques (CATL, BYD) et européens','Faible liquidité du titre','Risque d\'exécution sur la montée en cadence'],
+  },
+  {
+    id:'o9', symbol:'IQQH.DE', name:'iShares Global Clean Energy ETF', sector:'ETF – Énergies Renouvelables', category:'etf',
+    risk:5, conviction:'Forte conviction', convClass:'cf',
+    targetPrice:22, stopLoss:11.50, horizon:'12-18 mois', potReturn:'+25-40%',
+    peaEligible:false, maxInvest:150,
+    analysis:'ETF diversifié sur les énergies renouvelables mondiales (solaire, éolien, hydraulique, hydrogène). Exposition à ~100 sociétés incluant Vestas, Orsted, First Solar, Enphase. Idéal pour capturer le secteur ENR global sans risque spécifique. Liquidité élevée. Frais annuels : 0,65 %.',
+    catalysts:['Politique IRA aux USA maintenue','Objectifs ENR 2030 européens non révisables','Baisse des coûts solaire et éolien','Hausse des prix de l\'électricité sécurisant la rentabilité des projets'],
+    risks:['Concentration sur quelques grandes capitalisations','Risque de change USD/EUR','Réglementation défavorable aux énergies vertes','Baisse du prix de l\'électricité long terme'],
+  },
+  {
+    id:'o10', symbol:'L8I.DE', name:'Global X Lithium & Battery Tech ETF', sector:'ETF – Batteries & Lithium', category:'etf',
+    risk:6, conviction:'Conviction moyenne', convClass:'cm',
+    targetPrice:16, stopLoss:8.50, horizon:'12-18 mois', potReturn:'+30-50%',
+    peaEligible:false, maxInvest:150,
+    analysis:'ETF thématique axé sur la chaîne de valeur complète des batteries : extraction du lithium (Albemarle, SQM), fabrication de batteries (Panasonic, Samsung SDI, LG Energy), matériaux actifs et recyclage. Exposition globale au mégatrend de l\'électrification. Frais annuels : 0,75 %.',
+    catalysts:['Accélération de la demande en batteries EV','Hausse des prix du lithium avec l\'électrification','Nouvelles gigafactories en Europe','Développement des batteries LFP nouvelle génération'],
+    risks:['Forte dépendance aux acteurs asiatiques (>50 % du fonds)','Volatilité du prix du lithium','Surcapacité de production temporaire en Chine','Risque réglementaire en Amérique Latine (Chili, Argentine)'],
+  },
+];
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let holdings = JSON.parse(localStorage.getItem('pf_holdings') || 'null') || DEFAULT_HOLDINGS.map(h=>({...h}));
+let prices = {}; // {symbol: {price, change, pct, hi, lo, whi, wlo, vol}}
+let charts = {};
+let editId = null;
+let activeFilter = 'all';
+let refreshTimer = null;
+
+/* ════════════════════════════════════════
+   API – Yahoo Finance via CORS proxy
+════════════════════════════════════════ */
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const YF_QUOTE = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=';
+const YF_CHART = 'https://query8.finance.yahoo.com/v8/finance/chart/';
+
+async function fetchQuotes(symbols) {
+  const url = YF_QUOTE + symbols.join(',') + '&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketDayHigh,regularMarketDayLow,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume';
+  try {
+    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(12000)});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const results = d?.quoteResponse?.result || [];
+    results.forEach(q => {
+      prices[q.symbol] = {
+        price: q.regularMarketPrice ?? null,
+        change: q.regularMarketChange ?? 0,
+        pct: q.regularMarketChangePercent ?? 0,
+        hi: q.regularMarketDayHigh ?? null,
+        lo: q.regularMarketDayLow ?? null,
+        whi: q.fiftyTwoWeekHigh ?? null,
+        wlo: q.fiftyTwoWeekLow ?? null,
+        vol: q.regularMarketVolume ?? null,
+      };
+    });
+    return true;
+  } catch(e) {
+    console.warn('Quote fetch error:', e.message);
+    return false;
+  }
+}
+
+async function fetchHistorical(symbol, range='1mo') {
+  const url = YF_CHART + symbol + '?interval=1d&range=' + range;
+  try {
+    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(10000)});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const res = d?.chart?.result?.[0];
+    if (!res) return null;
+    return {
+      timestamps: res.timestamp,
+      closes: res.indicators?.quote?.[0]?.close,
+    };
+  } catch(e) {
+    console.warn('Historical fetch error:', e.message);
+    return null;
+  }
+}
+
+/* ════════════════════════════════════════
+   CALCULATIONS
+════════════════════════════════════════ */
+function holdingStats(h) {
+  const p = prices[h.symbol];
+  const price = p?.price ?? null;
+  const cost = h.qty * h.buy;
+  const value = price !== null ? h.qty * price : null;
+  const pl = value !== null ? value - cost : null;
+  const plPct = pl !== null ? (pl / cost) * 100 : null;
+  const dayPL = (p?.change != null && price !== null) ? h.qty * p.change : null;
+  const dayPct = p?.pct ?? null;
+  return {price, cost, value, pl, plPct, dayPL, dayPct, p};
+}
+
+function portfolioStats() {
+  let totalValue = 0, totalCost = 0, dayPL = 0, priced = 0;
+  holdings.forEach(h => {
+    const s = holdingStats(h);
+    totalCost += s.cost;
+    if (s.value !== null) { totalValue += s.value; priced++; }
+    if (s.dayPL !== null) dayPL += s.dayPL;
+  });
+  const totalPL = totalValue - totalCost;
+  const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
+  const dayPct = totalValue > 0 ? (dayPL / (totalValue - dayPL)) * 100 : 0;
+  return {totalValue, totalCost, totalPL, totalPLPct, dayPL, dayPct, priced};
+}
+
+/* ════════════════════════════════════════
+   FORMATTING
+════════════════════════════════════════ */
+const fmt = (v, d=2) => v !== null && !isNaN(v) ? v.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
+const fmtEur = (v) => v !== null && !isNaN(v) ? v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+const sign = (v) => v > 0 ? '+' : '';
+const cls = (v) => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+const pill = (v) => `<span class="pill ${v>0?'pill-g':v<0?'pill-r':'pill-n'}">${sign(v)}${fmt(v)}%</span>`;
+const riskColor = (r) => r <= 3 ? 'lo' : r >= 7 ? 'hi' : '';
+
+function riskDots(r, max=10) {
+  let s = '<div class="rdots">';
+  for(let i=1;i<=max;i++) s+=`<div class="rd${i<=r?' f '+riskColor(r):''}"></div>`;
+  s += `</div>`;
+  return s;
+}
+
+function convBadge(conviction, cls2) {
+  return `<span class="conv ${cls2}">${conviction}</span>`;
+}
+
+/* ════════════════════════════════════════
+   RENDER – SUMMARY BAR
+════════════════════════════════════════ */
+function renderSummary() {
+  const s = portfolioStats();
+  document.getElementById('sTotalVal').textContent = s.totalValue > 0 ? fmtEur(s.totalValue) : '—';
+  document.getElementById('sTotalCost').textContent = s.totalCost > 0 ? 'Investi : ' + fmtEur(s.totalCost) : '—';
+  const pl = document.getElementById('sTotalPL');
+  pl.textContent = s.totalValue > 0 ? fmtEur(s.totalPL) : '—';
+  pl.className = 'sval ' + cls(s.totalPL);
+  document.getElementById('sTotalPLPct').innerHTML = s.totalValue > 0 ? pill(s.totalPLPct) : '—';
+  document.getElementById('sTotalPLPct').className = 'ssub';
+  const dp = document.getElementById('sDayPL');
+  dp.textContent = fmtEur(s.dayPL);
+  dp.className = 'sval ' + cls(s.dayPL);
+  document.getElementById('sDayPLPct').innerHTML = pill(s.dayPct);
+  document.getElementById('sDayPLPct').className = 'ssub';
+  document.getElementById('sPositions').textContent = holdings.length;
+  const etfs = holdings.filter(h=>h.type==='ETF').length;
+  document.getElementById('sBestPos').textContent = `${etfs} ETF • ${holdings.length-etfs} Actions`;
+}
+
+/* ════════════════════════════════════════
+   RENDER – KPI CARDS
+════════════════════════════════════════ */
+function renderKPIs() {
+  const stats = holdings.map(h=>{
+    const s = holdingStats(h);
+    return {...h,...s};
+  }).filter(h=>h.plPct!==null);
+  if(!stats.length) return;
+  const best = stats.reduce((a,b)=>b.plPct>a.plPct?b:a);
+  const worst = stats.reduce((a,b)=>b.plPct<a.plPct?b:a);
+  const s = portfolioStats();
+  document.getElementById('kBest').innerHTML = `<span class="pos">${sign(best.plPct)}${fmt(best.plPct)}%</span>`;
+  document.getElementById('kBestSym').textContent = best.symbol + ' — ' + best.name;
+  document.getElementById('kWorst').innerHTML = `<span class="neg">${sign(worst.plPct)}${fmt(worst.plPct)}%</span>`;
+  document.getElementById('kWorstSym').textContent = worst.symbol + ' — ' + worst.name;
+  document.getElementById('kUnrPL').innerHTML = `<span class="${cls(s.totalPL)}">${fmtEur(s.totalPL)}</span>`;
+  document.getElementById('kUnrPLPct').innerHTML = pill(s.totalPLPct);
+  document.getElementById('kNbPos').textContent = holdings.length;
+  const etf = holdings.filter(h=>h.type==='ETF').length;
+  document.getElementById('kNbETF').textContent = `${etf} ETF — ${holdings.length-etf} Actions`;
+}
+
+/* ════════════════════════════════════════
+   RENDER – ALLOCATION CHART
+════════════════════════════════════════ */
+const COLORS = ['#3b82f6','#22c55e','#a855f7','#f97316','#14b8a6','#eab308','#ef4444','#06b6d4','#8b5cf6','#f43f5e'];
+
+function renderAllocChart() {
+  const s = portfolioStats();
+  if(s.totalValue <= 0) return;
+  const labels = [], data = [], colors = [];
+  holdings.forEach((h,i) => {
+    const st = holdingStats(h);
+    if(st.value !== null) {
+      labels.push(h.symbol);
+      data.push(+((st.value/s.totalValue)*100).toFixed(1));
+      colors.push(COLORS[i % COLORS.length]);
+    }
+  });
+
+  // Allocation bar
+  const bar = document.getElementById('allocBar');
+  const leg = document.getElementById('allocLegend');
+  bar.innerHTML = data.map((d,i)=>`<div class="aseg" style="width:${d}%;background:${colors[i]}" title="${labels[i]}: ${d}%"></div>`).join('');
+  leg.innerHTML = labels.map((l,i)=>`<div class="alg-item"><div class="alg-dot" style="background:${colors[i]}"></div>${l} ${data[i]}%</div>`).join('');
+
+  if(charts.alloc) charts.alloc.destroy();
+  const ctx = document.getElementById('allocChart').getContext('2d');
+  charts.alloc = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0d1526',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8ea3bd',font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toFixed(1)}%`}}},cutout:'65%'},
+  });
+}
+
+/* ════════════════════════════════════════
+   RENDER – PERFORMANCE CHART
+════════════════════════════════════════ */
+function renderPerfChart() {
+  const data = holdings.map((h,i) => {
+    const s = holdingStats(h);
+    return {label: h.symbol, value: s.plPct, color: (s.plPct ?? 0) >= 0 ? COLORS[i%COLORS.length] : '#ef4444'};
+  }).filter(d=>d.value!==null).sort((a,b)=>b.value-a.value);
+  if(!data.length) return;
+  if(charts.perf) charts.perf.destroy();
+  const ctx = document.getElementById('perfChart').getContext('2d');
+  charts.perf = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:data.map(d=>d.label),
+      datasets:[{data:data.map(d=>+d.value.toFixed(2)),backgroundColor:data.map(d=>d.color),borderRadius:4,borderSkipped:false}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${sign(c.parsed.x)}${c.parsed.x.toFixed(2)}%`}}},
+      scales:{x:{ticks:{color:'#4e6380',callback:v=>`${sign(v)}${v}%`},grid:{color:'rgba(30,45,69,.4)'},border:{color:'#1e2d45'}},y:{ticks:{color:'#8ea3bd',font:{size:11}},grid:{display:false},border:{display:false}}},
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   RENDER – DASHBOARD TABLE
+════════════════════════════════════════ */
+function renderDashTable() {
+  const s = portfolioStats();
+  const tbody = document.getElementById('dashTbody');
+  tbody.innerHTML = holdings.map(h => {
+    const st = holdingStats(h);
+    const wt = st.value !== null && s.totalValue > 0 ? (st.value/s.totalValue*100).toFixed(1)+'%' : '—';
+    return `<tr>
+      <td><strong class="mono">${h.symbol}</strong></td>
+      <td>${h.name}</td>
+      <td><span class="bdg ${h.type==='ETF'?'bdg-e':'bdg-a'}">${h.type}</span></td>
+      <td><span class="bdg bdg-t" style="font-size:.7rem">${h.sector}</span></td>
+      <td class="mono">${h.qty}</td>
+      <td class="mono">${fmtEur(h.buy)}</td>
+      <td class="mono"><strong>${st.price!==null?fmtEur(st.price):'<span class="spin"></span>'}</strong></td>
+      <td class="mono">${st.value!==null?fmtEur(st.value):'—'}</td>
+      <td class="mono ${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</td>
+      <td>${st.plPct!==null?pill(st.plPct):'—'}</td>
+      <td class="mono">${wt}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   RENDER – PORTFOLIO TABLE
+════════════════════════════════════════ */
+function renderPortfolio() {
+  document.getElementById('portCount').textContent = holdings.length;
+  const tbody = document.getElementById('portTbody');
+  tbody.innerHTML = holdings.map(h => {
+    const st = holdingStats(h);
+    return `<tr>
+      <td><strong class="mono">${h.symbol}</strong></td>
+      <td>${h.name}</td>
+      <td><span class="bdg ${h.type==='ETF'?'bdg-e':'bdg-a'}">${h.type}</span></td>
+      <td><span class="bdg bdg-t" style="font-size:.7rem">${h.sector}</span></td>
+      <td class="mono">${h.qty}</td>
+      <td class="mono">${fmtEur(h.buy)}</td>
+      <td class="mono"><strong>${st.price!==null?fmtEur(st.price):'<span class="spin"></span>'}</strong></td>
+      <td class="mono">${st.value!==null?fmtEur(st.value):'—'}</td>
+      <td class="mono ${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</td>
+      <td>${st.plPct!==null?pill(st.plPct):'—'}</td>
+      <td>${st.dayPL!==null?`<span class="${cls(st.dayPL)}">${sign(st.dayPL)}${fmtEur(st.dayPL)}</span>`:'—'} ${st.dayPct!==null?pill(st.dayPct):''}</td>
+      <td class="mono">${st.p?.whi?fmtEur(st.p.whi):'—'}</td>
+      <td class="mono">${st.p?.wlo?fmtEur(st.p.wlo):'—'}</td>
+      <td>
+        <button class="btn btn-g btn-s" onclick="editHolding(${h.id})">✏️</button>
+        <button class="btn btn-d btn-s" onclick="deleteHolding(${h.id})" style="margin-left:4px">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Spark cards
+  renderSparkCards();
+}
+
+/* ════════════════════════════════════════
+   RENDER – SPARK CARDS
+════════════════════════════════════════ */
+async function renderSparkCards() {
+  const container = document.getElementById('sparkCards');
+  container.innerHTML = '';
+
+  for(let i=0; i<holdings.length; i++) {
+    const h = holdings[i];
+    const st = holdingStats(h);
+    const color = COLORS[i % COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.padding = '14px';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-weight:700;font-size:.95rem;font-family:monospace">${h.symbol}</div>
+          <div style="font-size:.78rem;color:var(--t2)">${h.name}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="mono" style="font-weight:600">${st.price!==null?fmtEur(st.price):'—'}</div>
+          <div>${st.dayPct!==null?pill(st.dayPct):''}</div>
+        </div>
+      </div>
+      <div style="height:70px;margin-bottom:10px"><canvas id="spark_${h.id}"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.76rem">
+        <div><span style="color:var(--t3)">Qté:</span> <strong>${h.qty}</strong></div>
+        <div><span style="color:var(--t3)">PRU:</span> <strong>${fmtEur(h.buy)}</strong></div>
+        <div><span style="color:var(--t3)">Valeur:</span> <strong>${st.value!==null?fmtEur(st.value):'—'}</strong></div>
+        <div><span style="color:var(--t3)">P&L:</span> <strong class="${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</strong></div>
+      </div>
+      <div style="margin-top:8px">${st.plPct!==null?`<div style="font-size:.72rem;color:var(--t3);margin-bottom:3px">Performance</div><div class="riskbar"><div class="riskfill" style="width:${Math.min(Math.abs(st.plPct),100)}%;background:${st.plPct>=0?'var(--green)':'var(--red)'}"></div></div>`:'<div style="font-size:.75rem;color:var(--t3)">Cours non disponible</div>'}</div>
+    `;
+    container.appendChild(card);
+
+    // Async: fetch and draw sparkline
+    fetchHistorical(h.symbol, '1mo').then(hist => {
+      const canvas = document.getElementById('spark_'+h.id);
+      if(!canvas || !hist) return;
+      const closes = (hist.closes||[]).filter(v=>v!==null);
+      if(!closes.length) return;
+      if(charts['spark_'+h.id]) charts['spark_'+h.id].destroy();
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0,0,0,70);
+      grad.addColorStop(0, color+'44');
+      grad.addColorStop(1, color+'00');
+      charts['spark_'+h.id] = new Chart(ctx, {
+        type:'line',
+        data:{labels:closes.map((_,i)=>i),datasets:[{data:closes,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:grad,pointRadius:0,tension:.3}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:400}},
+      });
+    });
+  }
+}
+
+/* ════════════════════════════════════════
+   RENDER – OPPORTUNITIES
+════════════════════════════════════════ */
+function renderOpportunities(filter='all') {
+  const list = filter === 'all' ? OPPORTUNITIES : OPPORTUNITIES.filter(o=>o.category===filter);
+  const grid = document.getElementById('oppGrid');
+  if(!list.length){ grid.innerHTML = '<div class="empty"><div class="empty-i">🔍</div><p>Aucune opportunité dans ce filtre</p></div>'; return; }
+
+  grid.innerHTML = list.map(o => {
+    const p = prices[o.symbol];
+    const priceStr = p?.price ? fmtEur(p.price) : '<span class="spin"></span>';
+    const dayStr = p?.pct ? pill(p.pct) : '';
+    const upsidePct = p?.price && o.targetPrice ? ((o.targetPrice-p.price)/p.price*100).toFixed(0) : null;
+    return `<div class="ocard">
+      <div class="ohdr">
+        <div>
+          <div class="osym">${o.symbol}</div>
+          <div class="oname">${o.name}</div>
+          <div style="margin-top:6px"><span class="bdg bdg-t" style="font-size:.7rem">${o.sector}</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="mono" style="font-size:1.1rem;font-weight:700">${priceStr}</div>
+          <div style="margin-top:2px">${dayStr}</div>
+          <div style="margin-top:6px">${convBadge(o.conviction, o.convClass)}</div>
+        </div>
+      </div>
+      <div class="obody">
+        <div class="ometrics">
+          <div><div class="oml">Objectif</div><div class="omv pos">${fmtEur(o.targetPrice)}</div></div>
+          <div><div class="oml">Stop-Loss</div><div class="omv neg">${fmtEur(o.stopLoss)}</div></div>
+          <div><div class="oml">Potentiel</div><div class="omv ${upsidePct>0?'pos':''}">${upsidePct?'+'+upsidePct+'%':o.potReturn}</div></div>
+          <div><div class="oml">Horizon</div><div class="omv">${o.horizon}</div></div>
+          <div><div class="oml">Risque (${o.risk}/10)</div><div style="margin-top:4px">${riskDots(o.risk)}</div></div>
+          <div><div class="oml">Max investi</div><div class="omv">${fmtEur(o.maxInvest)}</div></div>
+        </div>
+        <div class="atext">${o.analysis}</div>
+        <div style="font-size:.75rem;font-weight:600;color:var(--green);margin-bottom:4px;text-transform:uppercase">Catalyseurs</div>
+        <ul class="clist">${o.catalysts.map(c=>`<li>${c}</li>`).join('')}</ul>
+        <div style="font-size:.75rem;font-weight:600;color:var(--org);margin-bottom:4px;margin-top:8px;text-transform:uppercase">Risques</div>
+        <ul class="clist rlist">${o.risks.map(r=>`<li>${r}</li>`).join('')}</ul>
+        ${o.peaEligible!==undefined?`<div style="margin-top:10px;font-size:.74rem;color:var(--t3)">PEA éligible : <strong style="color:${o.peaEligible?'var(--green)':'var(--org)'}">${o.peaEligible?'✓ Oui':'⚠ À vérifier'}</strong></div>`:''}
+        <button class="btn btn-p btn-s" style="width:100%;margin-top:12px" onclick="addOppToPortfolio('${o.symbol}','${o.name}','${o.sector}')">+ Ajouter au portefeuille</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Fetch prices for opportunity symbols
+  const syms = list.map(o=>o.symbol).filter((s,i,a)=>a.indexOf(s)===i && !prices[s]);
+  if(syms.length) fetchQuotes(syms).then(()=>renderOpportunities(filter));
+}
+
+/* ════════════════════════════════════════
+   ADD OPP TO PORTFOLIO
+════════════════════════════════════════ */
+function addOppToPortfolio(symbol, name, sector) {
+  const p = prices[symbol];
+  document.getElementById('mSymbol').value = symbol;
+  document.getElementById('mName').value = name;
+  document.getElementById('mSector').value = sector;
+  if(p?.price) document.getElementById('mBuy').value = p.price.toFixed(4);
+  document.getElementById('mType').value = 'Action';
+  editId = null;
+  document.getElementById('addModal').classList.add('open');
+}
+
+/* ════════════════════════════════════════
+   HOLDINGS MANAGEMENT
+════════════════════════════════════════ */
+function saveHoldings() {
+  localStorage.setItem('pf_holdings', JSON.stringify(holdings));
+}
+
+function openAddModal() {
+  editId = null;
+  ['mSymbol','mName','mSector','mQty','mBuy'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mType').value = 'Action';
+  document.getElementById('addModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+  editId = null;
+}
+
+function editHolding(id) {
+  const h = holdings.find(h=>h.id===id);
+  if(!h) return;
+  editId = id;
+  document.getElementById('mSymbol').value = h.symbol;
+  document.getElementById('mName').value = h.name;
+  document.getElementById('mType').value = h.type;
+  document.getElementById('mSector').value = h.sector;
+  document.getElementById('mQty').value = h.qty;
+  document.getElementById('mBuy').value = h.buy;
+  document.getElementById('addModal').classList.add('open');
+}
+
+function saveHolding() {
+  const symbol = document.getElementById('mSymbol').value.trim().toUpperCase();
+  const name = document.getElementById('mName').value.trim();
+  const type = document.getElementById('mType').value;
+  const sector = document.getElementById('mSector').value.trim();
+  const qty = parseFloat(document.getElementById('mQty').value);
+  const buy = parseFloat(document.getElementById('mBuy').value);
+  if(!symbol||!name||isNaN(qty)||isNaN(buy)||qty<=0||buy<=0) { alert('Veuillez remplir tous les champs correctement.'); return; }
+
+  if(editId) {
+    const i = holdings.findIndex(h=>h.id===editId);
+    if(i>=0) holdings[i] = {...holdings[i],symbol,name,type,sector,qty,buy};
+  } else {
+    const id = Date.now();
+    holdings.push({id,symbol,name,type,sector,qty,buy});
+  }
+  saveHoldings();
+  closeModal();
+  refreshAll();
+}
+
+function deleteHolding(id) {
+  if(!confirm('Supprimer cette position ?')) return;
+  holdings = holdings.filter(h=>h.id!==id);
+  saveHoldings();
+  renderAll();
+}
+
+/* ════════════════════════════════════════
+   FILTER
+════════════════════════════════════════ */
+function filterOpps(cat, btn) {
+  activeFilter = cat;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOpportunities(cat);
+}
+
+/* ════════════════════════════════════════
+   TABS
+════════════════════════════════════════ */
+function switchTab(id, el) {
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('pane-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id==='dashboard') { renderAllocChart(); renderPerfChart(); }
+  if(id==='opportunities') renderOpportunities(activeFilter);
+}
+
+/* ════════════════════════════════════════
+   FULL RENDER
+════════════════════════════════════════ */
+function renderAll() {
+  renderSummary();
+  renderKPIs();
+  renderAllocChart();
+  renderPerfChart();
+  renderDashTable();
+  renderPortfolio();
+}
+
+/* ════════════════════════════════════════
+   REFRESH ALL DATA
+════════════════════════════════════════ */
+async function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Chargement…';
+  document.getElementById('dashSpin').style.display = '';
+  document.getElementById('statusDot').className = 'dot dot-off';
+
+  const syms = [...new Set(holdings.map(h=>h.symbol))];
+  const ok = await fetchQuotes(syms);
+
+  document.getElementById('statusDot').className = ok ? 'dot dot-live' : 'dot dot-off';
+  const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('updateTime').textContent = ok ? `MAJ ${now}` : `Erreur CORS — ${now}`;
+
+  renderAll();
+
+  // Refresh opportunity prices if tab open
+  const oppPane = document.getElementById('pane-opportunities');
+  if(oppPane.classList.contains('active')) renderOpportunities(activeFilter);
+
+  btn.disabled = false;
+  btn.textContent = '↻ Actualiser';
+  document.getElementById('dashSpin').style.display = 'none';
+
+  // Schedule next refresh (5 min)
+  if(refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(refreshAll, 5*60*1000);
+}
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  renderAll();
+  refreshAll();
+});
+</script>
+</body>
+</html>
