@@ -239,9 +239,19 @@ tr:last-child td{border-bottom:none}
 }
 @media(max-width:420px){
   .sbar{grid-template-columns:1fr}
-  .hdr-r .btn-s:not(#refreshBtn){display:none}
+  .hdr-r .btn-s:not(#refreshBtn):not(.sync-ind){display:none}
   .pref-grid{grid-template-columns:1fr 1fr}
 }
+/* ── Sync ── */
+.sync-ind{display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 9px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);transition:.15s;flex-shrink:0}
+.sync-ind:hover{background:var(--bg4);border-color:var(--blue)}
+.sync-steps{padding-left:20px;margin:6px 0}
+.sync-steps li{font-size:.8rem;color:var(--t2);line-height:2}
+.sync-badge{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:7px;font-size:.8rem;width:100%}
+.sync-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
+.sync-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red)}
+.sync-loading{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
+.share-code{font-family:monospace;font-size:.72rem;color:var(--t3);word-break:break-all;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -255,6 +265,10 @@ tr:last-child td{border-bottom:none}
     <button class="btn btn-g btn-s" onclick="openBulkModal()">📋 Saisir portefeuille</button>
     <button class="btn btn-g btn-s" onclick="openAddModal()">＋ Position</button>
     <button class="btn btn-warn btn-s" onclick="resetPortfolio()" title="Vider le portefeuille">🗑</button>
+    <div class="sync-ind" onclick="openSyncModal()" title="Synchronisation multi-appareils" id="syncInd">
+      <span style="font-size:.85rem;line-height:1;transition:.2s" id="syncIcon">☁️</span>
+      <span class="dot" id="syncDot" style="background:var(--t3);width:6px;height:6px"></span>
+    </div>
     <button class="btn btn-p btn-s" id="refreshBtn" onclick="refreshAll()">↻ Actualiser</button>
   </div>
 </header>
@@ -535,6 +549,77 @@ tr:last-child td{border-bottom:none}
 
 </div><!-- /content -->
 
+<!-- ══════════════════ MODAL SYNCHRONISATION ══════════════════ -->
+<div id="syncModal" class="mover" onclick="if(event.target===this)closeSyncModal()">
+  <div class="modal" style="max-width:500px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="mtl" style="margin:0">☁️ Synchronisation multi-appareils</div>
+      <button class="btn btn-g btn-s" onclick="closeSyncModal()">✕</button>
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+      <div style="font-size:.78rem;font-weight:600;color:var(--teal);margin-bottom:6px">⚡ Configuration en 3 étapes (service gratuit)</div>
+      <ol class="sync-steps">
+        <li>Créez un compte gratuit sur <a href="https://jsonbin.io/register" target="_blank" style="color:var(--blue)">jsonbin.io</a></li>
+        <li>Tableau de bord → <strong style="color:var(--t1)">API Keys</strong> → copiez votre <strong style="color:var(--t1)">Master Key</strong></li>
+        <li>Collez-la ci-dessous et cliquez <strong style="color:var(--t1)">Sauvegarder</strong> — la synchro devient automatique</li>
+      </ol>
+    </div>
+
+    <div class="fg">
+      <label class="fl">Clé API JSONBin (Master Key) *</label>
+      <div style="display:flex;gap:8px">
+        <input type="password" class="fi" id="syncApiKey" placeholder="$2b$10$..." style="flex:1;font-family:monospace;font-size:.78rem">
+        <button class="btn btn-g btn-s" onclick="toggleKeyVis()" style="flex-shrink:0;padding:6px 10px">👁</button>
+      </div>
+      <div style="font-size:.7rem;color:var(--t3);margin-top:3px">🔒 Stockée uniquement dans votre navigateur — jamais transmise à nos serveurs</div>
+    </div>
+    <div class="fg">
+      <label class="fl">ID du bin (auto-généré • à copier sur vos autres appareils)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="fi" id="syncBinId" placeholder="Laissez vide pour en créer un nouveau" style="flex:1;font-family:monospace;font-size:.78rem">
+        <button class="btn btn-g btn-s" onclick="copySyncId()" title="Copier l'ID" style="padding:6px 10px">📋</button>
+      </div>
+    </div>
+
+    <div id="syncMsg" style="display:none;margin-bottom:12px"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bd)">
+      <button class="btn btn-p" onclick="saveSyncConfig()" style="flex:1">💾 Sauvegarder</button>
+      <button class="btn btn-g" id="syncNowBtn" onclick="syncNow()" style="display:none">↻ Synchro. maint.</button>
+      <button class="btn btn-d btn-s" id="disconnectBtn" onclick="disconnectSync()" style="display:none">Déconnecter</button>
+    </div>
+
+    <hr class="div">
+
+    <!-- Code de partage pour autres appareils -->
+    <div id="shareSec" style="display:none;margin-bottom:16px">
+      <div style="font-size:.8rem;font-weight:600;color:var(--t1);margin-bottom:6px">📱 Configurer un autre appareil</div>
+      <div style="font-size:.78rem;color:var(--t2);margin-bottom:8px">Copiez ce code et collez-le sur votre autre appareil pour accéder aux mêmes données.</div>
+      <div class="share-code" id="shareCodeVal" style="margin-bottom:8px;cursor:pointer" onclick="copyShareCode()" title="Cliquer pour copier"></div>
+      <button class="btn btn-g btn-s" onclick="copyShareCode()" style="width:100%">📋 Copier le code de partage</button>
+    </div>
+
+    <div class="fg">
+      <label class="fl">Coller un code depuis un autre appareil</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="fi" id="shareCodeInput" placeholder="Collez ici le code de partage…" style="flex:1;font-family:monospace;font-size:.78rem">
+        <button class="btn btn-p btn-s" onclick="pasteShareCode()">Décoder</button>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div style="font-size:.8rem;font-weight:600;color:var(--t2);margin-bottom:10px">💾 Sauvegarde locale (sans compte)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g" onclick="exportJSON()" style="flex:1">⬇️ Exporter .json</button>
+      <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
+        ⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none">
+      </label>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════ MODAL SAISIE EN MASSE ══════════════════ -->
 <div id="bulkModal" class="mover" onclick="if(event.target===this)closeBulkModal()">
   <div class="modal bmodal">
@@ -756,6 +841,8 @@ let editId = null;
 let activeFilter = 'all';
 let refreshTimer = null;
 let preferredSector = localStorage.getItem('pf_pref_sector') || null;
+let syncConfig = JSON.parse(localStorage.getItem('pf_sync') || 'null');
+let syncDebounce = null;
 const CONV_RANK = {'Très forte conviction':4,'Forte conviction':3,'Conviction moyenne':2,'Spéculative':1};
 const SECTOR_NAMES = {renewable:'Énergies Renouvelables',battery:'Batteries & Stockage',rareearth:'Terres Rares / Matériaux',infra:'Infrastructure Énergie',etf:'ETF Thématiques'};
 
@@ -1175,10 +1262,227 @@ function addOppToPortfolio(symbol, name, sector) {
 }
 
 /* ════════════════════════════════════════
+   CLOUD SYNC — JSONBin.io
+════════════════════════════════════════ */
+function scheduleSync() {
+  if(!syncConfig?.apiKey) return;
+  if(syncDebounce) clearTimeout(syncDebounce);
+  syncDebounce = setTimeout(syncToCloud, 1500);
+}
+
+async function syncToCloud() {
+  if(!syncConfig?.apiKey) return;
+  setSyncIndicator('syncing');
+  const payload = {holdings, preferredSector:preferredSector||null, savedAt:new Date().toISOString(), v:2};
+  try {
+    if(!syncConfig.binId) {
+      const r = await fetch('https://api.jsonbin.io/v3/b', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Master-Key':syncConfig.apiKey,'X-Bin-Name':'PortfolioTracker'},
+        body:JSON.stringify(payload),
+        signal:AbortSignal.timeout(12000)
+      });
+      if(!r.ok) throw new Error('Clé invalide (HTTP '+r.status+')');
+      const d = await r.json();
+      syncConfig.binId = d.metadata.id;
+      localStorage.setItem('pf_sync', JSON.stringify(syncConfig));
+      const bi = document.getElementById('syncBinId');
+      if(bi) bi.value = syncConfig.binId;
+      updateShareCode();
+      updateSyncModalState();
+    } else {
+      const r = await fetch('https://api.jsonbin.io/v3/b/'+syncConfig.binId, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-Master-Key':syncConfig.apiKey},
+        body:JSON.stringify(payload),
+        signal:AbortSignal.timeout(12000)
+      });
+      if(!r.ok) throw new Error('Erreur sauvegarde (HTTP '+r.status+')');
+    }
+    setSyncIndicator('ok');
+  } catch(e) {
+    console.warn('Sync error:', e.message);
+    setSyncIndicator('error');
+  }
+}
+
+async function syncFromCloud() {
+  if(!syncConfig?.apiKey || !syncConfig?.binId) return false;
+  setSyncIndicator('syncing');
+  try {
+    const r = await fetch('https://api.jsonbin.io/v3/b/'+syncConfig.binId+'/latest', {
+      headers:{'X-Master-Key':syncConfig.apiKey},
+      signal:AbortSignal.timeout(12000)
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data = (await r.json()).record;
+    if(Array.isArray(data.holdings)) {
+      holdings = data.holdings;
+      localStorage.setItem('pf_holdings', JSON.stringify(holdings));
+    }
+    if('preferredSector' in data) {
+      preferredSector = data.preferredSector;
+      preferredSector ? localStorage.setItem('pf_pref_sector', preferredSector) : localStorage.removeItem('pf_pref_sector');
+    }
+    setSyncIndicator('ok');
+    return true;
+  } catch(e) {
+    console.warn('Load error:', e.message);
+    setSyncIndicator('error');
+    return false;
+  }
+}
+
+function setSyncIndicator(status) {
+  const icon = document.getElementById('syncIcon');
+  const dot  = document.getElementById('syncDot');
+  if(!icon || !dot) return;
+  if(status==='syncing') {
+    icon.textContent='↻'; icon.style.animation='sp .6s linear infinite';
+    dot.style.cssText='background:var(--blue);width:6px;height:6px';
+  } else if(status==='ok') {
+    icon.textContent='☁️'; icon.style.animation='';
+    dot.className='dot dot-live'; dot.style.cssText='width:6px;height:6px';
+  } else if(status==='error') {
+    icon.textContent='☁️'; icon.style.animation='';
+    dot.className='dot dot-off'; dot.style.cssText='width:6px;height:6px';
+  } else {
+    icon.textContent='☁️'; icon.style.animation='';
+    dot.className='dot'; dot.style.cssText='background:var(--t3);width:6px;height:6px';
+  }
+}
+
+/* ── Sync modal ── */
+function openSyncModal() {
+  const ai = document.getElementById('syncApiKey');
+  const bi = document.getElementById('syncBinId');
+  if(syncConfig?.apiKey) ai.value = syncConfig.apiKey;
+  if(syncConfig?.binId)  bi.value = syncConfig.binId;
+  document.getElementById('syncMsg').style.display = 'none';
+  updateShareCode();
+  updateSyncModalState();
+  document.getElementById('syncModal').classList.add('open');
+}
+
+function closeSyncModal() {
+  document.getElementById('syncModal').classList.remove('open');
+}
+
+function updateSyncModalState() {
+  const ok = !!(syncConfig?.apiKey && syncConfig?.binId);
+  document.getElementById('syncNowBtn').style.display   = ok ? '' : 'none';
+  document.getElementById('disconnectBtn').style.display = ok ? '' : 'none';
+  document.getElementById('shareSec').style.display      = ok ? '' : 'none';
+}
+
+function toggleKeyVis() {
+  const i = document.getElementById('syncApiKey');
+  i.type = i.type==='password' ? 'text' : 'password';
+}
+
+function copySyncId() {
+  const v = document.getElementById('syncBinId').value;
+  if(v) { navigator.clipboard.writeText(v); showSyncMsg('ID copié dans le presse-papier !','ok'); }
+}
+
+function updateShareCode() {
+  const el = document.getElementById('shareCodeVal');
+  if(!el || !syncConfig?.apiKey || !syncConfig?.binId) return;
+  el.textContent = btoa(syncConfig.apiKey+'::'+syncConfig.binId);
+}
+
+function copyShareCode() {
+  const txt = document.getElementById('shareCodeVal').textContent;
+  if(txt) { navigator.clipboard.writeText(txt); showSyncMsg('Code de partage copié !','ok'); }
+}
+
+function pasteShareCode() {
+  const raw = document.getElementById('shareCodeInput').value.trim();
+  if(!raw) return;
+  try {
+    const parts = atob(raw).split('::');
+    if(parts.length!==2 || !parts[0] || !parts[1]) throw new Error('format');
+    document.getElementById('syncApiKey').value = parts[0];
+    document.getElementById('syncBinId').value  = parts[1];
+    showSyncMsg('✓ Code décodé — vérifiez les champs et cliquez Sauvegarder','ok');
+  } catch { showSyncMsg('Code invalide ou corrompu','err'); }
+}
+
+async function saveSyncConfig() {
+  const key = document.getElementById('syncApiKey').value.trim();
+  const bid = document.getElementById('syncBinId').value.trim();
+  if(!key) { showSyncMsg('Veuillez entrer votre clé API Master Key','err'); return; }
+  syncConfig = {apiKey:key, binId:bid||null};
+  localStorage.setItem('pf_sync', JSON.stringify(syncConfig));
+  showSyncMsg('Configuration sauvegardée — synchronisation en cours…','loading');
+  await syncToCloud();
+  if(syncConfig.binId) showSyncMsg('✅ Connecté ! Bin ID : '+syncConfig.binId+' — Copiez-le pour vos autres appareils','ok');
+}
+
+function disconnectSync() {
+  if(!confirm('Déconnecter la synchro cloud ? Vos données locales sont conservées.')) return;
+  syncConfig = null;
+  localStorage.removeItem('pf_sync');
+  document.getElementById('syncApiKey').value = '';
+  document.getElementById('syncBinId').value  = '';
+  document.getElementById('shareCodeVal').textContent = '';
+  updateSyncModalState();
+  setSyncIndicator('idle');
+  showSyncMsg('Déconnecté. Données toujours disponibles localement.','ok');
+}
+
+async function syncNow() {
+  showSyncMsg('Synchronisation en cours…','loading');
+  await syncToCloud();
+  showSyncMsg('✅ Synchronisé avec succès !','ok');
+}
+
+function showSyncMsg(msg, type) {
+  const el = document.getElementById('syncMsg');
+  if(!el) return;
+  el.className = 'sync-badge sync-'+(type==='ok'?'ok':type==='err'?'err':'loading');
+  el.textContent = msg;
+  el.style.display = 'flex';
+}
+
+/* ── Export / Import JSON ── */
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({holdings,preferredSector,exportedAt:new Date().toISOString(),v:2},null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'portfolio-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function importJSON(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!Array.isArray(data.holdings)) throw new Error('Format invalide');
+      if(!confirm('Importer '+data.holdings.length+' position(s) ? Cela remplacera votre portefeuille actuel.')) return;
+      holdings = data.holdings;
+      if(data.preferredSector !== undefined) {
+        preferredSector = data.preferredSector;
+        preferredSector ? localStorage.setItem('pf_pref_sector',preferredSector) : localStorage.removeItem('pf_pref_sector');
+      }
+      saveHoldings();
+      renderAll(); initPrefCards(); refreshAll();
+      closeSyncModal();
+    } catch(err) { alert('Fichier invalide : '+err.message); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ════════════════════════════════════════
    HOLDINGS MANAGEMENT
 ════════════════════════════════════════ */
 function saveHoldings() {
   localStorage.setItem('pf_holdings', JSON.stringify(holdings));
+  scheduleSync();
 }
 
 function openAddModal() {
@@ -1368,10 +1672,10 @@ function initPrefCards() {
 }
 
 function setPreferredSector(sector, el) {
-  // Toggle off if clicking same sector
   if(preferredSector === sector) { clearPreference(); return; }
   preferredSector = sector;
   localStorage.setItem('pf_pref_sector', sector);
+  scheduleSync();
   document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
   if(el) el.classList.add('active');
   const btn = document.getElementById('clearPrefBtn');
@@ -1386,6 +1690,7 @@ function setPreferredSector(sector, el) {
 function clearPreference() {
   preferredSector = null;
   localStorage.removeItem('pf_pref_sector');
+  scheduleSync();
   document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
   const btn = document.getElementById('clearPrefBtn');
   if(btn) btn.style.display = 'none';
@@ -1475,9 +1780,17 @@ async function refreshAll() {
 /* ════════════════════════════════════════
    INIT
 ════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  renderAll();
-  initPrefCards();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Si synchro cloud configurée, charger les données du cloud en premier
+  if(syncConfig?.apiKey && syncConfig?.binId) {
+    setSyncIndicator('syncing');
+    const loaded = await syncFromCloud();
+    if(loaded) { renderAll(); initPrefCards(); } else { renderAll(); initPrefCards(); }
+  } else {
+    renderAll();
+    initPrefCards();
+    setSyncIndicator('idle');
+  }
   refreshAll();
 });
 </script>
