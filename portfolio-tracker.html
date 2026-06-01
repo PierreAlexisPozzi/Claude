@@ -252,6 +252,19 @@ tr:last-child td{border-bottom:none}
 .sync-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red)}
 .sync-loading{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
 .share-code{font-family:monospace;font-size:.72rem;color:var(--t3);word-break:break-all;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;line-height:1.5}
+/* ── Symbol autocomplete dropdown ── */
+#symDD{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.55);min-width:280px;max-width:380px;overflow:hidden;display:none}
+.sym-res{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;cursor:pointer;transition:.12s background;border-bottom:1px solid var(--bg3)}
+.sym-res:last-child{border-bottom:none}
+.sym-res:hover,.sym-res.active{background:var(--bg4)}
+.sym-tick{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--blue);min-width:80px;padding-top:1px}
+.sym-info{flex:1;min-width:0}
+.sym-nm{font-size:.82rem;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sym-ex{font-size:.7rem;color:var(--t3);margin-top:1px}
+.sym-badge{font-size:.65rem;padding:1px 5px;border-radius:4px;background:var(--bg4);color:var(--t2);border:1px solid var(--bd);white-space:nowrap;flex-shrink:0;align-self:center}
+.sym-loading{padding:10px 14px;font-size:.8rem;color:var(--t3);text-align:center}
+/* Modal search field hint */
+.sym-hint{font-size:.73rem;color:var(--t3);margin-top:4px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -628,13 +641,13 @@ tr:last-child td{border-bottom:none}
       <button class="btn btn-g btn-s" onclick="closeBulkModal()">✕ Fermer</button>
     </div>
     <div class="bulk-hint">
-      💡 Utilisez le <strong>symbole Yahoo Finance</strong> : actions françaises → <code>VLTSA.PA</code> / allemandes → <code>ECV.DE</code> / néerlandaises → <code>ALFEN.AS</code> / ETF Amundi Paris → <code>CW8.PA</code>
+      💡 Tapez le <strong>nom de la société ou le code Boursobank</strong> dans la colonne Recherche → sélectionnez le résultat Yahoo Finance correct dans la liste déroulante. Le symbole Yahoo Finance s'affiche en bleu sous le champ.
     </div>
     <div class="tw" style="margin-bottom:14px;max-height:380px;overflow-y:auto">
       <table id="bulkTable" style="min-width:650px">
         <thead>
           <tr>
-            <th>Symbole Yahoo *</th>
+            <th>Recherche / Symbole *</th>
             <th>Nom affiché *</th>
             <th>Type</th>
             <th>Secteur</th>
@@ -658,11 +671,18 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- ══════════════════ MODAL ADD POSITION ══════════════════ -->
-<div id="addModal" class="mover" onclick="if(event.target===this)closeModal()">
+<div id="addModal" class="mover" onclick="if(event.target===this){closeModal();closeDD()}">
   <div class="modal">
     <div class="mtl">➕ Ajouter / Modifier une position</div>
-    <div class="fg"><label class="fl">Symbole Yahoo Finance (ex: VLTSA.PA, CW8.PA)</label>
-      <input type="text" class="fi" id="mSymbol" placeholder="VLTSA.PA" oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="fg">
+      <label class="fl">Rechercher par nom ou symbole</label>
+      <input type="text" class="fi" id="mSearch" placeholder="ex: Voltalia ou VLTSA" autocomplete="off"
+        oninput="onModalSearch(this)" onkeydown="ddKeyNav(event,'modal')" onfocus="onModalSearch(this)">
+      <div class="sym-hint">Tapez le nom de la société ou le code Boursobank → sélectionnez le résultat Yahoo Finance correct</div>
+    </div>
+    <div class="fg"><label class="fl">Symbole Yahoo Finance</label>
+      <input type="text" class="fi" id="mSymbol" placeholder="VLTSA.PA" autocomplete="off"
+        oninput="this.value=this.value.toUpperCase()" style="font-family:monospace;font-weight:600;color:var(--blue)"></div>
     <div class="fg"><label class="fl">Nom affiché</label>
       <input type="text" class="fi" id="mName" placeholder="Voltalia"></div>
     <div class="fr">
@@ -683,6 +703,9 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 </div>
+
+<!-- Floating symbol autocomplete dropdown (shared) -->
+<div id="symDD"></div>
 
 <!-- ══════════════════ SCRIPT ══════════════════ -->
 <script>
@@ -852,6 +875,160 @@ const SECTOR_NAMES = {renewable:'Énergies Renouvelables',battery:'Batteries & S
 const PROXY = 'https://api.allorigins.win/raw?url=';
 const YF_QUOTE = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=';
 const YF_CHART = 'https://query8.finance.yahoo.com/v8/finance/chart/';
+const YF_SEARCH = 'https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=8&newsCount=0&q=';
+
+/* ════════════════════════════════════════
+   SYMBOL AUTOCOMPLETE
+════════════════════════════════════════ */
+let _ddTarget = null;   // {input, nameInput, symInput, context:'modal'|'bulk'}
+let _ddTimer  = null;
+let _ddIdx    = -1;
+let _ddResults = [];
+
+async function searchSymbol(query) {
+  if(!query || query.length < 2) return [];
+  try {
+    const url = YF_SEARCH + encodeURIComponent(query);
+    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+    if(!r.ok) return [];
+    const d = await r.json();
+    return (d?.quotes || []).filter(q => q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'MUTUALFUND'));
+  } catch(e) { return []; }
+}
+
+function showDD(results, anchorEl) {
+  const dd = document.getElementById('symDD');
+  _ddResults = results;
+  _ddIdx = -1;
+
+  if(!results.length) { dd.style.display = 'none'; return; }
+
+  const rect = anchorEl.getBoundingClientRect();
+  dd.style.display = 'block';
+  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+  dd.style.maxHeight = '260px';
+  dd.style.overflowY = 'auto';
+
+  dd.innerHTML = results.map((q, i) => {
+    const name = q.longname || q.shortname || q.symbol;
+    const exch = q.exchDisp || q.exchange || '';
+    const type = q.quoteType === 'ETF' ? 'ETF' : (q.quoteType === 'MUTUALFUND' ? 'Fonds' : 'Action');
+    return `<div class="sym-res" data-idx="${i}" onmousedown="selectSym(${i})">
+      <div class="sym-tick">${q.symbol}</div>
+      <div class="sym-info"><div class="sym-nm" title="${name}">${name}</div><div class="sym-ex">${exch}</div></div>
+      <div class="sym-badge">${type}</div>
+    </div>`;
+  }).join('');
+}
+
+function closeDD() {
+  document.getElementById('symDD').style.display = 'none';
+  _ddTarget = null;
+  _ddIdx = -1;
+}
+
+function selectSym(idx) {
+  const q = _ddResults[idx];
+  if(!q || !_ddTarget) return;
+  const name = q.longname || q.shortname || q.symbol;
+  const type = q.quoteType === 'ETF' ? 'ETF' : 'Action';
+
+  if(_ddTarget.context === 'modal') {
+    document.getElementById('mSearch').value = name;
+    document.getElementById('mSymbol').value = q.symbol;
+    document.getElementById('mName').value = name;
+    document.getElementById('mType').value = type;
+  } else if(_ddTarget.context === 'bulk') {
+    const inp = _ddTarget.input;
+    inp.value = name;
+    inp.dataset.sym = q.symbol;
+    // Update the symbol label below the input
+    let lbl = inp.parentElement.querySelector('.bulk-sym-lbl');
+    if(!lbl) {
+      lbl = document.createElement('div');
+      lbl.className = 'bulk-sym-lbl';
+      lbl.style.cssText = 'font-size:.65rem;color:var(--blue);margin-top:1px;font-family:monospace';
+      inp.parentElement.appendChild(lbl);
+    }
+    lbl.textContent = q.symbol;
+    // Fill name column (next input in the row)
+    const nameInp = _ddTarget.nameInput;
+    if(nameInp && !nameInp.value) nameInp.value = name;
+    // Fill type select
+    const sel = inp.closest('tr')?.querySelector('select');
+    if(sel) sel.value = type;
+  }
+  closeDD();
+}
+
+function ddKeyNav(e, context, bulkInput) {
+  const dd = document.getElementById('symDD');
+  if(dd.style.display === 'none') return;
+  const items = dd.querySelectorAll('.sym-res');
+  if(e.key === 'ArrowDown') {
+    e.preventDefault();
+    _ddIdx = Math.min(_ddIdx + 1, items.length - 1);
+  } else if(e.key === 'ArrowUp') {
+    e.preventDefault();
+    _ddIdx = Math.max(_ddIdx - 1, -1);
+  } else if(e.key === 'Enter' && _ddIdx >= 0) {
+    e.preventDefault();
+    selectSym(_ddIdx);
+    return;
+  } else if(e.key === 'Escape') {
+    closeDD(); return;
+  } else return;
+  items.forEach((el,i) => el.classList.toggle('active', i === _ddIdx));
+  if(_ddIdx >= 0) items[_ddIdx].scrollIntoView({block:'nearest'});
+}
+
+function onModalSearch(inp) {
+  clearTimeout(_ddTimer);
+  const q = inp.value.trim();
+  if(!q) { closeDD(); return; }
+  _ddTarget = {context:'modal'};
+  document.getElementById('symDD').innerHTML = '<div class="sym-loading">Recherche…</div>';
+  document.getElementById('symDD').style.display = 'block';
+  const rect = inp.getBoundingClientRect();
+  const dd = document.getElementById('symDD');
+  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+  _ddTimer = setTimeout(async () => {
+    const res = await searchSymbol(q);
+    if(_ddTarget?.context === 'modal') showDD(res, inp);
+  }, 350);
+}
+
+function onBulkSearch(inp) {
+  clearTimeout(_ddTimer);
+  const q = inp.value.trim();
+  const row = inp.closest('tr');
+  const nameInp = row ? row.querySelectorAll('input')[1] : null;
+  if(!q) { closeDD(); return; }
+  _ddTarget = {context:'bulk', input: inp, nameInput: nameInp};
+  const dd = document.getElementById('symDD');
+  dd.innerHTML = '<div class="sym-loading">Recherche…</div>';
+  dd.style.display = 'block';
+  const rect = inp.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.width = Math.max(rect.width, 280) + 'px';
+  _ddTimer = setTimeout(async () => {
+    const res = await searchSymbol(q);
+    if(_ddTarget?.context === 'bulk' && _ddTarget.input === inp) showDD(res, inp);
+  }, 350);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const dd = document.getElementById('symDD');
+  if(dd && !dd.contains(e.target) && e.target.id !== 'mSearch' && !e.target.classList.contains('fi')) {
+    closeDD();
+  }
+});
 
 async function fetchQuotes(symbols) {
   const url = YF_QUOTE + symbols.join(',') + '&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketDayHigh,regularMarketDayLow,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume';
@@ -1252,12 +1429,14 @@ function renderOpportunities(filter='all') {
 ════════════════════════════════════════ */
 function addOppToPortfolio(symbol, name, sector) {
   const p = prices[symbol];
+  document.getElementById('mSearch').value = name;
   document.getElementById('mSymbol').value = symbol;
   document.getElementById('mName').value = name;
   document.getElementById('mSector').value = sector;
   if(p?.price) document.getElementById('mBuy').value = p.price.toFixed(4);
   document.getElementById('mType').value = 'Action';
   editId = null;
+  closeDD();
   document.getElementById('addModal').classList.add('open');
 }
 
@@ -1487,13 +1666,15 @@ function saveHoldings() {
 
 function openAddModal() {
   editId = null;
-  ['mSymbol','mName','mSector','mQty','mBuy'].forEach(id=>document.getElementById(id).value='');
+  ['mSearch','mSymbol','mName','mSector','mQty','mBuy'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mType').value = 'Action';
+  closeDD();
   document.getElementById('addModal').classList.add('open');
 }
 
 function closeModal() {
   document.getElementById('addModal').classList.remove('open');
+  closeDD();
   editId = null;
 }
 
@@ -1501,12 +1682,14 @@ function editHolding(id) {
   const h = holdings.find(h=>h.id===id);
   if(!h) return;
   editId = id;
+  document.getElementById('mSearch').value = h.name;
   document.getElementById('mSymbol').value = h.symbol;
   document.getElementById('mName').value = h.name;
   document.getElementById('mType').value = h.type;
   document.getElementById('mSector').value = h.sector;
   document.getElementById('mQty').value = h.qty;
   document.getElementById('mBuy').value = h.buy;
+  closeDD();
   document.getElementById('addModal').classList.add('open');
 }
 
@@ -1573,7 +1756,13 @@ function addBulkRow(data) {
   const qty = data?.qty || '';
   const buy = data?.buy || '';
   tr.innerHTML = `
-    <td><input type="text" class="fi" style="min-width:100px" placeholder="CW8.PA" value="${sym}" oninput="this.value=this.value.toUpperCase()"></td>
+    <td style="position:relative">
+      <input type="text" class="fi" style="min-width:110px" placeholder="Nom ou symbole" value="${sym||name}"
+        autocomplete="off" data-sym="${sym}"
+        oninput="onBulkSearch(this)" onkeydown="ddKeyNav(event,'bulk',this)" onfocus="onBulkSearch(this)"
+        title="${sym ? sym : ''}">
+      ${sym ? `<div style="font-size:.65rem;color:var(--blue);margin-top:1px;font-family:monospace">${sym}</div>` : ''}
+    </td>
     <td><input type="text" class="fi" style="min-width:120px" placeholder="Nom de la valeur" value="${name}"></td>
     <td>
       <select class="fsel" style="min-width:70px">
@@ -1597,7 +1786,10 @@ function saveBulk() {
   rows.forEach((row, idx) => {
     const inputs = row.querySelectorAll('input');
     const select = row.querySelector('select');
-    const symbol = inputs[0].value.trim().toUpperCase();
+    // Use data-sym (set by autocomplete selection) as the Yahoo Finance symbol,
+    // falling back to the raw text if user typed it directly in uppercase
+    const symInput = inputs[0];
+    const symbol = (symInput.dataset.sym || symInput.value.trim()).toUpperCase();
     const name   = inputs[1].value.trim();
     const type   = select.value;
     const sector = inputs[2].value.trim() || 'Non défini';
@@ -1612,7 +1804,7 @@ function saveBulk() {
     const errQty = isNaN(qty) || qty <= 0;
     const errBuy = isNaN(buy) || buy <= 0;
 
-    inputs[0].style.borderColor = errSym ? 'var(--red)' : '';
+    symInput.style.borderColor = errSym ? 'var(--red)' : '';
     inputs[1].style.borderColor = errNam ? 'var(--red)' : '';
     inputs[3].style.borderColor = errQty ? 'var(--red)' : '';
     inputs[4].style.borderColor = errBuy ? 'var(--red)' : '';
