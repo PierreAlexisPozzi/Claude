@@ -178,6 +178,20 @@ tr:last-child td{border-bottom:none}
 .riskfill{height:100%;border-radius:3px;transition:width .4s}
 /* ── Divider ── */
 .div{border:none;border-top:1px solid var(--bd);margin:16px 0}
+/* ── Onboarding ── */
+.onboard{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);border:1px solid var(--bd);border-radius:14px;padding:48px 32px;text-align:center;margin-bottom:20px}
+.onboard-icon{font-size:4rem;margin-bottom:18px;display:block}
+.onboard h2{font-size:1.4rem;font-weight:700;margin-bottom:10px}
+.onboard p{font-size:.9rem;color:var(--t2);max-width:480px;margin:0 auto 24px;line-height:1.6}
+.onboard-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+/* ── Bulk modal ── */
+.bmodal{max-width:800px!important;width:96%!important;max-height:92vh;overflow-y:auto}
+#bulkBody tr:hover td{background:var(--bg4)}
+#bulkBody input,#bulkBody select{font-size:.8rem!important;padding:5px 8px!important}
+.bulk-hint{font-size:.78rem;color:var(--t3);background:var(--bg3);border-radius:6px;padding:8px 12px;margin-bottom:14px}
+.bulk-hint code{background:var(--bd);border-radius:3px;padding:1px 5px;font-family:monospace;color:var(--teal)}
+/* ── Reset btn ── */
+.btn-warn{background:rgba(234,179,8,.1);color:var(--yel);border:1px solid rgba(234,179,8,.25)}.btn-warn:hover{background:rgba(234,179,8,.18)}
 </style>
 </head>
 <body>
@@ -188,7 +202,9 @@ tr:last-child td{border-bottom:none}
   <div class="hdr-r">
     <span class="dot dot-live" id="statusDot" title="Statut flux données"></span>
     <span id="updateTime" style="font-size:.76rem;color:var(--t3)">—</span>
+    <button class="btn btn-g btn-s" onclick="openBulkModal()">📋 Saisir portefeuille</button>
     <button class="btn btn-g btn-s" onclick="openAddModal()">＋ Position</button>
+    <button class="btn btn-warn btn-s" onclick="resetPortfolio()" title="Vider le portefeuille">🗑</button>
     <button class="btn btn-p btn-s" id="refreshBtn" onclick="refreshAll()">↻ Actualiser</button>
   </div>
 </header>
@@ -214,6 +230,20 @@ tr:last-child td{border-bottom:none}
 
   <!-- ─── DASHBOARD ─── -->
   <div id="pane-dashboard" class="pane active">
+
+    <!-- Onboarding (affiché si portefeuille vide) -->
+    <div id="emptyDash" class="onboard" style="display:none">
+      <span class="onboard-icon">📈</span>
+      <h2>Bienvenue dans Portfolio Tracker Pro</h2>
+      <p>Votre portefeuille est vide. Saisissez vos positions pour commencer le suivi en temps réel avec prix, P&amp;L et graphiques.</p>
+      <div class="onboard-cta">
+        <button class="btn btn-p" onclick="openBulkModal()">📋 Saisir mon portefeuille</button>
+        <button class="btn btn-g" onclick="openAddModal()">＋ Ajouter une position</button>
+        <button class="btn btn-g" onclick="loadDemo()">🧪 Charger des exemples</button>
+      </div>
+    </div>
+
+    <div id="mainDash">
     <div class="g4" id="kpiGrid">
       <div class="card"><div class="ch"><div class="ct">Meilleure perf.</div><span style="font-size:1.3rem">🚀</span></div><div class="kv pos" id="kBest">—</div><div class="ks" id="kBestSym">—</div></div>
       <div class="card"><div class="ch"><div class="ct">Pire perf.</div><span style="font-size:1.3rem">📉</span></div><div class="kv neg" id="kWorst">—</div><div class="ks" id="kWorstSym">—</div></div>
@@ -239,13 +269,31 @@ tr:last-child td{border-bottom:none}
         <tbody id="dashTbody"></tbody>
       </table></div>
     </div>
+    </div><!-- /mainDash -->
   </div>
 
   <!-- ─── PORTFOLIO ─── -->
   <div id="pane-portfolio" class="pane">
+
+    <!-- Onboarding (affiché si portefeuille vide) -->
+    <div id="emptyPort" class="onboard" style="display:none">
+      <span class="onboard-icon">💼</span>
+      <h2>Saisissez votre portefeuille</h2>
+      <p>Entrez vos positions avec le symbole Yahoo Finance, la quantité et votre prix de revient. Les cours seront récupérés automatiquement.</p>
+      <div class="onboard-cta">
+        <button class="btn btn-p" onclick="openBulkModal()">📋 Saisir en masse</button>
+        <button class="btn btn-g" onclick="openAddModal()">＋ Position par position</button>
+        <button class="btn btn-g" onclick="loadDemo()">🧪 Charger des exemples</button>
+      </div>
+    </div>
+
+    <div id="mainPort">
     <div class="sh">
       <div class="st">Mes positions <span id="portCount" class="bdg bdg-e" style="font-size:.78rem;margin-left:6px">0</span></div>
-      <button class="btn btn-p btn-s" onclick="openAddModal()">＋ Ajouter position</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g btn-s" onclick="openBulkModal()">📋 Saisir en masse</button>
+        <button class="btn btn-p btn-s" onclick="openAddModal()">＋ Ajouter position</button>
+      </div>
     </div>
     <div class="tw">
       <table id="portTable">
@@ -254,6 +302,7 @@ tr:last-child td{border-bottom:none}
       </table>
     </div>
     <div class="g3" id="sparkCards"></div>
+    </div><!-- /mainPort -->
   </div>
 
   <!-- ─── OPPORTUNITIES ─── -->
@@ -277,39 +326,44 @@ tr:last-child td{border-bottom:none}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="macroTop">
 
       <div class="card asec">
-        <h3>🌍 Contexte macro (Juin 2025)</h3>
+        <h3>🌍 Contexte macro — <span style="color:var(--teal)">Juin 2026</span></h3>
         <div class="abl">
           <h4>Marchés actions</h4>
-          <p>Les marchés européens affichent une résilience notable portée par une rotation sectorielle favorable vers l'industrie, l'énergie et les valeurs de transition. Le STOXX 600 bénéficie du cycle de baisses de taux de la BCE, amorcé dès septembre 2024, désormais à 2,75 %. Les small & mid caps européens retrouvent de l'attrait après deux années de sous-performance relative.</p>
+          <p>Après 18 mois de cycle de baisses BCE, les marchés européens ont retrouvé un second souffle en 2026. Le STOXX 600 évolue près de ses plus hauts historiques, soutenu par la rotation vers les valeurs cycliques, l'industrie et la transition énergétique. Les small &amp; mid caps européennes connaissent un net retour en grâce : elles sur-performent le large cap depuis janvier 2026, portées par l'amélioration des marges et le retour des M&amp;A.</p>
         </div>
         <div class="abl">
           <h4>Taux &amp; Inflation</h4>
-          <p>L'inflation zone euro est revenue sous les 2 % (objectif BCE). La BCE a procédé à 4 baisses depuis 2024, offrant un environnement favorable aux actifs de croissance et aux énergies renouvelables (coût de financement en baisse). Les taux longs se stabilisent autour de 2,5–3 % en Allemagne.</p>
+          <p>La BCE a poursuivi son assouplissement : taux directeur désormais à <strong>2,00–2,25 %</strong>. L'inflation zone euro se stabilise à 1,8–2,1 %, dans la cible. Le Bund 10 ans oscille entre 2,0 % et 2,5 %, créant un environnement particulièrement favorable aux projets ENR capital-intensifs dont le coût de financement diminue sensiblement. Les marges de crédit des émetteurs de qualité se compriment.</p>
         </div>
         <div class="abl">
-          <h4>Risques principaux</h4>
+          <h4>Risques principaux — Juin 2026</h4>
           <ul>
-            <li>Regain de tensions géopolitiques (Ukraine, Moyen-Orient)</li>
-            <li>Dérapage budgétaire en France (risque de notation)</li>
-            <li>Rebond inflationniste lié à l'énergie</li>
-            <li>Ralentissement économique en Chine impactant les exportateurs européens</li>
+            <li>Tensions commerciales USA–UE (droits de douane, secteurs stratégiques)</li>
+            <li>Ralentissement de la demande chinoise affectant les exportateurs et miniers</li>
+            <li>Risque de bulle dans certains segments IA/technologie (valorisations tendues)</li>
+            <li>Incertitude politique en France (trajectoire budgétaire 2027)</li>
+            <li>Flambée géopolitique possible (Moyen-Orient, Taiwan)</li>
           </ul>
         </div>
       </div>
 
       <div class="card asec">
-        <h3>📈 Secteurs favorisés</h3>
+        <h3>📈 Secteurs favorisés — Juin 2026</h3>
         <div class="abl">
           <h4>Énergies renouvelables &amp; Transition</h4>
-          <p>Catalyseurs : Green Deal européen, objectif 45 % ENR en 2030, RePowerEU, baisse des coûts de financement. Les opérateurs d'ENR profitent de PPAs (Power Purchase Agreements) à long terme sécurisant la visibilité des revenus.</p>
+          <p>Le Green Deal européen accélère : l'objectif 45 % ENR en 2030 impose un rythme d'installation record (+60 GW/an en Europe). Les opérateurs ENR bénéficient de PPAs à long terme avec des prix de vente moyens en hausse. La baisse des taux réduit le coût du capital et améliore mécaniquement la valeur des actifs long-terme.</p>
         </div>
         <div class="abl">
           <h4>Technologies de batteries &amp; Stockage</h4>
-          <p>Accélération de la demande portée par : électrification des transports, stockage résidentiel/industriel, gigafactories européennes. Pénurie potentielle de matériaux critiques (lithium, manganèse, graphite) créant des opportunités dans toute la chaîne de valeur.</p>
+          <p>2026 est l'année des mises en service des premières gigafactories européennes (ACC, Northvolt, CATL Europe). La demande en matériaux actifs (graphite, NMC, LFP) explose. Le marché du stockage stationnaire (grid-scale) décolle avec les besoins d'équilibrage réseau liés à l'intermittence des ENR.</p>
         </div>
         <div class="abl">
           <h4>Matériaux critiques &amp; Terres rares</h4>
-          <p>Le Critical Raw Materials Act européen (2024) sécurise les approvisionnements. Eramet, CMOC, les recycleurs de batteries bénéficient de la politique de souveraineté industrielle européenne et des subventions à l'extraction/raffinage locaux.</p>
+          <p>Le Critical Raw Materials Act (CRMA, 2024) contraint désormais les industriels à sourcer 10 % de leurs matériaux stratégiques en Europe d'ici 2030. Les producteurs européens de lithium, manganèse, graphite et matériaux de recyclage bénéficient de subventions, de contrats préférentiels et d'une prime de souveraineté croissante sur leurs valorisations.</p>
+        </div>
+        <div class="abl">
+          <h4>Infrastructure électrique &amp; Grid</h4>
+          <p>L'Europe doit tripler ses investissements réseau d'ici 2030 pour accueillir la production ENR. Transformateurs HVDC, câbles sous-marins, postes intelligents : carnet de commandes historique pour les acteurs de l'infrastructure (Siemens Energy, Prysmian, Nexans). La demande en data centers IA amplifie encore la pression sur les réseaux électriques.</p>
         </div>
       </div>
     </div>
@@ -376,22 +430,59 @@ tr:last-child td{border-bottom:none}
       <h3>📊 Scénarios de marché (horizon 12-18 mois)</h3>
       <div class="scens">
         <div class="sc sc-b">
-          <div class="scl">🟢 Scénario haussier (+30 à +50 %)</div>
-          <div class="sct">Accélération de la transition énergétique, baisses de taux BCE supplémentaires, retour des flux sur les small caps européennes, catalyseurs sectoriels (Critical Raw Materials Act mis en œuvre, contrats ENR massifs). Objectif portefeuille : +40 à +55 %.</div>
+          <div class="scl">🟢 Scénario haussier (+35 à +60 %)</div>
+          <div class="sct">Baisses BCE supplémentaires (taux à 1,75 %), accélération des mises en service ENR, hausse des prix de l'électricité, mise en place du CRMA, retour massif des flux institutionnels sur les small caps européennes. Catalyseurs réalisés sur Voltalia, Encavis, Mersen et Siemens Energy. Objectif portefeuille : +45 à +60 %.</div>
         </div>
         <div class="sc sc-n">
-          <div class="scl">🔵 Scénario central (+15 à +25 %)</div>
-          <div class="sct">Croissance modérée, inflation maîtrisée, maintien de la politique de transition européenne. La sélection de valeurs de qualité avec des catalyseurs clairs permet de surperformer l'indice. Objectif portefeuille : +18 à +28 %.</div>
+          <div class="scl">🔵 Scénario central (+18 à +30 %)</div>
+          <div class="sct">Croissance modérée zone euro (+1,2–1,5 %), inflation contenue, BCE stable à 2 %, transition énergétique en rythme de croisière. La sélection de valeurs de qualité sur les thèmes batteries, ENR et infrastructure permet de surperformer le STOXX 600. Objectif portefeuille : +20 à +32 %.</div>
         </div>
         <div class="sc sc-r">
           <div class="scl">🔴 Scénario baissier (-15 à -25 %)</div>
-          <div class="sct">Récession en zone euro, rebond inflationniste, crise géopolitique majeure ou krach obligataire. Les stops-loss limitent la perte maximale du portefeuille à -18 %. Diversification ETF monde joue son rôle d'amortisseur.</div>
+          <div class="sct">Choc géopolitique majeur, guerre commerciale USA-UE, récession en Allemagne, rebond inflationniste forçant la BCE à remonter ses taux. Effondrement des valeurs ENR et batteries. Les stops-loss limitent la perte max à -18 %. L'ETF MSCI World joue son rôle d'amortisseur.</div>
         </div>
       </div>
     </div>
   </div>
 
 </div><!-- /content -->
+
+<!-- ══════════════════ MODAL SAISIE EN MASSE ══════════════════ -->
+<div id="bulkModal" class="mover" onclick="if(event.target===this)closeBulkModal()">
+  <div class="modal bmodal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="mtl" style="margin:0">📋 Saisir mon portefeuille</div>
+      <button class="btn btn-g btn-s" onclick="closeBulkModal()">✕ Fermer</button>
+    </div>
+    <div class="bulk-hint">
+      💡 Utilisez le <strong>symbole Yahoo Finance</strong> : actions françaises → <code>VLTSA.PA</code> / allemandes → <code>ECV.DE</code> / néerlandaises → <code>ALFEN.AS</code> / ETF Amundi Paris → <code>CW8.PA</code>
+    </div>
+    <div class="tw" style="margin-bottom:14px;max-height:380px;overflow-y:auto">
+      <table id="bulkTable" style="min-width:650px">
+        <thead>
+          <tr>
+            <th>Symbole Yahoo *</th>
+            <th>Nom affiché *</th>
+            <th>Type</th>
+            <th>Secteur</th>
+            <th>Quantité *</th>
+            <th>PRU € *</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bulkBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:4px;border-top:1px solid var(--bd)">
+      <button class="btn btn-g btn-s" onclick="addBulkRow({})">＋ Ligne</button>
+      <button class="btn btn-g btn-s" onclick="loadDemo()" title="Remplir avec des exemples">🧪 Exemples</button>
+      <button class="btn btn-warn btn-s" onclick="clearBulkRows()">🗑 Vider</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-g" onclick="closeBulkModal()">Annuler</button>
+      <button class="btn btn-p" onclick="saveBulk()">✓ Enregistrer tout</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════ MODAL ADD POSITION ══════════════════ -->
 <div id="addModal" class="mover" onclick="if(event.target===this)closeModal()">
@@ -425,15 +516,15 @@ tr:last-child td{border-bottom:none}
 /* ════════════════════════════════════════
    DATA
 ════════════════════════════════════════ */
-const DEFAULT_HOLDINGS = [
-  {id:1,symbol:'CW8.PA',   name:'Amundi MSCI World',           type:'ETF',    sector:'Monde',              qty:5,  buy:415.00},
-  {id:2,symbol:'PAEEM.PA', name:'Amundi MSCI Emerg. Markets',  type:'ETF',    sector:'Émergents',           qty:10, buy:28.50},
-  {id:3,symbol:'IQQH.DE',  name:'iShares Global Clean Energy', type:'ETF',    sector:'Énergies Prop.',      qty:30, buy:15.80},
-  {id:4,symbol:'VLTSA.PA', name:'Voltalia',                    type:'Action', sector:'Énergies Renouv.',    qty:40, buy:9.20},
-  {id:5,symbol:'ERA.PA',   name:'Eramet',                      type:'Action', sector:'Matériaux Critiques', qty:8,  buy:58.00},
-  {id:6,symbol:'UMI.BR',   name:'Umicore',                     type:'Action', sector:'Tech. Batteries',     qty:25, buy:11.50},
-  {id:7,symbol:'ALFEN.AS', name:'Alfen',                       type:'Action', sector:'Stockage Énergie',    qty:10, buy:24.00},
-  {id:8,symbol:'MRN.PA',   name:'Mersen',                      type:'Action', sector:'Composants',          qty:15, buy:28.50},
+const DEMO_HOLDINGS = [
+  {symbol:'CW8.PA',   name:'Amundi MSCI World',           type:'ETF',    sector:'Monde',              qty:5,  buy:415.00},
+  {symbol:'IQQH.DE',  name:'iShares Global Clean Energy', type:'ETF',    sector:'Énergies Prop.',      qty:30, buy:15.80},
+  {symbol:'VLTSA.PA', name:'Voltalia',                    type:'Action', sector:'Énergies Renouv.',    qty:40, buy:9.20},
+  {symbol:'ERA.PA',   name:'Eramet',                      type:'Action', sector:'Matériaux Critiques', qty:8,  buy:58.00},
+  {symbol:'UMI.BR',   name:'Umicore',                     type:'Action', sector:'Tech. Batteries',     qty:25, buy:11.50},
+  {symbol:'ALFEN.AS', name:'Alfen',                       type:'Action', sector:'Stockage Énergie',    qty:10, buy:24.00},
+  {symbol:'MRN.PA',   name:'Mersen',                      type:'Action', sector:'Composants',          qty:15, buy:28.50},
+  {symbol:'ENR.DE',   name:'Siemens Energy',              type:'Action', sector:'Infra. Énergie',      qty:5,  buy:48.00},
 ];
 
 const OPPORTUNITIES = [
@@ -532,7 +623,7 @@ const OPPORTUNITIES = [
 /* ════════════════════════════════════════
    STATE
 ════════════════════════════════════════ */
-let holdings = JSON.parse(localStorage.getItem('pf_holdings') || 'null') || DEFAULT_HOLDINGS.map(h=>({...h}));
+let holdings = JSON.parse(localStorage.getItem('pf_holdings') || 'null') || [];
 let prices = {}; // {symbol: {price, change, pct, hi, lo, whi, wlo, vol}}
 let charts = {};
 let editId = null;
@@ -983,6 +1074,120 @@ function deleteHolding(id) {
 }
 
 /* ════════════════════════════════════════
+   BULK ENTRY
+════════════════════════════════════════ */
+function openBulkModal() {
+  const body = document.getElementById('bulkBody');
+  body.innerHTML = '';
+  // Pre-fill with existing holdings for editing, or 4 empty rows
+  if(holdings.length > 0) {
+    holdings.forEach(h => addBulkRow(h));
+    addBulkRow({});
+  } else {
+    for(let i=0;i<4;i++) addBulkRow({});
+  }
+  document.getElementById('bulkModal').classList.add('open');
+}
+
+function closeBulkModal() {
+  document.getElementById('bulkModal').classList.remove('open');
+}
+
+function clearBulkRows() {
+  document.getElementById('bulkBody').innerHTML = '';
+  for(let i=0;i<4;i++) addBulkRow({});
+}
+
+function addBulkRow(data) {
+  const body = document.getElementById('bulkBody');
+  const tr = document.createElement('tr');
+  const sym = data?.symbol || '';
+  const name = data?.name || '';
+  const type = data?.type || 'Action';
+  const sec = data?.sector || '';
+  const qty = data?.qty || '';
+  const buy = data?.buy || '';
+  tr.innerHTML = `
+    <td><input type="text" class="fi" style="min-width:100px" placeholder="CW8.PA" value="${sym}" oninput="this.value=this.value.toUpperCase()"></td>
+    <td><input type="text" class="fi" style="min-width:120px" placeholder="Nom de la valeur" value="${name}"></td>
+    <td>
+      <select class="fsel" style="min-width:70px">
+        <option value="Action" ${type==='Action'?'selected':''}>Action</option>
+        <option value="ETF" ${type==='ETF'?'selected':''}>ETF</option>
+      </select>
+    </td>
+    <td><input type="text" class="fi" style="min-width:90px" placeholder="Secteur" value="${sec}"></td>
+    <td><input type="number" class="fi" style="min-width:70px" placeholder="10" min="0.0001" step="any" value="${qty}"></td>
+    <td><input type="number" class="fi" style="min-width:80px" placeholder="15,50" min="0.0001" step="any" value="${buy}"></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1.2rem;padding:2px 6px;line-height:1">×</button></td>
+  `;
+  body.appendChild(tr);
+}
+
+function saveBulk() {
+  const rows = document.querySelectorAll('#bulkBody tr');
+  const newHoldings = [];
+  let hasError = false;
+
+  rows.forEach((row, idx) => {
+    const inputs = row.querySelectorAll('input');
+    const select = row.querySelector('select');
+    const symbol = inputs[0].value.trim().toUpperCase();
+    const name   = inputs[1].value.trim();
+    const type   = select.value;
+    const sector = inputs[2].value.trim() || 'Non défini';
+    const qty    = parseFloat(inputs[3].value.replace(',','.'));
+    const buy    = parseFloat(inputs[4].value.replace(',','.'));
+
+    // Skip completely empty rows
+    if(!symbol && !name && !inputs[3].value && !inputs[4].value) return;
+
+    const errSym = !symbol;
+    const errNam = !name;
+    const errQty = isNaN(qty) || qty <= 0;
+    const errBuy = isNaN(buy) || buy <= 0;
+
+    inputs[0].style.borderColor = errSym ? 'var(--red)' : '';
+    inputs[1].style.borderColor = errNam ? 'var(--red)' : '';
+    inputs[3].style.borderColor = errQty ? 'var(--red)' : '';
+    inputs[4].style.borderColor = errBuy ? 'var(--red)' : '';
+
+    if(errSym || errNam || errQty || errBuy) { hasError = true; return; }
+
+    newHoldings.push({id: Date.now() + idx * 7, symbol, name, type, sector, qty, buy});
+  });
+
+  if(hasError) { alert('⚠️ Certains champs sont invalides (en rouge). Corrigez-les avant d\'enregistrer.'); return; }
+  if(!newHoldings.length) { alert('Aucune position valide saisie. Remplissez au moins une ligne complète.'); return; }
+
+  // Replace all holdings with the new ones
+  holdings = newHoldings;
+  saveHoldings();
+  closeBulkModal();
+  refreshAll();
+}
+
+function loadDemo() {
+  const bulkOpen = document.getElementById('bulkModal').classList.contains('open');
+  if(bulkOpen) {
+    document.getElementById('bulkBody').innerHTML = '';
+    DEMO_HOLDINGS.forEach(d => addBulkRow(d));
+    return;
+  }
+  if(holdings.length > 0 && !confirm('Remplacer le portefeuille actuel par les exemples de démonstration ?')) return;
+  holdings = DEMO_HOLDINGS.map((d,i) => ({...d, id: Date.now() + i}));
+  saveHoldings();
+  refreshAll();
+}
+
+function resetPortfolio() {
+  if(!confirm('🗑 Supprimer toutes les positions du portefeuille ? Cette action est irréversible.')) return;
+  holdings = [];
+  saveHoldings();
+  renderAll();
+}
+
+/* ════════════════════════════════════════
    FILTER
 ════════════════════════════════════════ */
 function filterOpps(cat, btn) {
@@ -1008,12 +1213,26 @@ function switchTab(id, el) {
    FULL RENDER
 ════════════════════════════════════════ */
 function renderAll() {
+  const empty = holdings.length === 0;
+
+  // Toggle onboarding / main sections
+  const emptyDash = document.getElementById('emptyDash');
+  const mainDash  = document.getElementById('mainDash');
+  const emptyPort = document.getElementById('emptyPort');
+  const mainPort  = document.getElementById('mainPort');
+  if(emptyDash) emptyDash.style.display = empty ? 'block' : 'none';
+  if(mainDash)  mainDash.style.display  = empty ? 'none'  : 'block';
+  if(emptyPort) emptyPort.style.display = empty ? 'block' : 'none';
+  if(mainPort)  mainPort.style.display  = empty ? 'none'  : 'block';
+
   renderSummary();
-  renderKPIs();
-  renderAllocChart();
-  renderPerfChart();
-  renderDashTable();
-  renderPortfolio();
+  if(!empty) {
+    renderKPIs();
+    renderAllocChart();
+    renderPerfChart();
+    renderDashTable();
+    renderPortfolio();
+  }
 }
 
 /* ════════════════════════════════════════
