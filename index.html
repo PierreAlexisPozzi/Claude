@@ -684,8 +684,8 @@ tr:last-child td{border-bottom:none}
     <div class="mtl">➕ Ajouter / Modifier une position</div>
     <div class="fg">
       <label class="fl">Rechercher par nom ou symbole</label>
-      <input type="text" class="fi" id="mSearch" placeholder="ex: Voltalia ou VLTSA" autocomplete="off"
-        oninput="onModalSearch(this)" onkeydown="ddKeyNav(event,'modal')" onfocus="onModalSearch(this)">
+      <input type="text" class="fi" id="mSearch" placeholder="ex: Voltalia ou VLTSA.PA" autocomplete="off"
+        oninput="onModalSearch(this)" onkeydown="ddKeyNav(event,'modal')">
       <div class="sym-hint">Tapez le nom de la société ou le code Boursobank → sélectionnez le résultat Yahoo Finance correct</div>
     </div>
     <div class="fg"><label class="fl">Symbole Yahoo Finance</label>
@@ -910,22 +910,21 @@ function showDD(results, anchorEl) {
   const dd = document.getElementById('symDD');
   _ddResults = results;
   _ddIdx = -1;
-
-  if(!results.length) { dd.style.display = 'none'; return; }
-
-  const rect = anchorEl.getBoundingClientRect();
+  // Re-position in case the layout shifted during the async fetch
+  _positionDD(dd, anchorEl, 300);
   dd.style.display = 'block';
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 300) + 'px';
-  dd.style.maxHeight = '260px';
-  dd.style.overflowY = 'auto';
+
+  if(!results.length) {
+    dd.innerHTML = '<div class="sym-loading" style="color:var(--t3)">Aucun résultat — essayez le nom complet en français ou le code exact</div>';
+    return;
+  }
 
   dd.innerHTML = results.map((q, i) => {
     const name = q.longname || q.shortname || q.symbol;
     const exch = q.exchDisp || q.exchange || '';
     const type = q.quoteType === 'ETF' ? 'ETF' : (q.quoteType === 'MUTUALFUND' ? 'Fonds' : 'Action');
-    return `<div class="sym-res" data-idx="${i}" onmousedown="selectSym(${i})">
+    // onmousedown preventDefault keeps the search input focused; onclick handles both mouse and touch
+    return `<div class="sym-res" data-idx="${i}" onmousedown="event.preventDefault()" onclick="selectSym(${i})">
       <div class="sym-tick">${q.symbol}</div>
       <div class="sym-info"><div class="sym-nm" title="${name}">${name}</div><div class="sym-ex">${exch}</div></div>
       <div class="sym-badge">${type}</div>
@@ -994,22 +993,28 @@ function ddKeyNav(e, context, bulkInput) {
   if(_ddIdx >= 0) items[_ddIdx].scrollIntoView({block:'nearest'});
 }
 
+function _positionDD(dd, anchorEl, minWidth) {
+  const rect = anchorEl.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.width = Math.max(rect.width, minWidth) + 'px';
+  dd.style.maxHeight = '260px';
+  dd.style.overflowY = 'auto';
+}
+
 function onModalSearch(inp) {
   clearTimeout(_ddTimer);
   const q = inp.value.trim();
-  if(!q) { closeDD(); return; }
+  if(q.length < 2) { closeDD(); return; }
   _ddTarget = {context:'modal'};
-  document.getElementById('symDD').innerHTML = '<div class="sym-loading">Recherche…</div>';
-  document.getElementById('symDD').style.display = 'block';
-  const rect = inp.getBoundingClientRect();
   const dd = document.getElementById('symDD');
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 300) + 'px';
+  _positionDD(dd, inp, 300);
+  dd.innerHTML = '<div class="sym-loading">Recherche en cours…</div>';
+  dd.style.display = 'block';
   _ddTimer = setTimeout(async () => {
     const res = await searchSymbol(q);
     if(_ddTarget?.context === 'modal') showDD(res, inp);
-  }, 350);
+  }, 600);
 }
 
 function onBulkSearch(inp) {
@@ -1017,27 +1022,26 @@ function onBulkSearch(inp) {
   const q = inp.value.trim();
   const row = inp.closest('tr');
   const nameInp = row ? row.querySelectorAll('input')[1] : null;
-  if(!q) { closeDD(); return; }
+  if(q.length < 2) { closeDD(); return; }
   _ddTarget = {context:'bulk', input: inp, nameInput: nameInp};
   const dd = document.getElementById('symDD');
-  dd.innerHTML = '<div class="sym-loading">Recherche…</div>';
+  _positionDD(dd, inp, 280);
+  dd.innerHTML = '<div class="sym-loading">Recherche en cours…</div>';
   dd.style.display = 'block';
-  const rect = inp.getBoundingClientRect();
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 280) + 'px';
   _ddTimer = setTimeout(async () => {
     const res = await searchSymbol(q);
     if(_ddTarget?.context === 'bulk' && _ddTarget.input === inp) showDD(res, inp);
-  }, 350);
+  }, 600);
 }
 
-// Close dropdown when clicking outside
+// Close dropdown when clicking outside any search field or the dropdown itself
 document.addEventListener('click', e => {
   const dd = document.getElementById('symDD');
-  if(dd && !dd.contains(e.target) && e.target.id !== 'mSearch' && !e.target.classList.contains('fi')) {
-    closeDD();
-  }
+  if(!dd || dd.style.display === 'none') return;
+  if(dd.contains(e.target)) return;                        // click inside DD → keep open
+  if(e.target.id === 'mSearch') return;                   // click on modal search field → keep
+  if(e.target.dataset?.sym !== undefined) return;         // click on bulk search field → keep
+  closeDD();
 });
 
 async function fetchQuotes(symbols) {
@@ -1597,22 +1601,32 @@ function saveFbConfig() {
   if(!raw) { showFbSetupMsg('Collez votre objet firebaseConfig','err'); return; }
   let cfg;
   try {
-    // Strip surrounding `const x = {...};` if user pasted full snippet
+    // Extract the object literal from any surrounding JS code
     const match = raw.match(/\{[\s\S]*\}/);
-    if(!match) throw new Error('Aucun objet JSON trouvé');
-    cfg = JSON.parse(match[0]
-      .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')  // unquoted keys
-      .replace(/'/g,'"')                                         // single → double quotes
-    );
-    if(!cfg.apiKey || !cfg.authDomain) throw new Error('apiKey ou authDomain manquant');
+    if(!match) throw new Error('Aucun objet {} trouvé dans le texte collé');
+    let s = match[0];
+    // Try direct JSON parse first (if user pasted the "Config" format from Firebase console)
+    try {
+      cfg = JSON.parse(s);
+    } catch(_) {
+      // Fallback: convert JS object literal to JSON
+      // Only quote keys at the start of each line (avoids breaking URLs inside values)
+      s = s.replace(/^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*):/gm, '$1"$2"$3:');
+      // Remove trailing commas before } or ]
+      s = s.replace(/,(\s*[}\]])/g, '$1');
+      cfg = JSON.parse(s);
+    }
+    if(!cfg.apiKey)      throw new Error('Champ "apiKey" manquant');
+    if(!cfg.authDomain)  throw new Error('Champ "authDomain" manquant');
+    if(!cfg.databaseURL) throw new Error('Champ "databaseURL" manquant — activez Realtime Database dans Firebase');
   } catch(e) {
-    showFbSetupMsg('JSON invalide : ' + e.message, 'err'); return;
+    showFbSetupMsg('❌ ' + e.message, 'err'); return;
   }
   fbConfig = cfg;
   localStorage.setItem('pf_fb', JSON.stringify(cfg));
-  showFbSetupMsg('Configuration sauvegardée — initialisation Firebase…','loading');
+  showFbSetupMsg('✅ Configuration sauvegardée — initialisation Firebase…','loading');
   initFirebase(cfg);
-  setTimeout(updateFbModalSections, 400);
+  setTimeout(updateFbModalSections, 500);
 }
 
 function resetFbConfig() {
@@ -1780,7 +1794,7 @@ function addBulkRow(data) {
     <td style="position:relative">
       <input type="text" class="fi" style="min-width:110px" placeholder="Nom ou symbole" value="${sym||name}"
         autocomplete="off" data-sym="${sym}"
-        oninput="onBulkSearch(this)" onkeydown="ddKeyNav(event,'bulk',this)" onfocus="onBulkSearch(this)"
+        oninput="onBulkSearch(this)" onkeydown="ddKeyNav(event,'bulk',this)"
         title="${sym ? sym : ''}">
       ${sym ? `<div style="font-size:.65rem;color:var(--blue);margin-top:1px;font-family:monospace">${sym}</div>` : ''}
     </td>
