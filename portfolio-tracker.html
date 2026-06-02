@@ -392,6 +392,10 @@ tr:last-child td{border-bottom:none}
   <div id="pane-opportunities" class="pane">
     <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:.82rem;color:var(--t2)">
       ⚠️ <strong style="color:var(--yel)">Avertissement :</strong> Ces recommandations sont purement indicatives et ne constituent pas un conseil en investissement. Elles sont basées sur une analyse qualitative et ne garantissent aucun rendement. Investir comporte des risques de perte en capital. Vérifiez l'éligibilité PEA avant tout investissement.
+      <div style="margin-top:6px;font-size:.74rem;color:var(--t3)">
+        📅 Analyse de référence mise à jour : <strong style="color:var(--t2)" id="oppAnalysisDate">juin 2026</strong>
+        — les prix affichés sont en revanche en <strong style="color:var(--green)">temps réel</strong> (Yahoo Finance). Comparez systématiquement le prix courant à l'objectif/stop-loss pour évaluer la pertinence actuelle de l'opportunité.
+      </div>
     </div>
     <!-- Secteur de prédilection -->
     <div style="margin-bottom:20px">
@@ -498,7 +502,7 @@ tr:last-child td{border-bottom:none}
             <tr><td><strong>Amundi MSCI World (CW8)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Monde</td><td>20 %</td><td><span class="conv cf">Forte</span></td><td>-15 %</td><td>+20 %/an</td></tr>
             <tr><td><strong>Amundi Small Cap Europe (SMCX)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Small Cap Europe</td><td>15 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+25 %</td></tr>
             <tr><td><strong>iShares Clean Energy (IQQH)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>ENR</td><td>12 %</td><td><span class="conv ctf">Très forte</span></td><td>-20 %</td><td>+35 %</td></tr>
-            <tr><td><strong>Encavis (ECV.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Solaire/Éolien</td><td>10 %</td><td><span class="conv ctf">Très forte</span></td><td>-15 %</td><td>+40 %</td></tr>
+            <tr><td><strong>Acciona Energía (ANE.MC)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Solaire/Éolien</td><td>10 %</td><td><span class="conv ctf">Très forte</span></td><td>-15 %</td><td>+40 %</td></tr>
             <tr><td><strong>Mersen (MRN.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Composants batteries</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+45 %</td></tr>
             <tr><td><strong>Siemens Energy (ENR.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Infra. énergie</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-20 %</td><td>+35 %</td></tr>
             <tr><td><strong>Eramet (ERA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Matériaux critiques</td><td>8 %</td><td><span class="conv cm">Moyenne</span></td><td>-22 %</td><td>+50 %</td></tr>
@@ -552,7 +556,7 @@ tr:last-child td{border-bottom:none}
       <div class="scens">
         <div class="sc sc-b">
           <div class="scl">🟢 Scénario haussier (+35 à +60 %)</div>
-          <div class="sct">Baisses BCE supplémentaires (taux à 1,75 %), accélération des mises en service ENR, hausse des prix de l'électricité, mise en place du CRMA, retour massif des flux institutionnels sur les small caps européennes. Catalyseurs réalisés sur Voltalia, Encavis, Mersen et Siemens Energy. Objectif portefeuille : +45 à +60 %.</div>
+          <div class="sct">Baisses BCE supplémentaires (taux à 1,75 %), accélération des mises en service ENR, hausse des prix de l'électricité, mise en place du CRMA, retour massif des flux institutionnels sur les small caps européennes. Catalyseurs réalisés sur Voltalia, Mersen, Siemens Energy et Acciona Energía. Objectif portefeuille : +45 à +60 %.</div>
         </div>
         <div class="sc sc-n">
           <div class="scl">🔵 Scénario central (+18 à +30 %)</div>
@@ -733,13 +737,13 @@ const DEMO_HOLDINGS = [
 
 const OPPORTUNITIES = [
   {
-    id:'o1', symbol:'ECV.DE', name:'Encavis AG', sector:'Énergies Renouvelables', category:'renewable',
+    id:'o1', symbol:'ANE.MC', name:'Acciona Energías Renovables', sector:'Énergies Renouvelables', category:'renewable',
     risk:4, conviction:'Très forte conviction', convClass:'ctf',
-    targetPrice:20, stopLoss:10.50, horizon:'12-18 mois', potReturn:'+35-50%',
-    peaEligible:false, maxInvest:150,
-    analysis:'Encavis est l\'un des principaux opérateurs d\'énergies renouvelables en Europe avec +3 GW de capacité installée (solaire + éolien). La société génère des revenus très prévisibles via des PPAs de long terme (durée moyenne >15 ans). Le passage sous contrôle de KKR en 2023 a renforcé la structure financière et la capacité d\'acquisition.',
-    catalysts:['Acquisition de nouveaux projets solaires en Italie et Espagne','Revalorisation du pipeline à +6 GW d\'ici 2027','Baisse des coûts de financement favorisant les projets capital-intensifs','Contexte réglementaire européen très favorable (REPowerEU)'],
-    risks:['Baisse des prix spot de l\'électricité','Hausse soudaine des taux de financement','Risque exécution sur les acquisitions','Réglementation tarifaire changeante en Allemagne'],
+    targetPrice:24, stopLoss:13.50, horizon:'12-18 mois', potReturn:'+35-50%',
+    peaEligible:true, maxInvest:150,
+    analysis:'Acciona Energías Renovables est l\'une des plus importantes pure-players ENR cotées d\'Europe avec ~13 GW de capacité opérationnelle (éolien, solaire, hydro) répartis sur 16 pays. Filiale d\'Acciona à 82 %, elle bénéficie d\'un pipeline de +15 GW et de PPAs longue durée qui sécurisent les revenus. La valorisation a fortement corrigé en 2024-2025 après l\'échec du processus de cession partielle, créant un point d\'entrée intéressant. Note : Encavis (ex-recommandation) a été retirée de la cote en octobre 2024 suite à l\'OPA de KKR.',
+    catalysts:['Mise en service de nouveaux parcs solaires en Espagne, USA et Australie','Hausse des prix PPAs en Europe avec la demande IA/data centers','Désendettement post-cession d\'actifs hydro USA','Possible relance d\'un processus de stratégie alternative (vente ou rachat parent)'],
+    risks:['Faible flottant (82 % détenu par Acciona)','Baisse des prix spot de l\'électricité','Hausse des taux pénalisant les projets capital-intensifs','Décisions tarifaires changeantes en Espagne'],
   },
   {
     id:'o2', symbol:'VLTSA.PA', name:'Voltalia', sector:'Énergies Renouvelables', category:'renewable',
@@ -882,10 +886,31 @@ const SECTOR_NAMES = {renewable:'Énergies Renouvelables',battery:'Batteries & S
 /* ════════════════════════════════════════
    API – Yahoo Finance via CORS proxy
 ════════════════════════════════════════ */
-const PROXY = 'https://api.allorigins.win/raw?url=';
+// Multiple CORS proxies with automatic fallback (rate-limit resilience)
+const PROXIES = [
+  u => 'https://corsproxy.io/?'              + encodeURIComponent(u),
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+];
+const PROXY    = 'https://corsproxy.io/?';  // legacy compat (unused after refactor)
 const YF_QUOTE = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=';
 const YF_CHART = 'https://query8.finance.yahoo.com/v8/finance/chart/';
-const YF_SEARCH = 'https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=8&newsCount=0&q=';
+const YF_SEARCH = 'https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=10&newsCount=0&q=';
+
+// Fetch via proxies — try each in order until one succeeds
+async function proxyFetch(url, timeout=10000) {
+  let lastErr = null;
+  for(const wrap of PROXIES) {
+    try {
+      const r = await fetch(wrap(url), {signal: AbortSignal.timeout(timeout)});
+      if(!r.ok) { lastErr = new Error('HTTP '+r.status); continue; }
+      const txt = await r.text();
+      if(!txt || txt[0] === '<') { lastErr = new Error('Réponse non-JSON'); continue; }
+      try { return JSON.parse(txt); } catch(e){ lastErr = e; continue; }
+    } catch(e) { lastErr = e; continue; }
+  }
+  throw lastErr || new Error('Tous les proxies ont échoué');
+}
 
 /* ════════════════════════════════════════
    SYMBOL AUTOCOMPLETE
@@ -896,17 +921,19 @@ let _ddIdx    = -1;
 let _ddResults = [];
 
 async function searchSymbol(query) {
-  if(!query || query.length < 2) return [];
+  if(!query || query.length < 2) return {results:[], error:null};
   try {
     const url = YF_SEARCH + encodeURIComponent(query);
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
-    if(!r.ok) return [];
-    const d = await r.json();
-    return (d?.quotes || []).filter(q => q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'MUTUALFUND'));
-  } catch(e) { return []; }
+    const d = await proxyFetch(url, 9000);
+    const results = (d?.quotes || []).filter(q => q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'MUTUALFUND' || q.quoteType === 'INDEX'));
+    return {results, error:null};
+  } catch(e) {
+    console.warn('Search error:', e.message);
+    return {results:[], error:e.message};
+  }
 }
 
-function showDD(results, anchorEl) {
+function showDD(results, anchorEl, error) {
   const dd = document.getElementById('symDD');
   _ddResults = results;
   _ddIdx = -1;
@@ -914,6 +941,10 @@ function showDD(results, anchorEl) {
   _positionDD(dd, anchorEl, 300);
   dd.style.display = 'block';
 
+  if(error) {
+    dd.innerHTML = `<div class="sym-loading" style="color:var(--red)">⚠ Erreur réseau : ${error}<br><span style="color:var(--t3);font-size:.7rem">Réessayez dans quelques secondes — le proxy CORS peut être saturé.</span></div>`;
+    return;
+  }
   if(!results.length) {
     dd.innerHTML = '<div class="sym-loading" style="color:var(--t3)">Aucun résultat — essayez le nom complet en français ou le code exact</div>';
     return;
@@ -1012,8 +1043,8 @@ function onModalSearch(inp) {
   dd.innerHTML = '<div class="sym-loading">Recherche en cours…</div>';
   dd.style.display = 'block';
   _ddTimer = setTimeout(async () => {
-    const res = await searchSymbol(q);
-    if(_ddTarget?.context === 'modal') showDD(res, inp);
+    const {results, error} = await searchSymbol(q);
+    if(_ddTarget?.context === 'modal') showDD(results, inp, error);
   }, 600);
 }
 
@@ -1029,8 +1060,8 @@ function onBulkSearch(inp) {
   dd.innerHTML = '<div class="sym-loading">Recherche en cours…</div>';
   dd.style.display = 'block';
   _ddTimer = setTimeout(async () => {
-    const res = await searchSymbol(q);
-    if(_ddTarget?.context === 'bulk' && _ddTarget.input === inp) showDD(res, inp);
+    const {results, error} = await searchSymbol(q);
+    if(_ddTarget?.context === 'bulk' && _ddTarget.input === inp) showDD(results, inp, error);
   }, 600);
 }
 
@@ -1047,9 +1078,7 @@ document.addEventListener('click', e => {
 async function fetchQuotes(symbols) {
   const url = YF_QUOTE + symbols.join(',') + '&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketDayHigh,regularMarketDayLow,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume';
   try {
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(12000)});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
+    const d = await proxyFetch(url, 12000);
     const results = d?.quoteResponse?.result || [];
     results.forEach(q => {
       prices[q.symbol] = {
@@ -1073,9 +1102,7 @@ async function fetchQuotes(symbols) {
 async function fetchHistorical(symbol, range='1mo') {
   const url = YF_CHART + symbol + '?interval=1d&range=' + range;
   try {
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(10000)});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
+    const d = await proxyFetch(url, 10000);
     const res = d?.chart?.result?.[0];
     if (!res) return null;
     return {
