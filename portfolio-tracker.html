@@ -312,12 +312,12 @@ details[open] summary:before{content:'▾ '}
       <label class="fl">Rechercher — nom, code ISIN (Boursobank) ou mnémonique</label>
       <input type="text" class="fi" id="aSearch" placeholder="ex : Voltalia, FR0011995588, VLTSA" autocomplete="off"
         oninput="onSearch(this,'modal')" onkeydown="ddNav(event,'modal')" onfocus="onSearch(this,'modal')">
-      <div class="hint">Tapez le code ISIN affiché sur votre PEA Boursobank, ou le nom de la valeur → sélectionnez le résultat (le symbole Yahoo pour les prix est résolu automatiquement).</div>
+      <div class="hint">Tapez le code ISIN affiché sur votre PEA Boursobank, ou le nom de la valeur → sélectionnez le résultat. Le mnémonique boursier (pour les cours) se remplit automatiquement.</div>
     </div>
     <div class="fr">
       <div class="fg"><label class="fl">Code ISIN</label>
         <input type="text" class="fi isin" id="aIsin" placeholder="FR00..." style="font-family:monospace" oninput="this.value=this.value.toUpperCase()"></div>
-      <div class="fg"><label class="fl">Symbole Yahoo (prix)</label>
+      <div class="fg"><label class="fl">Mnémonique boursier</label>
         <input type="text" class="fi" id="aSym" placeholder="VLTSA.PA" style="font-family:monospace;color:var(--blue)" oninput="this.value=this.value.toUpperCase()"></div>
     </div>
     <div class="fg"><label class="fl">Nom de la valeur</label>
@@ -349,7 +349,7 @@ details[open] summary:before{content:'▾ '}
       <button class="btn btn-g btn-s" onclick="closeBulk()">✕</button>
     </div>
     <div class="badge b-load" style="margin-bottom:12px">
-      💡 Dans la colonne <b>Recherche</b>, tapez le <b>code ISIN</b> de votre relevé Boursobank (ou le nom) → choisissez le résultat. Le symbole Yahoo (pour les prix) se remplit tout seul.
+      💡 Dans la colonne <b>Recherche</b>, tapez le <b>code ISIN</b> de votre relevé Boursobank (ou le nom) → choisissez le résultat. Le mnémonique boursier se remplit tout seul.
     </div>
     <div class="tw" style="max-height:50vh;overflow-y:auto;margin-bottom:12px">
       <table style="min-width:720px">
@@ -600,77 +600,132 @@ const OPPS = [
    risk_:['Financement de la croissance (dilution)','Dépendance aux tarifs de rachat','Risque technologique','Concurrence émergente']},
 ];
 
-/* ════════════ PROXIES + YAHOO ════════════ */
+/* ════════════ SOURCES DE DONNÉES ════════════
+   Cours  → Stooq (gratuit, sans clé) pour FR/DE/NL, Yahoo v8 en fallback
+   Recherche → Twelve Data symbol_search (CORS direct, sans clé)
+═══════════════════════════════════════════════════════════════════════ */
 const PROXIES = [
   {wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u), unwrap:t=>t},
-  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u), unwrap:t=>JSON.parse(t).contents},
+  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u), unwrap:t=>{try{return JSON.parse(t).contents;}catch(e){return t;}}},
   {wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+u, unwrap:t=>t},
 ];
-async function proxyJSON(url, timeout=11000){
+async function proxyFetch(url, timeout=11000){
   let lastErr;
   for(const p of PROXIES){
     try{
-      const r = await fetch(p.wrap(url), {signal:AbortSignal.timeout(timeout)});
-      if(!r.ok){ lastErr=new Error('HTTP '+r.status); continue; }
-      let txt = p.unwrap(await r.text());
-      if(!txt || txt.trim()[0]==='<'){ lastErr=new Error('réponse non-JSON'); continue; }
-      return JSON.parse(txt);
-    }catch(e){ lastErr=e; continue; }
+      const r=await fetch(p.wrap(url),{signal:AbortSignal.timeout(timeout)});
+      if(!r.ok){lastErr=new Error('HTTP '+r.status);continue;}
+      const txt=p.unwrap(await r.text());
+      if(!txt||!txt.trim()){lastErr=new Error('vide');continue;}
+      if(txt.trim()[0]==='<'){lastErr=new Error('page HTML reçue');continue;}
+      return txt;
+    }catch(e){lastErr=e;continue;}
   }
-  throw lastErr || new Error('tous les proxies ont échoué');
+  throw lastErr||new Error('tous les proxies ont échoué');
 }
-// Prix + historique en une requête (endpoint chart v8 — le v7/quote est fermé par Yahoo)
-async function fetchOne(symbol){
+async function proxyJSON(url,timeout=11000){
+  const txt=await proxyFetch(url,timeout); return JSON.parse(txt);
+}
+
+/* ── Stooq : prix cours du soir pour valeurs FR / DE / NL ── */
+const STOOQ_SFX = {'.PA':'.FR','.AS':'.NL','.DE':'.DE','.BR':'.BE','.MI':'.IT','.MC':'.ES','.CO':'.DK','.LS':'.PT'};
+const STOOQ_CUR = {'.FR':'EUR','.NL':'EUR','.DE':'EUR','.BE':'EUR','.IT':'EUR','.ES':'EUR','.PT':'EUR','.DK':'DKK'};
+function toStooqSym(sym){
+  for(const [y,s] of Object.entries(STOOQ_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+s;
+  return null;
+}
+function stooqDateRange(){
+  const d2=new Date(),d1=new Date(d2-35*864e5);
+  const fmt=d=>d.toISOString().slice(0,10).replace(/-/g,'');
+  return {d1:fmt(d1),d2:fmt(d2)};
+}
+async function fetchOneStooq(sym){
+  const stooqSym=toStooqSym(sym); if(!stooqSym) throw new Error('exchange non supporté');
+  const {d1,d2}=stooqDateRange();
+  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&d1=${d1}&d2=${d2}&i=d`;
+  const txt=await proxyFetch(url,10000);
+  const lines=txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
+  if(!lines.length) throw new Error('aucune donnée Stooq');
+  const parse=l=>{const c=l.split(',');return{date:c[0],o:+c[1],h:+c[2],lo:+c[3],cl:+c[4],v:+c[5]};};
+  const rows=lines.map(parse).filter(r=>!isNaN(r.cl)&&r.cl>0);
+  if(!rows.length) throw new Error('données Stooq invalides');
+  const last=rows[rows.length-1], prev=rows.length>1?rows[rows.length-2]:null;
+  const price=last.cl, prevClose=prev?prev.cl:last.o;
+  const sfx=stooqSym.slice(stooqSym.lastIndexOf('.'));
+  const closes=rows.map(r=>r.cl);
+  return{price,prev:prevClose,change:price-prevClose,pct:prevClose?(price-prevClose)/prevClose*100:0,
+         currency:STOOQ_CUR[sfx]||'EUR',name:null,closes,
+         whi:Math.max(...closes),wlo:Math.min(...closes)};
+}
+
+/* ── Yahoo Finance v8/chart : fallback si Stooq échoue ── */
+async function fetchOneYahoo(symbol){
   const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1mo';
   const d=await proxyJSON(url);
   const res=d?.chart?.result?.[0]; const m=res?.meta;
   if(!m||m.regularMarketPrice==null) throw new Error('pas de données');
   const closes=(res.indicators?.quote?.[0]?.close||[]).filter(v=>v!=null);
-  const prev=m.chartPreviousClose ?? m.previousClose ?? null;
+  const prev=m.chartPreviousClose??m.previousClose??null;
   const price=m.regularMarketPrice;
-  return {price,prev,change:prev!=null?price-prev:0,pct:prev?((price-prev)/prev*100):0,
-          currency:m.currency,name:m.longName||m.shortName||null,closes,whi:m.fiftyTwoWeekHigh,wlo:m.fiftyTwoWeekLow};
+  return{price,prev,change:prev!=null?price-prev:0,pct:prev?((price-prev)/prev*100):0,
+         currency:m.currency,name:m.longName||m.shortName||null,closes,
+         whi:m.fiftyTwoWeekHigh,wlo:m.fiftyTwoWeekLow};
 }
-// Récupère plusieurs symboles séquentiellement (throttle anti rate-limit) avec 1 retry
+
+async function fetchOne(symbol){
+  // Stooq en priorité (gratuit, sans clé), Yahoo en fallback
+  try{ return await fetchOneStooq(symbol); }catch(e){}
+  return fetchOneYahoo(symbol);
+}
+
 async function fetchPrices(symbols, onProg){
   let done=0;
   for(const s of symbols){
     let ok=false;
-    for(let attempt=0; attempt<3 && !ok; attempt++){
-      if(attempt) await sleep(600*attempt);          // backoff 0 / 600 / 1200 ms
-      try{ prices[s]=await fetchOne(s); ok=true; }catch(e){}
+    for(let attempt=0;attempt<3&&!ok;attempt++){
+      if(attempt) await sleep(600*attempt);
+      try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
     }
     if(!ok) prices[s]={error:true};
     done++; onProg&&onProg(done,symbols.length);
-    await sleep(220);
+    await sleep(250);
   }
 }
-async function searchYahoo(q){
-  // autoc endpoint: no auth needed, more reliable through CORS proxies
+
+/* ── Recherche en ligne : Twelve Data symbol_search (CORS direct, sans clé) ── */
+async function searchOnline(q){
+  // Twelve Data : API publique sans clé, CORS natif
   try{
-    const url1='https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr';
-    const d1=await proxyJSON(url1,8000);
-    const r=(d1?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
-    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,
-      quoteType:x.type==='S'?'EQUITY':x.type==='ETF'?'ETF':'MUTUALFUND',exchDisp:x.exchDisp||x.exch||''}));
+    const url='https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(q)+'&outputsize=10';
+    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data.status==='error') throw new Error(data.message);
+    const items=(data.data||[]).filter(x=>['Common Stock','ETF','Mutual Fund'].includes(x.instrument_type));
+    if(items.length) return items.map(x=>({symbol:x.symbol,longname:x.instrument_name,
+      quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange}));
   }catch(e){}
-  // fallback: v1/finance/search (requires auth — may return 401)
-  const url2='https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=10&newsCount=0&q='+encodeURIComponent(q);
-  const d2=await proxyJSON(url2,9000);
-  return (d2?.quotes||[]).filter(x=>x.symbol&&['EQUITY','ETF','MUTUALFUND'].includes(x.quoteType));
+  // Fallback : Yahoo Finance autoc (via proxy)
+  try{
+    const url='https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr';
+    const d=await proxyJSON(url,8000);
+    const r=(d?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
+    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,
+      quoteType:x.type==='S'?'EQUITY':'ETF',exchDisp:x.exchDisp||x.exch||''}));
+  }catch(e){}
+  throw new Error('recherche indisponible');
 }
 
-/* ════════════ RECHERCHE (base locale + Yahoo) ════════════ */
+/* ════════════ RECHERCHE (base locale + Twelve Data) ════════════ */
 let ddTimer=null, ddIdx=-1, ddItems=[], ddCtx=null, ddInput=null;
 
 function searchLocal(q){
   q=q.trim().toUpperCase();
   if(q.length<2) return [];
-  return PEA_DB.filter(d =>
-    d.isin.includes(q) || d.sym.toUpperCase().includes(q) || d.name.toUpperCase().includes(q)
+  return PEA_DB.filter(d=>
+    d.isin.includes(q)||d.sym.toUpperCase().includes(q)||d.name.toUpperCase().includes(q)
   ).slice(0,8).map(d=>({local:true,...d}));
 }
-// Detects if a query looks like a Yahoo Finance ticker (e.g. "MC.PA", "MSFT", "BNP.PA")
 function looksLikeSymbol(q){
   return /^[A-Z0-9]{1,10}(\.[A-Z]{1,4})?$/.test(q.trim().toUpperCase());
 }
@@ -681,34 +736,33 @@ function onSearch(inp, ctx){
   if(q.length<2){ closeDD(); return; }
   const loc=searchLocal(q);
   if(loc.length){ showDD(loc, inp); }
-  else { ddOpen(inp,'<div class="dd-msg"><span class="spin"></span> Recherche en cours…</div>'); }
+  else{ ddOpen(inp,'<div class="dd-msg"><span class="spin"></span> Recherche en cours…</div>'); }
   ddTimer=setTimeout(async()=>{
     if(ddInput!==inp) return;
     try{
-      const ya=await searchYahoo(q);
+      const online=await searchOnline(q);
       const seen=new Set(loc.map(d=>d.sym));
-      const extra=ya.filter(y=>!seen.has(y.symbol)).map(y=>({local:false,
-        sym:y.symbol, name:y.longname||y.shortname||y.symbol, isin:'',
-        type:y.quoteType==='ETF'?'ETF':'Action', sector:'', exch:y.exchDisp||y.exchange||'', pea:null}));
-      const merged=[...loc, ...extra];
-      if(merged.length) showDD(merged, inp);
+      const extra=online.filter(y=>!seen.has(y.symbol)).map(y=>({local:false,
+        sym:y.symbol,name:y.longname||y.shortname||y.symbol,isin:'',
+        type:y.quoteType==='ETF'?'ETF':'Action',sector:'',exch:y.exchDisp||'',pea:null}));
+      const merged=[...loc,...extra];
+      if(merged.length) showDD(merged,inp);
       else ddOpen(inp,'<div class="dd-msg">Aucun résultat — vérifiez le code ISIN ou le nom</div>');
     }catch(e){
-      if(loc.length) return; // local results already shown, no need for error
+      if(loc.length) return;
       const q2=q.toUpperCase();
       if(looksLikeSymbol(q2)){
-        // offer to use the typed text directly as a Yahoo symbol
-        ddItems=[{manual:true,sym:q2,name:'Utiliser ce code directement',type:'Action',isin:'',sector:'',pea:null,exch:'symbole Yahoo Finance'}];
+        ddItems=[{manual:true,sym:q2,name:'Utiliser ce code directement',type:'Action',isin:'',sector:'',pea:null,exch:'mnémonique boursier'}];
         ddIdx=-1;
         ddOpen(inp,
           '<div class="dd-msg" style="color:var(--yel);padding-bottom:4px">⚠ Réseau indisponible</div>'
           +'<div class="dd-r" data-i="0" onmousedown="pickDD(0)">'
           +'<div class="dd-tk">'+q2+'</div>'
           +'<div class="dd-i"><div class="dd-nm">Utiliser ce code directement</div>'
-          +'<div class="dd-sub">Assurez-vous que c\'est un symbole Yahoo Finance valide</div></div>'
+          +'<div class="dd-sub">Vérifiez que c\'est un mnémonique boursier valide (ex&nbsp;: MC.PA)</div></div>'
           +'<span class="dd-bd bdg-a">Manuel</span></div>');
-      } else {
-        ddOpen(inp,'<div class="dd-msg" style="color:var(--red)">⚠ Réseau indisponible — saisissez le symbole Yahoo Finance (ex&nbsp;: MC.PA, SAN.PA)</div>');
+      }else{
+        ddOpen(inp,'<div class="dd-msg" style="color:var(--red)">⚠ Réseau indisponible — saisissez le mnémonique boursier (ex&nbsp;: MC.PA, SAN.PA)</div>');
       }
     }
   }, loc.length?500:350);
@@ -1021,7 +1075,7 @@ function saveAdd(){
   const sector=document.getElementById('aSector').value.trim();
   const qty=parseFloat(document.getElementById('aQty').value);
   const buy=parseFloat(document.getElementById('aBuy').value);
-  if(!sym||!name||isNaN(qty)||isNaN(buy)||qty<=0||buy<=0){alert('Renseignez au minimum le symbole Yahoo, le nom, la quantité et le PRU.');return;}
+  if(!sym||!name||isNaN(qty)||isNaN(buy)||qty<=0||buy<=0){alert('Renseignez au minimum le mnémonique boursier, le nom, la quantité et le PRU.');return;}
   const db=DB_BY_ISIN[isin];
   const rec={isin,sym,name,type,sector:sector||(db?db.sector:''),buy,qty,pea:db?db.pea:(type==='ETF'?null:true)};
   if(editId){const i=holdings.findIndex(h=>h.id===editId);if(i>=0)holdings[i]={...holdings[i],...rec};}
@@ -1076,7 +1130,7 @@ function saveBulk(){
     const db=DB_BY_ISIN[isin];
     out.push({id:Date.now()+idx*7,isin,sym,name,type,sector:sec||(db?db.sector:''),qty,buy,pea:db?db.pea:(type==='ETF'?null:true)});
   });
-  if(err){alert('⚠️ Lignes en rouge incomplètes. Pour le symbole Yahoo, sélectionnez une valeur dans la liste de recherche.');return;}
+  if(err){alert('⚠️ Lignes en rouge incomplètes — sélectionnez une valeur dans la liste de recherche pour remplir le mnémonique boursier.');return;}
   if(!out.length){alert('Aucune position valide. Saisissez au moins une ligne complète.');return;}
   holdings=out; prices={}; saveLocal(); closeBulk(); refresh();
 }
