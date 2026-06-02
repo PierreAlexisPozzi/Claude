@@ -496,6 +496,45 @@ const PEA_DB = [
   // — ETF sectoriels NON éligibles PEA (CTO) —
   {isin:'IE00B1XNHC34',name:'iShares Global Clean Energy',sym:'IQQH.DE',type:'ETF',sector:'ENR Monde',pea:false},
   {isin:'IE00BLCHJN13',name:'L&G Battery Value-Chain',sym:'BATT.L',type:'ETF',sector:'Batteries Monde',pea:false},
+  // — ETF PEA supplémentaires —
+  {isin:'FR0007052782',name:'Lyxor CAC 40',sym:'CAC.PA',type:'ETF',sector:'Actions France',pea:true},
+  {isin:'FR0013412020',name:'Amundi PEA Marchés Émergents (PAEM)',sym:'PAEM.PA',type:'ETF',sector:'Actions Émergents',pea:true},
+  {isin:'LU1681045370',name:'Amundi MSCI Europe (MEUD)',sym:'MEUD.PA',type:'ETF',sector:'Actions Europe',pea:true},
+  // — CAC 40 / grandes caps françaises —
+  {isin:'FR0000121014',name:'LVMH',sym:'MC.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000120321',name:"L'Oréal",sym:'OR.PA',type:'Action',sector:'Cosmétiques',pea:true},
+  {isin:'NL0000235190',name:'Airbus',sym:'AIR.PA',type:'Action',sector:'Aérospatial',pea:true},
+  {isin:'FR0000131104',name:'BNP Paribas',sym:'BNP.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000120578',name:'Sanofi',sym:'SAN.PA',type:'Action',sector:'Pharmacie',pea:true},
+  {isin:'FR0000120628',name:'AXA',sym:'CS.PA',type:'Action',sector:'Assurance',pea:true},
+  {isin:'FR0000073272',name:'Safran',sym:'SAF.PA',type:'Action',sector:'Aérospatial',pea:true},
+  {isin:'FR0000125338',name:'Capgemini',sym:'CAP.PA',type:'Action',sector:'IT Services',pea:true},
+  {isin:'FR0014003TT8',name:'Dassault Systèmes',sym:'DSY.PA',type:'Action',sector:'Logiciel',pea:true},
+  {isin:'FR0000121485',name:'Kering',sym:'KER.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000052292',name:'Hermès International',sym:'RMS.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000131906',name:'Renault',sym:'RNO.PA',type:'Action',sector:'Automobile',pea:true},
+  {isin:'FR0000131261',name:'Michelin',sym:'ML.PA',type:'Action',sector:'Pneumatiques',pea:true},
+  {isin:'FR0000120693',name:'Pernod Ricard',sym:'RI.PA',type:'Action',sector:'Spiritueux',pea:true},
+  {isin:'FR0000130577',name:'Publicis Groupe',sym:'PUB.PA',type:'Action',sector:'Communication',pea:true},
+  {isin:'FR0000133308',name:'Orange',sym:'ORA.PA',type:'Action',sector:'Télécom',pea:true},
+  {isin:'FR0000120503',name:'Bouygues',sym:'EN.PA',type:'Action',sector:'Construction',pea:true},
+  {isin:'FR0000120644',name:'Danone',sym:'BN.PA',type:'Action',sector:'Alimentation',pea:true},
+  {isin:'FR0000130809',name:'Société Générale',sym:'GLE.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000045072',name:'Crédit Agricole',sym:'ACA.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000120404',name:'Accor',sym:'AC.PA',type:'Action',sector:'Hôtellerie',pea:true},
+  {isin:'FR0000120172',name:'Carrefour',sym:'CA.PA',type:'Action',sector:'Distribution',pea:true},
+  {isin:'FR0000121667',name:'EssilorLuxottica',sym:'EL.PA',type:'Action',sector:'Optique',pea:true},
+  {isin:'FR0000125007',name:'Saint-Gobain',sym:'SGO.PA',type:'Action',sector:'Matériaux',pea:true},
+  {isin:'FR0000121329',name:'Thales',sym:'HO.PA',type:'Action',sector:'Défense',pea:true},
+  {isin:'FR0004037071',name:'Amundi',sym:'AMUN.PA',type:'Action',sector:'Finance',pea:true},
+  {isin:'FR0000127771',name:'Vivendi',sym:'VIV.PA',type:'Action',sector:'Médias',pea:true},
+  {isin:'NL00150001Q9',name:'Stellantis',sym:'STLAM.MI',type:'Action',sector:'Automobile',pea:true},
+  // — Euronext Paris mid/small —
+  {isin:'FR0000121220',name:'Sodexo',sym:'SW.PA',type:'Action',sector:'Services',pea:true},
+  {isin:'FR0013477337',name:'Believe',sym:'BLV.PA',type:'Action',sector:'Musique digitale',pea:true},
+  {isin:'FR0011981968',name:'Solutions 30',sym:'S30.PA',type:'Action',sector:'IT Services',pea:true},
+  {isin:'FR0000075343',name:'Guerbet',sym:'GBT.PA',type:'Action',sector:'Pharma',pea:true},
+  {isin:'FR0000125585',name:'Vallourec',sym:'VK.PA',type:'Action',sector:'Tubes acier',pea:true},
 ];
 const DB_BY_ISIN = Object.fromEntries(PEA_DB.map(d=>[d.isin,d]));
 
@@ -607,9 +646,18 @@ async function fetchPrices(symbols, onProg){
   }
 }
 async function searchYahoo(q){
-  const url='https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=10&newsCount=0&q='+encodeURIComponent(q);
-  const d=await proxyJSON(url,9000);
-  return (d?.quotes||[]).filter(x=>x.symbol && ['EQUITY','ETF','MUTUALFUND'].includes(x.quoteType));
+  // autoc endpoint: no auth needed, more reliable through CORS proxies
+  try{
+    const url1='https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr';
+    const d1=await proxyJSON(url1,8000);
+    const r=(d1?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
+    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,
+      quoteType:x.type==='S'?'EQUITY':x.type==='ETF'?'ETF':'MUTUALFUND',exchDisp:x.exchDisp||x.exch||''}));
+  }catch(e){}
+  // fallback: v1/finance/search (requires auth — may return 401)
+  const url2='https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=10&newsCount=0&q='+encodeURIComponent(q);
+  const d2=await proxyJSON(url2,9000);
+  return (d2?.quotes||[]).filter(x=>x.symbol&&['EQUITY','ETF','MUTUALFUND'].includes(x.quoteType));
 }
 
 /* ════════════ RECHERCHE (base locale + Yahoo) ════════════ */
@@ -622,15 +670,18 @@ function searchLocal(q){
     d.isin.includes(q) || d.sym.toUpperCase().includes(q) || d.name.toUpperCase().includes(q)
   ).slice(0,8).map(d=>({local:true,...d}));
 }
+// Detects if a query looks like a Yahoo Finance ticker (e.g. "MC.PA", "MSFT", "BNP.PA")
+function looksLikeSymbol(q){
+  return /^[A-Z0-9]{1,10}(\.[A-Z]{1,4})?$/.test(q.trim().toUpperCase());
+}
 function onSearch(inp, ctx){
   clearTimeout(ddTimer);
   ddCtx=ctx; ddInput=inp;
   const q=inp.value.trim();
   if(q.length<2){ closeDD(); return; }
   const loc=searchLocal(q);
-  if(loc.length){ showDD(loc, inp); }     // résultats locaux instantanés
-  else { ddOpen(inp,'<div class="dd-msg"><span class="spin"></span> Recherche Yahoo…</div>'); }
-  // recherche Yahoo en complément / fallback (débattue)
+  if(loc.length){ showDD(loc, inp); }
+  else { ddOpen(inp,'<div class="dd-msg"><span class="spin"></span> Recherche en cours…</div>'); }
   ddTimer=setTimeout(async()=>{
     if(ddInput!==inp) return;
     try{
@@ -643,7 +694,22 @@ function onSearch(inp, ctx){
       if(merged.length) showDD(merged, inp);
       else ddOpen(inp,'<div class="dd-msg">Aucun résultat — vérifiez le code ISIN ou le nom</div>');
     }catch(e){
-      if(!loc.length) ddOpen(inp,'<div class="dd-msg" style="color:var(--red)">⚠ Réseau indisponible — réessayez ou saisissez le symbole Yahoo manuellement</div>');
+      if(loc.length) return; // local results already shown, no need for error
+      const q2=q.toUpperCase();
+      if(looksLikeSymbol(q2)){
+        // offer to use the typed text directly as a Yahoo symbol
+        ddItems=[{manual:true,sym:q2,name:'Utiliser ce code directement',type:'Action',isin:'',sector:'',pea:null,exch:'symbole Yahoo Finance'}];
+        ddIdx=-1;
+        ddOpen(inp,
+          '<div class="dd-msg" style="color:var(--yel);padding-bottom:4px">⚠ Réseau indisponible</div>'
+          +'<div class="dd-r" data-i="0" onmousedown="pickDD(0)">'
+          +'<div class="dd-tk">'+q2+'</div>'
+          +'<div class="dd-i"><div class="dd-nm">Utiliser ce code directement</div>'
+          +'<div class="dd-sub">Assurez-vous que c\'est un symbole Yahoo Finance valide</div></div>'
+          +'<span class="dd-bd bdg-a">Manuel</span></div>');
+      } else {
+        ddOpen(inp,'<div class="dd-msg" style="color:var(--red)">⚠ Réseau indisponible — saisissez le symbole Yahoo Finance (ex&nbsp;: MC.PA, SAN.PA)</div>');
+      }
     }
   }, loc.length?500:350);
 }
@@ -671,22 +737,24 @@ function showDD(items, anchor){
 }
 function pickDD(i){
   const d=ddItems[i]; if(!d) return;
+  // manual direct-symbol entry: use sym as both name and symbol
+  const name = d.manual ? d.sym : d.name;
   if(ddCtx==='modal'){
-    document.getElementById('aSearch').value=d.name;
+    document.getElementById('aSearch').value=name;
     document.getElementById('aIsin').value=d.isin||'';
     document.getElementById('aSym').value=d.sym;
-    document.getElementById('aName').value=d.name;
+    document.getElementById('aName').value=name;
     document.getElementById('aType').value=d.type||'Action';
     if(d.sector) document.getElementById('aSector').value=d.sector;
   } else if(ddCtx==='bulk' && ddInput){
     const tr=ddInput.closest('tr'); const inp=tr.querySelectorAll('input');
-    ddInput.value=d.name; ddInput.dataset.isin=d.isin||''; ddInput.dataset.sym=d.sym;
+    ddInput.value=name; ddInput.dataset.isin=d.isin||''; ddInput.dataset.sym=d.sym;
     let lbl=ddInput.parentElement.querySelector('.bsym');
     if(!lbl){lbl=document.createElement('div');lbl.className='bsym';lbl.style.cssText='font-size:.64rem;color:var(--blue);margin-top:1px;font-family:monospace';ddInput.parentElement.appendChild(lbl);}
     lbl.textContent=d.sym+(d.isin?' · '+d.isin:'');
-    inp[1].value=d.name;                       // nom
+    inp[1].value=name;
     tr.querySelector('select').value=d.type||'Action';
-    if(d.sector) inp[2].value=d.sector;        // secteur
+    if(d.sector) inp[2].value=d.sector;
   }
   closeDD();
 }
