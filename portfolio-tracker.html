@@ -3,1987 +3,1265 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portfolio Tracker Pro</title>
+<title>PEA Tracker — Boursobank</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Firebase (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
-:root {
-  --bg:    #070b14;
-  --bg2:   #0d1526;
-  --bg3:   #131d30;
-  --bg4:   #1a2640;
-  --bd:    #1e2d45;
-  --t1:    #e4eaf5;
-  --t2:    #8ea3bd;
-  --t3:    #4e6380;
-  --blue:  #3b82f6;
-  --blue2: #1d4ed8;
-  --green: #22c55e;
-  --red:   #ef4444;
-  --org:   #f97316;
-  --yel:   #eab308;
-  --pur:   #a855f7;
-  --teal:  #14b8a6;
+:root{
+  --bg:#070b14;--bg2:#0d1526;--bg3:#131d30;--bg4:#1a2640;--bd:#1e2d45;
+  --t1:#e4eaf5;--t2:#8ea3bd;--t3:#4e6380;
+  --blue:#3b82f6;--blue2:#1d4ed8;--green:#22c55e;--red:#ef4444;
+  --org:#f97316;--yel:#eab308;--pur:#a855f7;--teal:#14b8a6;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{font-size:14px;scroll-behavior:smooth}
+html{font-size:14px}
 body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
-/* ── Header ── */
-.hdr{background:var(--bg2);border-bottom:1px solid var(--bd);height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100}
-.logo{display:flex;align-items:center;gap:8px;font-size:1.05rem;font-weight:700;letter-spacing:-.01em}
+a{color:var(--blue)}
+/* Header */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--bd);min-height:54px;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;gap:10px;position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:8px;font-size:1.02rem;font-weight:700}
 .logo em{color:var(--blue);font-style:normal}
-.hdr-r{display:flex;align-items:center;gap:10px}
-/* ── Buttons ── */
-.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:.82rem;font-weight:500;transition:.15s all;white-space:nowrap}
+.logo .tag{font-size:.66rem;color:var(--t3);font-weight:500;border:1px solid var(--bd);padding:1px 6px;border-radius:5px}
+.hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+/* Buttons */
+.btn{padding:6px 13px;border-radius:6px;border:none;cursor:pointer;font-size:.82rem;font-weight:500;transition:.15s;white-space:nowrap}
 .btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue2)}
 .btn-g{background:var(--bg3);color:var(--t2);border:1px solid var(--bd)}.btn-g:hover{background:var(--bg4)}
 .btn-d{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}.btn-d:hover{background:rgba(239,68,68,.2)}
 .btn-s{padding:4px 10px;font-size:.76rem}
-/* ── Summary bar ── */
-.sbar{background:var(--bg2);border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;padding:10px 20px;gap:24px}
-.sitem{min-width:130px}
-.slbl{font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
-.sval{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* Account chip */
+.acct{display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 9px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);transition:.15s}
+.acct:hover{background:var(--bg4);border-color:var(--blue)}
+.acct img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.acct .nm{font-size:.76rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--t3)}
+/* Summary */
+.sbar{background:var(--bg2);border-bottom:1px solid var(--bd);display:grid;grid-template-columns:repeat(4,1fr);padding:11px 18px;gap:18px}
+.slbl{font-size:.68rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.sval{font-size:1.32rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .ssub{font-size:.78rem;margin-top:2px}
 .pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--t2)}
-/* ── Tabs ── */
-.tabs{display:flex;padding:0 20px;background:var(--bg2);border-bottom:1px solid var(--bd);overflow-x:auto}
-.tab{padding:13px 18px;font-size:.88rem;font-weight:500;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
-.tab:hover{color:var(--t1)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-/* ── Layout ── */
-.content{padding:20px;max-width:1380px;margin:0 auto}
+/* Tabs */
+.tabs{display:flex;padding:0 18px;background:var(--bg2);border-bottom:1px solid var(--bd);overflow-x:auto}
+.tab{padding:13px 17px;font-size:.88rem;font-weight:500;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+.tab:hover{color:var(--t2)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+/* Panes */
+.wrap{padding:20px 18px;max-width:1280px;margin:0 auto}
 .pane{display:none}.pane.active{display:block}
-.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.g3{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-bottom:20px}
-@media(max-width:768px){.g2{grid-template-columns:1fr}.sbar{gap:14px}}
-/* ── Cards ── */
-.card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:16px}
-.card:hover{border-color:var(--blue);transition:.2s}
-.ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-.ct{font-size:.72rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
-.ctl{font-size:.95rem;font-weight:600}
-/* ── KPI ── */
-.kv{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.ks{font-size:.8rem;color:var(--t2);margin-top:3px}
-/* ── Table ── */
+/* Cards / grid */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:11px;padding:16px}
+.card h3{font-size:.82rem;color:var(--t2);font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.chart-box{position:relative;height:230px}
+.chart-sm{position:relative;height:180px}
+/* Table */
 .tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.86rem}
-thead tr{border-bottom:2px solid var(--bd)}
-th{padding:9px 12px;text-align:left;color:var(--t3);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:500;white-space:nowrap}
-td{padding:11px 12px;border-bottom:1px solid rgba(30,45,69,.6);white-space:nowrap;vertical-align:middle}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{text-align:left;padding:9px 10px;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--t3);border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--bg3);font-variant-numeric:tabular-nums;white-space:nowrap}
 tr:hover td{background:var(--bg3)}
-tr:last-child td{border-bottom:none}
-.mono{font-variant-numeric:tabular-nums;font-family:'SFMono-Regular',Consolas,monospace}
-/* ── Badges ── */
-.bdg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:500;white-space:nowrap}
-.bdg-e{background:rgba(59,130,246,.15);color:var(--blue)}
-.bdg-a{background:rgba(168,85,247,.15);color:var(--pur)}
-.bdg-g{background:rgba(34,197,94,.15);color:var(--green)}
-.bdg-r{background:rgba(239,68,68,.15);color:var(--red)}
-.bdg-o{background:rgba(249,115,22,.15);color:var(--org)}
-.bdg-y{background:rgba(234,179,8,.15);color:var(--yel)}
-.bdg-t{background:rgba(20,184,166,.15);color:var(--teal)}
-/* ── Risk dots ── */
-.rdots{display:flex;gap:2px;align-items:center}
-.rd{width:7px;height:7px;border-radius:50%;background:var(--bd)}
-.rd.f{background:var(--org)}.rd.f.lo{background:var(--green)}.rd.f.hi{background:var(--red)}
-/* ── Opportunity cards ── */
-.ocard{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;overflow:hidden;transition:.2s border-color;display:flex;flex-direction:column}
-.ocard:hover{border-color:var(--blue)}
-.ohdr{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:flex-start}
-.osym{font-size:1.1rem;font-weight:700;font-family:monospace}
-.oname{font-size:.82rem;color:var(--t2);margin-top:2px}
-.obody{padding:14px 16px;flex:1}
-.ometrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.oml{font-size:.68rem;color:var(--t3);text-transform:uppercase}
-.omv{font-size:.9rem;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums}
-.atext{font-size:.8rem;color:var(--t2);line-height:1.65;margin-bottom:10px}
-.clist{list-style:none;margin-bottom:8px}
-.clist li{font-size:.79rem;color:var(--t2);padding:3px 0 3px 16px;position:relative}
-.clist li::before{content:'→';position:absolute;left:0;color:var(--green);font-size:.75rem}
-.rlist li::before{content:'⚠';color:var(--org)}
-/* ── Conviction ── */
-.conv{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.ctf{background:rgba(34,197,94,.12);color:var(--green)}
-.cf{background:rgba(59,130,246,.12);color:var(--blue)}
-.cm{background:rgba(234,179,8,.12);color:var(--yel)}
-.cs{background:rgba(249,115,22,.12);color:var(--org)}
-/* ── Charts ── */
-.ctr{position:relative}
-.csm{height:180px}.cmd{height:280px}.clg{height:350px}
-/* ── Section header ── */
-.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.st{font-size:1rem;font-weight:600}
-/* ── Filter bar ── */
-.fbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-.fbtn{padding:5px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--t2);font-size:.8rem;cursor:pointer;transition:.15s}
-.fbtn:hover{border-color:var(--blue);color:var(--t1)}.fbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
-/* ── Modal ── */
-.mover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center}
-.mover.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:24px;width:90%;max-width:460px}
-.mtl{font-size:1rem;font-weight:600;margin-bottom:18px}
-.fg{margin-bottom:14px}
-.fl{display:block;font-size:.78rem;color:var(--t2);margin-bottom:5px}
-.fi{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:.88rem}
-.fi:focus{outline:none;border-color:var(--blue)}
-.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.fsel{width:100%;padding:8px 11px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:.88rem}
-.fsel option{background:var(--bg3)}
-/* ── Spinner ── */
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle}
-@keyframes sp{to{transform:rotate(360deg)}}
-/* ── Status ── */
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
-.dot-live{background:var(--green);animation:pulse 2s infinite}
-.dot-off{background:var(--red)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-/* ── Macro analysis ── */
-.asec{margin-bottom:20px}
-.asec h3{font-size:.92rem;font-weight:600;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
-.abl{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:10px}
-.abl h4{font-size:.88rem;font-weight:600;margin-bottom:6px}
-.abl p{font-size:.82rem;color:var(--t2);line-height:1.7}
-.abl ul{padding-left:16px;margin-top:6px}
-.abl li{font-size:.82rem;color:var(--t2);line-height:1.7}
-/* ── Scenarios ── */
-.scens{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-@media(max-width:680px){.scens{grid-template-columns:1fr}}
-.sc{padding:14px;border-radius:8px}
-.sc-b{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2)}.sc-b .scl{color:var(--green)}
-.sc-n{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2)}.sc-n .scl{color:var(--blue)}
-.sc-r{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2)}.sc-r .scl{color:var(--red)}
-.scl{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
-.sct{font-size:.8rem;color:var(--t2);line-height:1.6}
-/* ── Allocation bar ── */
-.abar{height:7px;border-radius:4px;overflow:hidden;display:flex;gap:1px;margin-bottom:6px}
-.aseg{height:100%;border-radius:2px;transition:width .4s}
-.alegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
-.alg-item{display:flex;align-items:center;gap:5px;font-size:.76rem;color:var(--t2)}
-.alg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
-/* ── Empty state ── */
-.empty{text-align:center;padding:50px 20px;color:var(--t3)}
-.empty-i{font-size:2.5rem;margin-bottom:10px}
-/* ── Scrollbar ── */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
-/* ── Perf pill ── */
-.pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:.78rem;font-weight:500;font-variant-numeric:tabular-nums}
-.pill-g{background:rgba(34,197,94,.12);color:var(--green)}
-.pill-r{background:rgba(239,68,68,.12);color:var(--red)}
-.pill-n{background:rgba(78,99,128,.2);color:var(--t3)}
-/* ── Progress bar (risk) ── */
-.riskbar{height:5px;border-radius:3px;background:var(--bd);margin-top:6px;overflow:hidden}
-.riskfill{height:100%;border-radius:3px;transition:width .4s}
-/* ── Divider ── */
-.div{border:none;border-top:1px solid var(--bd);margin:16px 0}
-/* ── Onboarding ── */
-.onboard{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);border:1px solid var(--bd);border-radius:14px;padding:48px 32px;text-align:center;margin-bottom:20px}
-.onboard-icon{font-size:4rem;margin-bottom:18px;display:block}
-.onboard h2{font-size:1.4rem;font-weight:700;margin-bottom:10px}
-.onboard p{font-size:.9rem;color:var(--t2);max-width:480px;margin:0 auto 24px;line-height:1.6}
-.onboard-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-/* ── Bulk modal ── */
-.bmodal{max-width:800px!important;width:96%!important;max-height:92vh;overflow-y:auto}
-#bulkBody tr:hover td{background:var(--bg4)}
-#bulkBody input,#bulkBody select{font-size:.8rem!important;padding:5px 8px!important}
-.bulk-hint{font-size:.78rem;color:var(--t3);background:var(--bg3);border-radius:6px;padding:8px 12px;margin-bottom:14px}
-.bulk-hint code{background:var(--bd);border-radius:3px;padding:1px 5px;font-family:monospace;color:var(--teal)}
-/* ── Reset btn ── */
-.btn-warn{background:rgba(234,179,8,.1);color:var(--yel);border:1px solid rgba(234,179,8,.25)}.btn-warn:hover{background:rgba(234,179,8,.18)}
-/* ── Sector preference ── */
-.pref-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:4px}
-.pref-card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:14px 10px;text-align:center;cursor:pointer;transition:.2s;user-select:none}
+.tk{font-family:monospace;font-weight:600;color:var(--blue)}
+.isin{font-family:monospace;font-size:.7rem;color:var(--t3)}
+.bdg{font-size:.66rem;padding:2px 7px;border-radius:5px;font-weight:600}
+.bdg-a{background:rgba(59,130,246,.12);color:var(--blue)}
+.bdg-e{background:rgba(168,85,247,.12);color:var(--pur)}
+.bdg-pea{background:rgba(34,197,94,.12);color:var(--green)}
+.bdg-npea{background:rgba(148,163,184,.1);color:var(--t3)}
+.advice{font-size:.7rem;padding:2px 8px;border-radius:5px;font-weight:600}
+.adv-buy{background:rgba(34,197,94,.14);color:var(--green)}
+.adv-hold{background:rgba(59,130,246,.12);color:var(--blue)}
+.adv-watch{background:rgba(234,179,8,.14);color:var(--yel)}
+.adv-trim{background:rgba(249,115,22,.14);color:var(--org)}
+.ico-btn{background:none;border:none;cursor:pointer;font-size:.95rem;padding:3px 6px;color:var(--t3)}
+.ico-btn:hover{color:var(--t1)}
+/* Empty */
+.empty{text-align:center;padding:46px 20px;color:var(--t3)}
+.empty .i{font-size:2.4rem;margin-bottom:12px}
+.empty p{font-size:.9rem;margin-bottom:6px}
+/* Onboarding */
+.onb{background:linear-gradient(135deg,var(--bg2),var(--bg3));border:1px solid var(--bd);border-radius:14px;padding:34px 26px;text-align:center;max-width:640px;margin:30px auto}
+.onb .i{font-size:3rem;margin-bottom:14px}
+.onb h2{font-size:1.25rem;margin-bottom:10px}
+.onb p{font-size:.9rem;color:var(--t2);line-height:1.6;margin-bottom:20px}
+.onb .cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.onb .steps{text-align:left;background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:14px 18px;margin:18px 0;font-size:.83rem;color:var(--t2);line-height:1.9}
+.onb .steps b{color:var(--t1)}
+/* Conviction */
+.conv{font-size:.68rem;padding:2px 8px;border-radius:5px;font-weight:600}
+.ctf{background:rgba(34,197,94,.16);color:var(--green)}
+.cf{background:rgba(59,130,246,.14);color:var(--blue)}
+.cm{background:rgba(234,179,8,.14);color:var(--yel)}
+.cs{background:rgba(249,115,22,.14);color:var(--org)}
+/* Opportunity card */
+.opp{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.opp.compl{border-color:rgba(20,184,166,.3);background:linear-gradient(180deg,var(--bg2),rgba(20,184,166,.03))}
+.opp-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.opp-nm{font-weight:700;font-size:.96rem}
+.opp-sec{font-size:.72rem;color:var(--t3);margin-top:2px}
+.opp-px{text-align:right}
+.opp-px .now{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums}
+.opp-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.76rem}
+.opp-meta .k{color:var(--t3)}
+.opp-meta .v{color:var(--t1);font-weight:600;font-variant-numeric:tabular-nums}
+.opp-an{font-size:.8rem;color:var(--t2);line-height:1.55}
+.opp-list{font-size:.76rem;color:var(--t2);line-height:1.5;padding-left:16px}
+.risk-bar{display:flex;gap:3px;align-items:center}
+.risk-seg{width:11px;height:5px;border-radius:2px;background:var(--bg4)}
+.risk-on{background:var(--org)}
+details summary{cursor:pointer;font-size:.78rem;color:var(--blue);list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary:before{content:'▸ ';color:var(--t3)}
+details[open] summary:before{content:'▾ '}
+/* Pref cards */
+.pref-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.pref-card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:13px 8px;text-align:center;cursor:pointer;transition:.15s}
 .pref-card:hover{border-color:var(--blue);background:var(--bg3)}
-.pref-card.active{border-color:var(--blue);background:rgba(59,130,246,.1)}
-.pref-icon{font-size:1.8rem;margin-bottom:5px}
-.pref-label{font-size:.76rem;font-weight:600;color:var(--t1);line-height:1.3}
+.pref-card.active{border-color:var(--blue);background:rgba(59,130,246,.1);box-shadow:0 0 0 1px var(--blue)}
+.pref-icon{font-size:1.5rem;margin-bottom:5px}
+.pref-label{font-size:.76rem;font-weight:600}
 .pref-count{font-size:.68rem;color:var(--t3);margin-top:3px}
-.opp-sh{grid-column:1/-1;padding:8px 0 6px;border-bottom:2px solid var(--bd);margin-bottom:2px;display:flex;align-items:center;gap:8px}
-.opp-sh span{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-/* ── Mobile ── */
-@media(max-width:768px){
-  #macroTop{grid-template-columns:1fr!important}
-  .hdr-r{gap:5px;flex-wrap:wrap}
+/* Macro */
+.macro-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.mc{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:14px}
+.mc .l{font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.04em}
+.mc .v{font-size:1.4rem;font-weight:700;margin:4px 0;font-variant-numeric:tabular-nums}
+.mc .d{font-size:.74rem}
+.sect{margin-bottom:18px}
+.sect h3{font-size:1rem;margin-bottom:6px}
+.sect .body{font-size:.86rem;color:var(--t2);line-height:1.65}
+/* Modal */
+.mover{position:fixed;inset:0;background:rgba(3,6,12,.78);backdrop-filter:blur(3px);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.mover.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:22px;width:100%;max-width:480px}
+.modal.wide{max-width:760px}
+.mtl{font-size:1.05rem;font-weight:700;margin-bottom:16px}
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:.76rem;color:var(--t2);margin-bottom:5px;font-weight:500}
+.fi,.fsel,textarea.fi{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:9px 11px;color:var(--t1);font-size:.86rem;font-family:inherit}
+.fi:focus,.fsel:focus,textarea.fi:focus{outline:none;border-color:var(--blue)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.hint{font-size:.72rem;color:var(--t3);margin-top:4px;line-height:1.4}
+.div{border:none;border-top:1px solid var(--bd);margin:16px 0}
+.badge{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:7px;font-size:.8rem}
+.b-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
+.b-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red)}
+.b-load{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
+/* Search dropdown */
+#dd{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--bd);border-radius:9px;box-shadow:0 10px 36px rgba(0,0,0,.6);min-width:300px;max-width:440px;max-height:300px;overflow-y:auto;display:none}
+.dd-r{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bg3)}
+.dd-r:last-child{border-bottom:none}
+.dd-r:hover,.dd-r.on{background:var(--bg4)}
+.dd-tk{font-family:monospace;font-weight:700;color:var(--blue);min-width:78px;font-size:.82rem}
+.dd-i{flex:1;min-width:0}
+.dd-nm{font-size:.83rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-sub{font-size:.69rem;color:var(--t3);margin-top:1px;font-family:monospace}
+.dd-bd{font-size:.62rem;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.dd-msg{padding:11px 14px;font-size:.8rem;color:var(--t3);text-align:center}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* Responsive */
+@media(max-width:860px){
+  .g2,.g3{grid-template-columns:1fr}
+  .macro-grid{grid-template-columns:1fr 1fr}
+  .pref-grid{grid-template-columns:1fr 1fr 1fr}
 }
 @media(max-width:640px){
-  .hdr{height:auto;padding:10px 12px;flex-wrap:wrap;gap:6px}
-  .logo{font-size:.85rem}
-  .hdr-r{width:100%;justify-content:flex-end;gap:5px}
-  .sbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px}
-  .sval{font-size:1rem}
-  .ssub{font-size:.72rem}
-  .content{padding:10px 8px}
-  .g2,.g3,.g4{grid-template-columns:1fr}
-  .tab{padding:9px 10px;font-size:.74rem}
-  .card{padding:11px}
-  .cmd{height:200px}
-  table{font-size:.75rem}
-  th,td{padding:6px 7px}
-  .scens{grid-template-columns:1fr}
-  .pref-grid{grid-template-columns:repeat(2,1fr)}
-  .mover{align-items:flex-end;padding:0}
-  .bmodal{border-radius:14px 14px 0 0!important;width:100%!important;max-width:100%!important;max-height:88vh!important}
-  .onboard{padding:28px 16px}
-  .onboard-icon{font-size:2.8rem}
-  .onboard h2{font-size:1.05rem}
-  .onboard p{font-size:.82rem}
-  .onboard-cta{flex-direction:column;align-items:center}
-  .onboard-cta .btn{width:100%;max-width:260px}
-  .ometrics{grid-template-columns:1fr 1fr}
-  .ohdr{flex-direction:column;gap:8px}
-  .opp-sh{grid-column:1/-1}
+  html{font-size:13px}
+  .wrap{padding:14px 12px}
+  .sbar{grid-template-columns:1fr 1fr;gap:12px;padding:10px 12px}
+  .hdr{padding:8px 12px}
+  .hdr .lbl-hide{display:none}
+  .pref-grid{grid-template-columns:1fr 1fr}
   .fr{grid-template-columns:1fr}
-  .bulk-hint code{display:inline-block;margin-top:2px}
+  .opp-meta{grid-template-columns:1fr}
+  .mover{padding:14px 8px}
+  .modal{padding:18px}
 }
 @media(max-width:420px){
-  .sbar{grid-template-columns:1fr}
-  .hdr-r .btn-s:not(#refreshBtn):not(.sync-ind){display:none}
-  .pref-grid{grid-template-columns:1fr 1fr}
+  .macro-grid{grid-template-columns:1fr}
 }
-/* ── Sync ── */
-.sync-ind{display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 9px;border-radius:6px;border:1px solid var(--bd);background:var(--bg3);transition:.15s;flex-shrink:0}
-.sync-ind:hover{background:var(--bg4);border-color:var(--blue)}
-.sync-steps{padding-left:20px;margin:6px 0}
-.sync-steps li{font-size:.8rem;color:var(--t2);line-height:2}
-.sync-badge{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:7px;font-size:.8rem;width:100%}
-.sync-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
-.sync-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red)}
-.sync-loading{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
-.share-code{font-family:monospace;font-size:.72rem;color:var(--t3);word-break:break-all;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;line-height:1.5}
-/* ── Symbol autocomplete dropdown ── */
-#symDD{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.55);min-width:280px;max-width:380px;overflow:hidden;display:none}
-.sym-res{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;cursor:pointer;transition:.12s background;border-bottom:1px solid var(--bg3)}
-.sym-res:last-child{border-bottom:none}
-.sym-res:hover,.sym-res.active{background:var(--bg4)}
-.sym-tick{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--blue);min-width:80px;padding-top:1px}
-.sym-info{flex:1;min-width:0}
-.sym-nm{font-size:.82rem;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sym-ex{font-size:.7rem;color:var(--t3);margin-top:1px}
-.sym-badge{font-size:.65rem;padding:1px 5px;border-radius:4px;background:var(--bg4);color:var(--t2);border:1px solid var(--bd);white-space:nowrap;flex-shrink:0;align-self:center}
-.sym-loading{padding:10px 14px;font-size:.8rem;color:var(--t3);text-align:center}
-/* Modal search field hint */
-.sym-hint{font-size:.73rem;color:var(--t3);margin-top:4px;line-height:1.4}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════ HEADER ══════════════════ -->
+<!-- HEADER -->
 <header class="hdr">
-  <div class="logo">📈 <em>Portfolio</em>&nbsp;Tracker&nbsp;<span style="font-size:.72rem;color:var(--t3);font-weight:400">Pro</span></div>
+  <div class="logo">📊 <em>PEA</em>&nbsp;Tracker <span class="tag">Boursobank</span></div>
   <div class="hdr-r">
-    <span class="dot dot-live" id="statusDot" title="Statut flux données"></span>
-    <span id="updateTime" style="font-size:.76rem;color:var(--t3)">—</span>
-    <button class="btn btn-g btn-s" onclick="openBulkModal()">📋 Saisir portefeuille</button>
-    <button class="btn btn-g btn-s" onclick="openAddModal()">＋ Position</button>
-    <button class="btn btn-warn btn-s" onclick="resetPortfolio()" title="Vider le portefeuille">🗑</button>
-    <div class="sync-ind" onclick="openSyncModal()" title="Synchronisation multi-appareils" id="syncInd">
-      <span style="font-size:.85rem;line-height:1;transition:.2s" id="syncIcon">☁️</span>
-      <span class="dot" id="syncDot" style="background:var(--t3);width:6px;height:6px"></span>
-    </div>
-    <button class="btn btn-p btn-s" id="refreshBtn" onclick="refreshAll()">↻ Actualiser</button>
+    <span class="dot" id="netDot" title="Données marché"></span>
+    <span id="updTime" style="font-size:.74rem;color:var(--t3)">—</span>
+    <button class="btn btn-g btn-s" onclick="openBulk()">📋 <span class="lbl-hide">Mon portefeuille</span></button>
+    <button class="btn btn-g btn-s" onclick="openAdd()">＋ <span class="lbl-hide">Position</span></button>
+    <div class="acct" id="acctChip" onclick="openSync()"><span>☁️</span><span class="dot"></span></div>
+    <button class="btn btn-p btn-s" id="refBtn" onclick="refresh()">↻</button>
   </div>
 </header>
 
-<!-- ══════════════════ SUMMARY BAR ══════════════════ -->
-<div class="sbar" id="summaryBar">
-  <div class="sitem"><div class="slbl">Valeur totale</div><div class="sval" id="sTotalVal">—</div><div class="ssub neu" id="sTotalCost">—</div></div>
-  <div class="sitem"><div class="slbl">P&L total</div><div class="sval" id="sTotalPL">—</div><div class="ssub" id="sTotalPLPct">—</div></div>
-  <div class="sitem"><div class="slbl">Variation jour</div><div class="sval" id="sDayPL">—</div><div class="ssub" id="sDayPLPct">—</div></div>
-  <div class="sitem"><div class="slbl">Positions</div><div class="sval" id="sPositions">—</div><div class="ssub neu" id="sBestPos">—</div></div>
+<!-- SUMMARY -->
+<div class="sbar">
+  <div><div class="slbl">Valeur totale</div><div class="sval" id="sVal">—</div><div class="ssub neu" id="sCost">—</div></div>
+  <div><div class="slbl">+/- value totale</div><div class="sval" id="sPL">—</div><div class="ssub" id="sPLp">—</div></div>
+  <div><div class="slbl">Variation du jour</div><div class="sval" id="sDay">—</div><div class="ssub" id="sDayp">—</div></div>
+  <div><div class="slbl">Positions</div><div class="sval" id="sPos">0</div><div class="ssub neu" id="sPea">—</div></div>
 </div>
 
-<!-- ══════════════════ TABS ══════════════════ -->
+<!-- TABS -->
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('dashboard',this)">📊 Tableau de Bord</div>
-  <div class="tab" onclick="switchTab('portfolio',this)">💼 Portefeuille</div>
-  <div class="tab" onclick="switchTab('opportunities',this)">🔍 Opportunités</div>
-  <div class="tab" onclick="switchTab('analysis',this)">📋 Analyse Macro</div>
+  <div class="tab active" data-tab="dash" onclick="showTab('dash')">📈 Tableau de bord</div>
+  <div class="tab" data-tab="port" onclick="showTab('port')">💼 Portefeuille &amp; conseils</div>
+  <div class="tab" data-tab="opp" onclick="showTab('opp')">🎯 Opportunités</div>
+  <div class="tab" data-tab="macro" onclick="showTab('macro')">🌍 Analyse macro</div>
 </div>
 
-<!-- ══════════════════ CONTENT ══════════════════ -->
-<div class="content">
+<div class="wrap">
 
-  <!-- ─── DASHBOARD ─── -->
-  <div id="pane-dashboard" class="pane active">
+  <!-- DASHBOARD -->
+  <div id="pane-dash" class="pane active">
+    <div id="dashEmpty" style="display:none"></div>
+    <div id="dashContent">
+      <div class="grid g2" style="margin-bottom:14px">
+        <div class="card"><h3>Répartition par valeur</h3><div class="chart-box"><canvas id="chAlloc"></canvas></div></div>
+        <div class="card"><h3>Répartition sectorielle</h3><div class="chart-box"><canvas id="chSector"></canvas></div></div>
+      </div>
+      <div class="card"><h3>+/- value latente par position</h3><div class="chart-sm"><canvas id="chPL"></canvas></div></div>
+    </div>
+  </div>
 
-    <!-- Onboarding (affiché si portefeuille vide) -->
-    <div id="emptyDash" class="onboard" style="display:none">
-      <span class="onboard-icon">📈</span>
-      <h2>Bienvenue dans Portfolio Tracker Pro</h2>
-      <p>Votre portefeuille est vide. Saisissez vos positions pour commencer le suivi en temps réel avec prix, P&amp;L et graphiques.</p>
-      <div class="onboard-cta">
-        <button class="btn btn-p" onclick="openBulkModal()">📋 Saisir mon portefeuille</button>
-        <button class="btn btn-g" onclick="openAddModal()">＋ Ajouter une position</button>
-        <button class="btn btn-g" onclick="loadDemo()">🧪 Charger des exemples</button>
+  <!-- PORTFOLIO -->
+  <div id="pane-port" class="pane">
+    <div id="portEmpty" style="display:none"></div>
+    <div id="portContent">
+      <div class="card">
+        <h3>Mes positions <span id="portMeta" style="font-weight:400;color:var(--t3)"></span></h3>
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th>Valeur</th><th>ISIN</th><th>Type</th><th>PEA</th><th>Qté</th><th>PRU</th>
+              <th>Cours</th><th>Jour</th><th>Valeur</th><th>+/- value</th><th>Conseil</th><th></th>
+            </tr></thead>
+            <tbody id="portBody"></tbody>
+          </table>
+        </div>
+        <div style="font-size:.72rem;color:var(--t3);margin-top:10px;line-height:1.5">
+          ⚠️ Les conseils sont <strong>indicatifs</strong>, générés par une heuristique (+/- value, position vs plus-haut/plus-bas 52 sem.). Ils ne constituent pas un conseil en investissement.
+        </div>
       </div>
     </div>
+  </div>
 
-    <div id="mainDash">
-    <div class="g4" id="kpiGrid">
-      <div class="card"><div class="ch"><div class="ct">Meilleure perf.</div><span style="font-size:1.3rem">🚀</span></div><div class="kv pos" id="kBest">—</div><div class="ks" id="kBestSym">—</div></div>
-      <div class="card"><div class="ch"><div class="ct">Pire perf.</div><span style="font-size:1.3rem">📉</span></div><div class="kv neg" id="kWorst">—</div><div class="ks" id="kWorstSym">—</div></div>
-      <div class="card"><div class="ch"><div class="ct">Plus-value latente</div><span style="font-size:1.3rem">💰</span></div><div class="kv" id="kUnrPL">—</div><div class="ks" id="kUnrPLPct">—</div></div>
-      <div class="card"><div class="ch"><div class="ct">Nb positions</div><span style="font-size:1.3rem">📦</span></div><div class="kv" id="kNbPos">—</div><div class="ks" id="kNbETF">—</div></div>
+  <!-- OPPORTUNITIES -->
+  <div id="pane-opp" class="pane">
+    <div class="card" style="margin-bottom:16px;background:var(--bg3)">
+      <div style="font-size:.82rem;color:var(--t2);line-height:1.5">
+        ⚠️ <b style="color:var(--yel)">Avertissement</b> — Recommandations indicatives, pas un conseil en investissement. Critères : éligibles PEA prioritaires, prix &lt; 150 €/action, risque ≤ 7/10.
+        <div style="margin-top:6px;font-size:.74rem;color:var(--t3)">📅 Analyse de référence : <b style="color:var(--t2)">juin 2026</b> — les <b style="color:var(--green)">prix sont en temps réel</b>. Comparez toujours le cours actuel à l'objectif et au stop pour juger de la pertinence.</div>
+      </div>
     </div>
-    <div class="g2">
-      <div class="card">
-        <div class="ch"><div class="ctl">Allocation du portefeuille</div></div>
-        <div id="allocBar" class="abar"></div>
-        <div id="allocLegend" class="alegend"></div>
-        <div class="ctr cmd" style="margin-top:14px"><canvas id="allocChart"></canvas></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <div>
+        <div class="slbl">Secteur de prédilection</div>
+        <div style="font-size:.8rem;color:var(--t2)">Choisissez un secteur → <b style="color:var(--t1)">3 ciblées</b> + <b style="color:var(--teal)">2 complémentaires</b></div>
       </div>
-      <div class="card">
-        <div class="ch"><div class="ctl">Performance par position (%)</div></div>
-        <div class="ctr cmd"><canvas id="perfChart"></canvas></div>
-      </div>
+      <button class="btn btn-g btn-s" id="clearPref" onclick="clearPref()" style="display:none">✕ Effacer</button>
+    </div>
+    <div class="pref-grid" id="prefGrid">
+      <div class="pref-card" data-s="renewable" onclick="setPref('renewable',this)"><div class="pref-icon">☀️</div><div class="pref-label">Renouvelables</div><div class="pref-count" id="c-renewable">—</div></div>
+      <div class="pref-card" data-s="battery" onclick="setPref('battery',this)"><div class="pref-icon">🔋</div><div class="pref-label">Batteries</div><div class="pref-count" id="c-battery">—</div></div>
+      <div class="pref-card" data-s="rareearth" onclick="setPref('rareearth',this)"><div class="pref-icon">⛏️</div><div class="pref-label">Terres rares</div><div class="pref-count" id="c-rareearth">—</div></div>
+      <div class="pref-card" data-s="infra" onclick="setPref('infra',this)"><div class="pref-icon">⚡</div><div class="pref-label">Infrastructure</div><div class="pref-count" id="c-infra">—</div></div>
+      <div class="pref-card" data-s="etf" onclick="setPref('etf',this)"><div class="pref-icon">🌐</div><div class="pref-label">ETF</div><div class="pref-count" id="c-etf">—</div></div>
+    </div>
+    <div class="grid g3" id="oppGrid"></div>
+  </div>
+
+  <!-- MACRO -->
+  <div id="pane-macro" class="pane">
+    <div class="card" style="margin-bottom:16px;background:var(--bg3)">
+      <div style="font-size:.8rem;color:var(--t3)">📅 Dernière revue : <b style="color:var(--t2)">juin 2026</b> — chiffres indicatifs, à vérifier sur les sources officielles (BCE, Eurostat, INSEE) avant toute décision.</div>
+    </div>
+    <div class="macro-grid">
+      <div class="mc"><div class="l">Taux directeur BCE (dépôt)</div><div class="v">1,75 %</div><div class="d pos">▼ assouplissement</div></div>
+      <div class="mc"><div class="l">Inflation zone euro</div><div class="v">2,1 %</div><div class="d pos">proche de la cible</div></div>
+      <div class="mc"><div class="l">OAT 10 ans France</div><div class="v">3,0 %</div><div class="d neu">stabilisé</div></div>
+      <div class="mc"><div class="l">EUR / USD</div><div class="v">1,12</div><div class="d pos">euro ferme</div></div>
     </div>
     <div class="card">
-      <div class="ch"><div class="ctl">Récapitulatif des positions</div><span id="dashSpin" class="spin" style="display:none"></span></div>
-      <div class="tw"><table id="dashTable">
-        <thead><tr><th>Symbole</th><th>Nom</th><th>Type</th><th>Secteur</th><th>Qté</th><th>PRU</th><th>Cours</th><th>Valeur</th><th>P&L</th><th>Perf.</th><th>Poids</th></tr></thead>
-        <tbody id="dashTbody"></tbody>
-      </table></div>
-    </div>
-    </div><!-- /mainDash -->
-  </div>
-
-  <!-- ─── PORTFOLIO ─── -->
-  <div id="pane-portfolio" class="pane">
-
-    <!-- Onboarding (affiché si portefeuille vide) -->
-    <div id="emptyPort" class="onboard" style="display:none">
-      <span class="onboard-icon">💼</span>
-      <h2>Saisissez votre portefeuille</h2>
-      <p>Entrez vos positions avec le symbole Yahoo Finance, la quantité et votre prix de revient. Les cours seront récupérés automatiquement.</p>
-      <div class="onboard-cta">
-        <button class="btn btn-p" onclick="openBulkModal()">📋 Saisir en masse</button>
-        <button class="btn btn-g" onclick="openAddModal()">＋ Position par position</button>
-        <button class="btn btn-g" onclick="loadDemo()">🧪 Charger des exemples</button>
-      </div>
-    </div>
-
-    <div id="mainPort">
-    <div class="sh">
-      <div class="st">Mes positions <span id="portCount" class="bdg bdg-e" style="font-size:.78rem;margin-left:6px">0</span></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-g btn-s" onclick="openBulkModal()">📋 Saisir en masse</button>
-        <button class="btn btn-p btn-s" onclick="openAddModal()">＋ Ajouter position</button>
-      </div>
-    </div>
-    <div class="tw">
-      <table id="portTable">
-        <thead><tr><th>Symbole</th><th>Nom</th><th>Type</th><th>Secteur</th><th>Qté</th><th>PRU</th><th>Cours actuel</th><th>Valeur</th><th>P&L €</th><th>Perf. %</th><th>Variation jour</th><th>52S Haut</th><th>52S Bas</th><th>Actions</th></tr></thead>
-        <tbody id="portTbody"></tbody>
-      </table>
-    </div>
-    <div class="g3" id="sparkCards"></div>
-    </div><!-- /mainPort -->
-  </div>
-
-  <!-- ─── OPPORTUNITIES ─── -->
-  <div id="pane-opportunities" class="pane">
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:.82rem;color:var(--t2)">
-      ⚠️ <strong style="color:var(--yel)">Avertissement :</strong> Ces recommandations sont purement indicatives et ne constituent pas un conseil en investissement. Elles sont basées sur une analyse qualitative et ne garantissent aucun rendement. Investir comporte des risques de perte en capital. Vérifiez l'éligibilité PEA avant tout investissement.
-    </div>
-    <!-- Secteur de prédilection -->
-    <div style="margin-bottom:20px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Secteur de prédilection</div>
-          <div style="font-size:.8rem;color:var(--t2)">Sélectionnez un secteur → <strong style="color:var(--t1)">3 opportunités ciblées</strong> + <strong style="color:var(--teal)">2 complémentaires</strong> (meilleure conviction / risque min)</div>
-        </div>
-        <button class="btn btn-g btn-s" id="clearPrefBtn" onclick="clearPreference()" style="display:none">✕ Effacer</button>
-      </div>
-      <div class="pref-grid" id="prefGrid">
-        <div class="pref-card" onclick="setPreferredSector('renewable',this)" data-sector="renewable">
-          <div class="pref-icon">☀️</div>
-          <div class="pref-label">Renouvelables</div>
-          <div class="pref-count" id="cnt-renewable">—</div>
-        </div>
-        <div class="pref-card" onclick="setPreferredSector('battery',this)" data-sector="battery">
-          <div class="pref-icon">🔋</div>
-          <div class="pref-label">Batteries &amp; Stockage</div>
-          <div class="pref-count" id="cnt-battery">—</div>
-        </div>
-        <div class="pref-card" onclick="setPreferredSector('rareearth',this)" data-sector="rareearth">
-          <div class="pref-icon">⛏️</div>
-          <div class="pref-label">Terres Rares</div>
-          <div class="pref-count" id="cnt-rareearth">—</div>
-        </div>
-        <div class="pref-card" onclick="setPreferredSector('infra',this)" data-sector="infra">
-          <div class="pref-icon">⚡</div>
-          <div class="pref-label">Infrastructure</div>
-          <div class="pref-count" id="cnt-infra">—</div>
-        </div>
-        <div class="pref-card" onclick="setPreferredSector('etf',this)" data-sector="etf">
-          <div class="pref-icon">📊</div>
-          <div class="pref-label">ETF Thématiques</div>
-          <div class="pref-count" id="cnt-etf">—</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="fbar" id="filterBar">
-      <button class="fbtn active" onclick="filterOpps('all',this)">Tout</button>
-      <button class="fbtn" onclick="filterOpps('renewable',this)">☀️ Renouvelables</button>
-      <button class="fbtn" onclick="filterOpps('battery',this)">🔋 Batteries</button>
-      <button class="fbtn" onclick="filterOpps('rareearth',this)">⛏️ Terres Rares</button>
-      <button class="fbtn" onclick="filterOpps('infra',this)">⚡ Infrastructure</button>
-      <button class="fbtn" onclick="filterOpps('etf',this)">📊 ETF Thématiques</button>
-    </div>
-    <div class="g3" id="oppGrid"></div>
-  </div>
-
-  <!-- ─── MACRO ANALYSIS ─── -->
-  <div id="pane-analysis" class="pane">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="macroTop">
-
-      <div class="card asec">
-        <h3>🌍 Contexte macro — <span style="color:var(--teal)">Juin 2026</span></h3>
-        <div class="abl">
-          <h4>Marchés actions</h4>
-          <p>Après 18 mois de cycle de baisses BCE, les marchés européens ont retrouvé un second souffle en 2026. Le STOXX 600 évolue près de ses plus hauts historiques, soutenu par la rotation vers les valeurs cycliques, l'industrie et la transition énergétique. Les small &amp; mid caps européennes connaissent un net retour en grâce : elles sur-performent le large cap depuis janvier 2026, portées par l'amélioration des marges et le retour des M&amp;A.</p>
-        </div>
-        <div class="abl">
-          <h4>Taux &amp; Inflation</h4>
-          <p>La BCE a poursuivi son assouplissement : taux directeur désormais à <strong>2,00–2,25 %</strong>. L'inflation zone euro se stabilise à 1,8–2,1 %, dans la cible. Le Bund 10 ans oscille entre 2,0 % et 2,5 %, créant un environnement particulièrement favorable aux projets ENR capital-intensifs dont le coût de financement diminue sensiblement. Les marges de crédit des émetteurs de qualité se compriment.</p>
-        </div>
-        <div class="abl">
-          <h4>Risques principaux — Juin 2026</h4>
-          <ul>
-            <li>Tensions commerciales USA–UE (droits de douane, secteurs stratégiques)</li>
-            <li>Ralentissement de la demande chinoise affectant les exportateurs et miniers</li>
-            <li>Risque de bulle dans certains segments IA/technologie (valorisations tendues)</li>
-            <li>Incertitude politique en France (trajectoire budgétaire 2027)</li>
-            <li>Flambée géopolitique possible (Moyen-Orient, Taiwan)</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card asec">
-        <h3>📈 Secteurs favorisés — Juin 2026</h3>
-        <div class="abl">
-          <h4>Énergies renouvelables &amp; Transition</h4>
-          <p>Le Green Deal européen accélère : l'objectif 45 % ENR en 2030 impose un rythme d'installation record (+60 GW/an en Europe). Les opérateurs ENR bénéficient de PPAs à long terme avec des prix de vente moyens en hausse. La baisse des taux réduit le coût du capital et améliore mécaniquement la valeur des actifs long-terme.</p>
-        </div>
-        <div class="abl">
-          <h4>Technologies de batteries &amp; Stockage</h4>
-          <p>2026 est l'année des mises en service des premières gigafactories européennes (ACC, Northvolt, CATL Europe). La demande en matériaux actifs (graphite, NMC, LFP) explose. Le marché du stockage stationnaire (grid-scale) décolle avec les besoins d'équilibrage réseau liés à l'intermittence des ENR.</p>
-        </div>
-        <div class="abl">
-          <h4>Matériaux critiques &amp; Terres rares</h4>
-          <p>Le Critical Raw Materials Act (CRMA, 2024) contraint désormais les industriels à sourcer 10 % de leurs matériaux stratégiques en Europe d'ici 2030. Les producteurs européens de lithium, manganèse, graphite et matériaux de recyclage bénéficient de subventions, de contrats préférentiels et d'une prime de souveraineté croissante sur leurs valorisations.</p>
-        </div>
-        <div class="abl">
-          <h4>Infrastructure électrique &amp; Grid</h4>
-          <p>L'Europe doit tripler ses investissements réseau d'ici 2030 pour accueillir la production ENR. Transformateurs HVDC, câbles sous-marins, postes intelligents : carnet de commandes historique pour les acteurs de l'infrastructure (Siemens Energy, Prysmian, Nexans). La demande en data centers IA amplifie encore la pression sur les réseaux électriques.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card asec" style="margin-bottom:16px">
-      <h3>🎯 Allocation recommandée (stratégie PEA)</h3>
-      <div class="tw">
-        <table>
-          <thead><tr><th>Position</th><th>Type</th><th>Secteur</th><th>Alloc. %</th><th>Conviction</th><th>Stop-Loss</th><th>Objectif</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Amundi MSCI World (CW8)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Monde</td><td>20 %</td><td><span class="conv cf">Forte</span></td><td>-15 %</td><td>+20 %/an</td></tr>
-            <tr><td><strong>Amundi Small Cap Europe (SMCX)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>Small Cap Europe</td><td>15 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+25 %</td></tr>
-            <tr><td><strong>iShares Clean Energy (IQQH)</strong></td><td><span class="bdg bdg-e">ETF</span></td><td>ENR</td><td>12 %</td><td><span class="conv ctf">Très forte</span></td><td>-20 %</td><td>+35 %</td></tr>
-            <tr><td><strong>Encavis (ECV.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Solaire/Éolien</td><td>10 %</td><td><span class="conv ctf">Très forte</span></td><td>-15 %</td><td>+40 %</td></tr>
-            <tr><td><strong>Mersen (MRN.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Composants batteries</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-18 %</td><td>+45 %</td></tr>
-            <tr><td><strong>Siemens Energy (ENR.DE)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Infra. énergie</td><td>10 %</td><td><span class="conv cf">Forte</span></td><td>-20 %</td><td>+35 %</td></tr>
-            <tr><td><strong>Eramet (ERA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Matériaux critiques</td><td>8 %</td><td><span class="conv cm">Moyenne</span></td><td>-22 %</td><td>+50 %</td></tr>
-            <tr><td><strong>Voltalia (VLTSA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>ENR France</td><td>8 %</td><td><span class="conv cf">Forte</span></td><td>-20 %</td><td>+60 %</td></tr>
-            <tr><td><strong>Waga Energy (WAGA.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Biométhane</td><td>5 %</td><td><span class="conv cm">Moyenne</span></td><td>-25 %</td><td>+55 %</td></tr>
-            <tr><td><strong>Forsee Power (FORSE.PA)</strong></td><td><span class="bdg bdg-a">Action</span></td><td>Batteries transport</td><td>2 %</td><td><span class="conv cs">Spéculative</span></td><td>-35 %</td><td>+100 %</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card asec" style="margin-bottom:16px">
-      <h3>⚠️ Plan de gestion du risque</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="abl"><h4>Stop-Loss</h4>
-          <ul>
-            <li>ETF : -15 % à -20 % depuis le PRU</li>
-            <li>Actions large cap : -20 % depuis le PRU</li>
-            <li>Small caps spéculatives : -30 % à -35 %</li>
-            <li>Stop trailing sur positions en forte plus-value</li>
-          </ul>
-        </div>
-        <div class="abl"><h4>Prise de profit</h4>
-          <ul>
-            <li>Allégement 30 % à +35 % sur les convictions fortes</li>
-            <li>Prise de profit totale si fondamentaux dégradés</li>
-            <li>Réallocation vers les positions sous-performantes</li>
-            <li>Rééquilibrage trimestriel systématique</li>
-          </ul>
-        </div>
-        <div class="abl"><h4>Conditions de renforcement</h4>
-          <ul>
-            <li>Repli &gt; 10 % sans dégradation des fondamentaux</li>
-            <li>Publication de résultats meilleurs qu'attendu</li>
-            <li>Confirmation d'un catalyseur identifié</li>
-          </ul>
-        </div>
-        <div class="abl"><h4>Conditions de vente</h4>
-          <ul>
-            <li>Atteinte du stop-loss défini</li>
-            <li>Dégradation du business model ou des fondamentaux</li>
-            <li>Opportunité plus attractive disponible</li>
-            <li>Atteinte de l'objectif de cours cible</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="card asec">
-      <h3>📊 Scénarios de marché (horizon 12-18 mois)</h3>
-      <div class="scens">
-        <div class="sc sc-b">
-          <div class="scl">🟢 Scénario haussier (+35 à +60 %)</div>
-          <div class="sct">Baisses BCE supplémentaires (taux à 1,75 %), accélération des mises en service ENR, hausse des prix de l'électricité, mise en place du CRMA, retour massif des flux institutionnels sur les small caps européennes. Catalyseurs réalisés sur Voltalia, Encavis, Mersen et Siemens Energy. Objectif portefeuille : +45 à +60 %.</div>
-        </div>
-        <div class="sc sc-n">
-          <div class="scl">🔵 Scénario central (+18 à +30 %)</div>
-          <div class="sct">Croissance modérée zone euro (+1,2–1,5 %), inflation contenue, BCE stable à 2 %, transition énergétique en rythme de croisière. La sélection de valeurs de qualité sur les thèmes batteries, ENR et infrastructure permet de surperformer le STOXX 600. Objectif portefeuille : +20 à +32 %.</div>
-        </div>
-        <div class="sc sc-r">
-          <div class="scl">🔴 Scénario baissier (-15 à -25 %)</div>
-          <div class="sct">Choc géopolitique majeur, guerre commerciale USA-UE, récession en Allemagne, rebond inflationniste forçant la BCE à remonter ses taux. Effondrement des valeurs ENR et batteries. Les stops-loss limitent la perte max à -18 %. L'ETF MSCI World joue son rôle d'amortisseur.</div>
-        </div>
-      </div>
+      <div class="sect"><h3>🧭 Contexte général</h3><div class="body">Le cycle d'assouplissement de la BCE (taux de dépôt ramené vers 1,75 %) soutient les actifs à duration longue et les small/mid caps européennes, particulièrement les secteurs capital-intensifs comme les énergies renouvelables et les infrastructures réseau. L'inflation revenue près de 2 % réduit la pression sur les coûts. Le contexte reste porteur pour une stratégie PEA orientée transition énergétique, mais la sélectivité reste clé après plusieurs années de dispersion des performances.</div></div>
+      <div class="sect"><h3>☀️ Énergies renouvelables</h3><div class="body">La baisse des taux réhabilite les modèles à fort capex (parcs solaires/éoliens financés par dette). La demande électrique structurellement haussière (électrification, data centers IA) soutient les prix de gros et la rentabilité des PPAs. Catalyseur réglementaire : REPowerEU et objectifs 2030 non révisables. Attention à la volatilité des prix spot et aux délais de permis.</div></div>
+      <div class="sect"><h3>🔋 Batteries &amp; matériaux</h3><div class="body">Après la correction des prix du lithium en 2024-2025, le marché se rééquilibre. Les fournisseurs de composants et matériaux (graphite, électrodes) bénéficient de la montée en charge des gigafactories européennes. Le Critical Raw Materials Act impose des objectifs de contenu recyclé/extrait en Europe — favorable au recyclage (Umicore) et aux producteurs de métaux critiques.</div></div>
+      <div class="sect"><h3>⚡ Infrastructure réseau</h3><div class="body">Segment le plus visible : pénurie structurelle de câbles HVDC et de transformateurs, carnets de commandes records (Nexans, Siemens Energy). L'interconnexion des réseaux européens et le raccordement de l'éolien offshore génèrent une demande pluriannuelle avec un fort pricing power. Risque principal : exécution sur des projets complexes.</div></div>
     </div>
   </div>
 
-</div><!-- /content -->
+</div>
 
-<!-- ══════════════════ MODAL SYNCHRONISATION ══════════════════ -->
-<div id="syncModal" class="mover" onclick="if(event.target===this)closeSyncModal()">
-  <div class="modal" style="max-width:500px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div class="mtl" style="margin:0">☁️ Synchronisation multi-appareils</div>
-      <button class="btn btn-g btn-s" onclick="closeSyncModal()">✕</button>
-    </div>
+<!-- DROPDOWN (shared) -->
+<div id="dd"></div>
 
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:16px">
-      <div style="font-size:.78rem;font-weight:600;color:var(--teal);margin-bottom:6px">⚡ Configuration en 3 étapes (service gratuit)</div>
-      <ol class="sync-steps">
-        <li>Créez un compte gratuit sur <a href="https://jsonbin.io/register" target="_blank" style="color:var(--blue)">jsonbin.io</a></li>
-        <li>Tableau de bord → <strong style="color:var(--t1)">API Keys</strong> → copiez votre <strong style="color:var(--t1)">Master Key</strong></li>
-        <li>Collez-la ci-dessous et cliquez <strong style="color:var(--t1)">Sauvegarder</strong> — la synchro devient automatique</li>
-      </ol>
-    </div>
-
+<!-- MODAL ADD/EDIT -->
+<div id="addModal" class="mover" onclick="if(event.target===this){closeAdd();closeDD()}">
+  <div class="modal">
+    <div class="mtl" id="addTitle">➕ Ajouter une position</div>
     <div class="fg">
-      <label class="fl">Clé API JSONBin (Master Key) *</label>
-      <div style="display:flex;gap:8px">
-        <input type="password" class="fi" id="syncApiKey" placeholder="$2b$10$..." style="flex:1;font-family:monospace;font-size:.78rem">
-        <button class="btn btn-g btn-s" onclick="toggleKeyVis()" style="flex-shrink:0;padding:6px 10px">👁</button>
-      </div>
-      <div style="font-size:.7rem;color:var(--t3);margin-top:3px">🔒 Stockée uniquement dans votre navigateur — jamais transmise à nos serveurs</div>
+      <label class="fl">Rechercher — nom, code ISIN (Boursobank) ou mnémonique</label>
+      <input type="text" class="fi" id="aSearch" placeholder="ex : Voltalia, FR0011995588, VLTSA" autocomplete="off"
+        oninput="onSearch(this,'modal')" onkeydown="ddNav(event,'modal')" onfocus="onSearch(this,'modal')">
+      <div class="hint">Tapez le code ISIN affiché sur votre PEA Boursobank, ou le nom de la valeur → sélectionnez le résultat. Le mnémonique boursier (pour les cours) se remplit automatiquement.</div>
     </div>
-    <div class="fg">
-      <label class="fl">ID du bin (auto-généré • à copier sur vos autres appareils)</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" class="fi" id="syncBinId" placeholder="Laissez vide pour en créer un nouveau" style="flex:1;font-family:monospace;font-size:.78rem">
-        <button class="btn btn-g btn-s" onclick="copySyncId()" title="Copier l'ID" style="padding:6px 10px">📋</button>
-      </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Code ISIN</label>
+        <input type="text" class="fi isin" id="aIsin" placeholder="FR00..." style="font-family:monospace" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="fg"><label class="fl">Mnémonique boursier</label>
+        <input type="text" class="fi" id="aSym" placeholder="VLTSA.PA" style="font-family:monospace;color:var(--blue)" oninput="this.value=this.value.toUpperCase()"></div>
     </div>
-
-    <div id="syncMsg" style="display:none;margin-bottom:12px"></div>
-
-    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bd)">
-      <button class="btn btn-p" onclick="saveSyncConfig()" style="flex:1">💾 Sauvegarder</button>
-      <button class="btn btn-g" id="syncNowBtn" onclick="syncNow()" style="display:none">↻ Synchro. maint.</button>
-      <button class="btn btn-d btn-s" id="disconnectBtn" onclick="disconnectSync()" style="display:none">Déconnecter</button>
+    <div class="fg"><label class="fl">Nom de la valeur</label>
+      <input type="text" class="fi" id="aName" placeholder="Voltalia"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Type</label>
+        <select class="fsel" id="aType"><option>Action</option><option>ETF</option></select></div>
+      <div class="fg"><label class="fl">Secteur</label>
+        <input type="text" class="fi" id="aSector" placeholder="Énergies renouvelables"></div>
     </div>
-
-    <hr class="div">
-
-    <!-- Code de partage pour autres appareils -->
-    <div id="shareSec" style="display:none;margin-bottom:16px">
-      <div style="font-size:.8rem;font-weight:600;color:var(--t1);margin-bottom:6px">📱 Configurer un autre appareil</div>
-      <div style="font-size:.78rem;color:var(--t2);margin-bottom:8px">Copiez ce code et collez-le sur votre autre appareil pour accéder aux mêmes données.</div>
-      <div class="share-code" id="shareCodeVal" style="margin-bottom:8px;cursor:pointer" onclick="copyShareCode()" title="Cliquer pour copier"></div>
-      <button class="btn btn-g btn-s" onclick="copyShareCode()" style="width:100%">📋 Copier le code de partage</button>
+    <div class="fr">
+      <div class="fg"><label class="fl">Quantité</label>
+        <input type="number" class="fi" id="aQty" placeholder="40" min="0.0001" step="any"></div>
+      <div class="fg"><label class="fl">Prix de revient unitaire (€)</label>
+        <input type="number" class="fi" id="aBuy" placeholder="9.20" min="0.0001" step="any"></div>
     </div>
-
-    <div class="fg">
-      <label class="fl">Coller un code depuis un autre appareil</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" class="fi" id="shareCodeInput" placeholder="Collez ici le code de partage…" style="flex:1;font-family:monospace;font-size:.78rem">
-        <button class="btn btn-p btn-s" onclick="pasteShareCode()">Décoder</button>
-      </div>
-    </div>
-
-    <hr class="div">
-
-    <div style="font-size:.8rem;font-weight:600;color:var(--t2);margin-bottom:10px">💾 Sauvegarde locale (sans compte)</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-g" onclick="exportJSON()" style="flex:1">⬇️ Exporter .json</button>
-      <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
-        ⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none">
-      </label>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-p" style="flex:1" onclick="saveAdd()">Enregistrer</button>
+      <button class="btn btn-g" onclick="closeAdd()">Annuler</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════ MODAL SAISIE EN MASSE ══════════════════ -->
-<div id="bulkModal" class="mover" onclick="if(event.target===this)closeBulkModal()">
-  <div class="modal bmodal">
+<!-- MODAL BULK -->
+<div id="bulkModal" class="mover" onclick="if(event.target===this){closeBulk();closeDD()}">
+  <div class="modal wide">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="mtl" style="margin:0">📋 Saisir mon portefeuille</div>
-      <button class="btn btn-g btn-s" onclick="closeBulkModal()">✕ Fermer</button>
+      <div class="mtl" style="margin:0">📋 Mon portefeuille Boursobank</div>
+      <button class="btn btn-g btn-s" onclick="closeBulk()">✕</button>
     </div>
-    <div class="bulk-hint">
-      💡 Tapez le <strong>nom de la société ou le code Boursobank</strong> dans la colonne Recherche → sélectionnez le résultat Yahoo Finance correct dans la liste déroulante. Le symbole Yahoo Finance s'affiche en bleu sous le champ.
+    <div class="badge b-load" style="margin-bottom:12px">
+      💡 Dans la colonne <b>Recherche</b>, tapez le <b>code ISIN</b> de votre relevé Boursobank (ou le nom) → choisissez le résultat. Le mnémonique boursier se remplit tout seul.
     </div>
-    <div class="tw" style="margin-bottom:14px;max-height:380px;overflow-y:auto">
-      <table id="bulkTable" style="min-width:650px">
-        <thead>
-          <tr>
-            <th>Recherche / Symbole *</th>
-            <th>Nom affiché *</th>
-            <th>Type</th>
-            <th>Secteur</th>
-            <th>Quantité *</th>
-            <th>PRU € *</th>
-            <th></th>
-          </tr>
-        </thead>
+    <div class="tw" style="max-height:50vh;overflow-y:auto;margin-bottom:12px">
+      <table style="min-width:720px">
+        <thead><tr>
+          <th>Recherche (ISIN / nom)</th><th>Nom</th><th>Type</th><th>Secteur</th><th>Qté</th><th>PRU €</th><th></th>
+        </tr></thead>
         <tbody id="bulkBody"></tbody>
       </table>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:4px;border-top:1px solid var(--bd)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--bd);padding-top:10px">
       <button class="btn btn-g btn-s" onclick="addBulkRow({})">＋ Ligne</button>
-      <button class="btn btn-g btn-s" onclick="loadDemo()" title="Remplir avec des exemples">🧪 Exemples</button>
-      <button class="btn btn-warn btn-s" onclick="clearBulkRows()">🗑 Vider</button>
+      <button class="btn btn-g btn-s" onclick="loadDemo()">🧪 Exemples</button>
+      <button class="btn btn-d btn-s" onclick="clearBulk()">🗑 Vider</button>
       <div style="flex:1"></div>
-      <button class="btn btn-g" onclick="closeBulkModal()">Annuler</button>
+      <button class="btn btn-g" onclick="closeBulk()">Annuler</button>
       <button class="btn btn-p" onclick="saveBulk()">✓ Enregistrer tout</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════ MODAL ADD POSITION ══════════════════ -->
-<div id="addModal" class="mover" onclick="if(event.target===this){closeModal();closeDD()}">
+<!-- MODAL SYNC -->
+<div id="syncModal" class="mover" onclick="if(event.target===this)closeSync()">
   <div class="modal">
-    <div class="mtl">➕ Ajouter / Modifier une position</div>
-    <div class="fg">
-      <label class="fl">Rechercher par nom ou symbole</label>
-      <input type="text" class="fi" id="mSearch" placeholder="ex: Voltalia ou VLTSA" autocomplete="off"
-        oninput="onModalSearch(this)" onkeydown="ddKeyNav(event,'modal')" onfocus="onModalSearch(this)">
-      <div class="sym-hint">Tapez le nom de la société ou le code Boursobank → sélectionnez le résultat Yahoo Finance correct</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="mtl" style="margin:0">☁️ Sauvegarde &amp; synchronisation</div>
+      <button class="btn btn-g btn-s" onclick="closeSync()">✕</button>
     </div>
-    <div class="fg"><label class="fl">Symbole Yahoo Finance</label>
-      <input type="text" class="fi" id="mSymbol" placeholder="VLTSA.PA" autocomplete="off"
-        oninput="this.value=this.value.toUpperCase()" style="font-family:monospace;font-weight:600;color:var(--blue)"></div>
-    <div class="fg"><label class="fl">Nom affiché</label>
-      <input type="text" class="fi" id="mName" placeholder="Voltalia"></div>
-    <div class="fr">
-      <div class="fg"><label class="fl">Type</label>
-        <select class="fsel" id="mType"><option value="Action">Action</option><option value="ETF">ETF</option></select></div>
-      <div class="fg"><label class="fl">Secteur</label>
-        <input type="text" class="fi" id="mSector" placeholder="Énergies Renouv."></div>
+
+    <!-- not configured -->
+    <div id="syncSetup">
+      <div class="card" style="background:var(--bg3);margin-bottom:14px">
+        <div style="font-size:.78rem;color:var(--teal);font-weight:600;margin-bottom:6px">⚡ Configuration unique (~5 min, gratuit)</div>
+        <ol style="padding-left:20px;font-size:.8rem;color:var(--t2);line-height:1.9">
+          <li><a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> → Créer un projet</li>
+          <li><b>Authentication</b> → activer le fournisseur <b>Google</b></li>
+          <li><b>Realtime Database</b> → Créer une base (mode test)</li>
+          <li>⚙️ Paramètres → Vos applications → app Web → copier l'objet <code>firebaseConfig</code></li>
+        </ol>
+      </div>
+      <div class="fg">
+        <label class="fl">Collez votre firebaseConfig (le bloc complet de la console)</label>
+        <textarea class="fi" id="fbInput" rows="7" placeholder='const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "mon-app.firebaseapp.com",
+  databaseURL: "https://mon-app-default-rtdb.firebaseio.com",
+  projectId: "mon-app",
+  ...
+};' style="font-family:monospace;font-size:.72rem;resize:vertical"></textarea>
+      </div>
+      <div id="fbSetupMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+      <button class="btn btn-p" style="width:100%" onclick="saveFbConfig()">💾 Sauvegarder la configuration</button>
     </div>
-    <div class="fr">
-      <div class="fg"><label class="fl">Quantité</label>
-        <input type="number" class="fi" id="mQty" placeholder="10" min="0.001" step="any"></div>
-      <div class="fg"><label class="fl">Prix de revient unitaire (€)</label>
-        <input type="number" class="fi" id="mBuy" placeholder="15.50" min="0.001" step="any"></div>
+
+    <!-- configured, signed out -->
+    <div id="syncSignin" style="display:none;text-align:center;padding:14px 0">
+      <div style="font-size:2rem">🔑</div>
+      <div style="font-size:.86rem;color:var(--t2);margin:8px 0 18px">Firebase configuré. Connectez-vous pour synchroniser sur tous vos appareils.</div>
+      <button class="btn btn-p" style="padding:10px 22px" onclick="fbSignIn()">Se connecter avec Google</button>
+      <div style="margin-top:14px"><button class="btn btn-g btn-s" onclick="resetFb()">Reconfigurer</button></div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:6px">
-      <button class="btn btn-p" style="flex:1" onclick="saveHolding()">Enregistrer</button>
-      <button class="btn btn-g" onclick="closeModal()">Annuler</button>
+
+    <!-- signed in -->
+    <div id="syncConnected" style="display:none">
+      <div class="card" style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-color:rgba(34,197,94,.25);margin-bottom:12px">
+        <img id="fbAvatar" src="" alt="" style="width:38px;height:38px;border-radius:50%" onerror="this.style.display='none'">
+        <div><div id="fbName" style="font-weight:600;font-size:.9rem">—</div><div style="font-size:.74rem;color:var(--green)">✅ Synchronisation automatique active</div></div>
+      </div>
+      <div id="fbLast" style="font-size:.74rem;color:var(--t3);text-align:center;margin-bottom:10px"></div>
+      <div id="fbMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g" style="flex:1" onclick="fbSyncNow()">↻ Sauvegarder maintenant</button>
+        <button class="btn btn-d btn-s" onclick="fbSignOut()">Déconnexion</button>
+      </div>
+    </div>
+
+    <hr class="div">
+    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:8px">💾 Sauvegarde fichier (sans compte)</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
+      <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
     </div>
   </div>
 </div>
 
-<!-- Floating symbol autocomplete dropdown (shared) -->
-<div id="symDD"></div>
-
-<!-- ══════════════════ SCRIPT ══════════════════ -->
 <script>
-/* ════════════════════════════════════════
-   DATA
-════════════════════════════════════════ */
-const DEMO_HOLDINGS = [
-  {symbol:'CW8.PA',   name:'Amundi MSCI World',           type:'ETF',    sector:'Monde',              qty:5,  buy:415.00},
-  {symbol:'IQQH.DE',  name:'iShares Global Clean Energy', type:'ETF',    sector:'Énergies Prop.',      qty:30, buy:15.80},
-  {symbol:'VLTSA.PA', name:'Voltalia',                    type:'Action', sector:'Énergies Renouv.',    qty:40, buy:9.20},
-  {symbol:'ERA.PA',   name:'Eramet',                      type:'Action', sector:'Matériaux Critiques', qty:8,  buy:58.00},
-  {symbol:'UMI.BR',   name:'Umicore',                     type:'Action', sector:'Tech. Batteries',     qty:25, buy:11.50},
-  {symbol:'ALFEN.AS', name:'Alfen',                       type:'Action', sector:'Stockage Énergie',    qty:10, buy:24.00},
-  {symbol:'MRN.PA',   name:'Mersen',                      type:'Action', sector:'Composants',          qty:15, buy:28.50},
-  {symbol:'ENR.DE',   name:'Siemens Energy',              type:'Action', sector:'Infra. Énergie',      qty:5,  buy:48.00},
-];
-
-const OPPORTUNITIES = [
-  {
-    id:'o1', symbol:'ECV.DE', name:'Encavis AG', sector:'Énergies Renouvelables', category:'renewable',
-    risk:4, conviction:'Très forte conviction', convClass:'ctf',
-    targetPrice:20, stopLoss:10.50, horizon:'12-18 mois', potReturn:'+35-50%',
-    peaEligible:false, maxInvest:150,
-    analysis:'Encavis est l\'un des principaux opérateurs d\'énergies renouvelables en Europe avec +3 GW de capacité installée (solaire + éolien). La société génère des revenus très prévisibles via des PPAs de long terme (durée moyenne >15 ans). Le passage sous contrôle de KKR en 2023 a renforcé la structure financière et la capacité d\'acquisition.',
-    catalysts:['Acquisition de nouveaux projets solaires en Italie et Espagne','Revalorisation du pipeline à +6 GW d\'ici 2027','Baisse des coûts de financement favorisant les projets capital-intensifs','Contexte réglementaire européen très favorable (REPowerEU)'],
-    risks:['Baisse des prix spot de l\'électricité','Hausse soudaine des taux de financement','Risque exécution sur les acquisitions','Réglementation tarifaire changeante en Allemagne'],
-  },
-  {
-    id:'o2', symbol:'VLTSA.PA', name:'Voltalia', sector:'Énergies Renouvelables', category:'renewable',
-    risk:5, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:15, stopLoss:7.00, horizon:'12-18 mois', potReturn:'+55-80%',
-    peaEligible:true, maxInvest:150,
-    analysis:'Voltalia est un producteur français d\'énergies renouvelables (solaire, éolien, hydraulique, biogaz) présent dans 20 pays. La société dispose d\'un carnet de commandes solide et d\'une forte exposition aux marchés émergents à forte croissance (Brésil, Afrique). Sa filiale services représente un revenu récurrent croissant.',
-    catalysts:['Mise en service de nouveaux projets au Brésil (1,5 GW pipeline)','Développement du segment services B2B','Potentiel contrats PPA industriels en Europe','Baisse de l\'endettement avec les premiers projets en service'],
-    risks:['Risque de change sur les marchés émergents','Délais administratifs sur les permis','Concurrence accrue sur les appels d\'offres','Risque de taux sur le refinancement'],
-  },
-  {
-    id:'o3', symbol:'MRN.PA', name:'Mersen', sector:'Tech. Batteries / Composants', category:'battery',
-    risk:4, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:46, stopLoss:22.00, horizon:'12-24 mois', potReturn:'+40-55%',
-    peaEligible:true, maxInvest:150,
-    analysis:'Mersen est un spécialiste mondial des matériaux à base de graphite et carbone, essentiels pour les électrodes de batteries lithium-ion. La société est un fournisseur clé des gigafactories européennes (Northvolt, ACC, Stellantis) et bénéficie de la montée en puissance de l\'industrie EV. Marges solides et génération de cash flow soutenue.',
-    catalysts:['Montée en puissance des commandes gigafactory en Europe','Contrats exclusifs avec constructeurs automobiles européens','Croissance du segment semi-conducteurs (carbure de silicium)','M&A potentiel dans le secteur des matériaux avancés'],
-    risks:['Ralentissement de l\'électrification automobile','Pression sur les prix des matières premières','Concurrence asiatique (Chine) sur les matériaux de base','Risque de capacité sur les sites de production'],
-  },
-  {
-    id:'o4', symbol:'ALFEN.AS', name:'Alfen N.V.', sector:'Stockage Énergie / EV Charging', category:'battery',
-    risk:6, conviction:'Conviction moyenne', convClass:'cm',
-    targetPrice:35, stopLoss:14.00, horizon:'12-18 mois', potReturn:'+40-70%',
-    peaEligible:false, maxInvest:150,
-    analysis:'Alfen est un acteur néerlandais intégré dans les énergies intelligentes : bornes de recharge EV, systèmes de stockage par batteries (Eve), et postes de transformation intelligents. La société est bien positionnée sur les appels d\'offres de réseaux électriques intelligents (smart grid) en Europe. Valorisation déprimée après correction de 2023.',
-    catalysts:['Carnet de commandes stockage batteries en forte croissance','Contrats smart grid avec gestionnaires de réseaux européens','Expansion géographique (UK, Belgique, Allemagne)','Amélioration des marges sur le segment bornes EV'],
-    risks:['Forte concurrence sur les bornes de recharge','Risque d\'exécution sur les grands projets','Dépendance aux subventions et appels d\'offres publics','Inflation des coûts de composants électroniques'],
-  },
-  {
-    id:'o5', symbol:'ENR.DE', name:'Siemens Energy AG', sector:'Infrastructure Énergie', category:'infra',
-    risk:5, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:72, stopLoss:35.00, horizon:'12-18 mois', potReturn:'+35-50%',
-    peaEligible:false, maxInvest:150,
-    analysis:'Siemens Energy est un leader mondial des équipements de transition énergétique : turbines à gaz, transformateurs, lignes HVDC, éoliennes offshore (via Siemens Gamesa). Après une période difficile liée à des problèmes de garanties sur les turbines à vent, la société a procédé à une restructuration profonde et retrouve une trajectoire positive. Carnet de commandes historique (+120 Md€).',
-    catalysts:['Résolution des problèmes de garanties Gamesa (provision en cours de consommation)','Forte demande en transformateurs et interconnexions électriques','Contrats gigantesques sur les réseaux HVDC en Europe','Croissance de la demande en centres de données (IA)'],
-    risks:['Surcoûts persistants sur les projets éoliens offshore','Risque d\'exécution sur le carnet de commandes massif','Concurrence de GE Vernova et ABB','Exposition aux marchés émergents volatils'],
-  },
-  {
-    id:'o6', symbol:'ERA.PA', name:'Eramet S.A.', sector:'Matériaux Critiques / Terres Rares', category:'rareearth',
-    risk:6, conviction:'Conviction moyenne', convClass:'cm',
-    targetPrice:90, stopLoss:42.00, horizon:'12-24 mois', potReturn:'+40-60%',
-    peaEligible:true, maxInvest:150,
-    analysis:'Eramet est un groupe minier et métallurgique français stratégique dans les matériaux critiques : manganèse (batteries haute énergie NMC), nickel, lithium (Centenario en Argentine). La société est un fournisseur clé de la chaîne de valeur des batteries électriques européennes. Le Critical Raw Materials Act (2024) est un catalyseur réglementaire majeur.',
-    catalysts:['Montée en puissance du projet lithium Centenario (Argentine)','Hausse des prix du manganèse et nickel avec l\'électrification','Contrats lithium avec batteries/OEM européens','Intégration verticale vers le raffinage de matériaux batteries'],
-    risks:['Volatilité des prix des métaux (manganèse, nickel)','Risque pays (Gabon, Argentine)','Capex élevé sur les nouveaux projets','Concurrence des producteurs asiatiques et africains'],
-  },
-  {
-    id:'o7', symbol:'WAGA.PA', name:'Waga Energy', sector:'Biométhane / Gaz Vert', category:'renewable',
-    risk:6, conviction:'Conviction moyenne', convClass:'cm',
-    targetPrice:55, stopLoss:22.00, horizon:'18-24 mois', potReturn:'+45-70%',
-    peaEligible:true, maxInvest:150,
-    analysis:'Waga Energy est un pionnier français du biométhane issu des décharges via sa technologie propriétaire WAGABOX. Elle transforme le biogaz des centres d\'enfouissement en biométhane injecté directement dans le réseau de gaz naturel. Modèle économique récurrent avec des contrats long terme. Présence en France, USA, Canada, Europe.',
-    catalysts:['Accélération des déploiements aux États-Unis (Inflation Reduction Act)','Nouveaux contrats avec Véolia, Suez et gestionnaires de décharges','Réglementation européenne favorisant le gaz vert','Potentiel de passage en BFI positif en 2026'],
-    risks:['Financement de la croissance (dilution potentielle)','Dépendance aux subsides et tarifs de rachat','Risque technologique sur les unités WAGABOX','Concurrence émergente sur le biométhane'],
-  },
-  {
-    id:'o8', symbol:'FORSE.PA', name:'Forsee Power', sector:'Batteries Transport', category:'battery',
-    risk:7, conviction:'Spéculative', convClass:'cs',
-    targetPrice:8.50, stopLoss:2.20, horizon:'18-24 mois', potReturn:'+80-150%',
-    peaEligible:true, maxInvest:50,
-    analysis:'Forsee Power conçoit et fabrique des systèmes de batteries pour les transports lourds : bus, cars, bateaux, engins industriels. La société est positionnée sur un segment de niche à forte croissance avec des barrières à l\'entrée liées à la certification et l\'homologation. Elle bénéficie des plans de décarbonation des flottes publiques (bus électriques). Position spéculative en raison de la faible capitalisation et des pertes actuelles.',
-    catalysts:['Commandes de bus électriques en Europe (VDL, Iveco, CAF)','Électrification des flottes maritimes fluviales','Potentiel de partnership ou acquisition par un industriel','Atteinte du seuil de rentabilité opérationnelle'],
-    risks:['Besoin de financement avant l\'atteinte du BFI positif','Concurrence des acteurs asiatiques (CATL, BYD) et européens','Faible liquidité du titre','Risque d\'exécution sur la montée en cadence'],
-  },
-  {
-    id:'o9', symbol:'IQQH.DE', name:'iShares Global Clean Energy ETF', sector:'ETF – Énergies Renouvelables', category:'etf',
-    risk:5, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:22, stopLoss:11.50, horizon:'12-18 mois', potReturn:'+25-40%',
-    peaEligible:false, maxInvest:150,
-    analysis:'ETF diversifié sur les énergies renouvelables mondiales (solaire, éolien, hydraulique, hydrogène). Exposition à ~100 sociétés incluant Vestas, Orsted, First Solar, Enphase. Idéal pour capturer le secteur ENR global sans risque spécifique. Liquidité élevée. Frais annuels : 0,65 %.',
-    catalysts:['Politique IRA aux USA maintenue','Objectifs ENR 2030 européens non révisables','Baisse des coûts solaire et éolien','Hausse des prix de l\'électricité sécurisant la rentabilité des projets'],
-    risks:['Concentration sur quelques grandes capitalisations','Risque de change USD/EUR','Réglementation défavorable aux énergies vertes','Baisse du prix de l\'électricité long terme'],
-  },
-  {
-    id:'o10', symbol:'L8I.DE', name:'Global X Lithium & Battery Tech ETF', sector:'ETF – Batteries & Lithium', category:'etf',
-    risk:6, conviction:'Conviction moyenne', convClass:'cm',
-    targetPrice:16, stopLoss:8.50, horizon:'12-18 mois', potReturn:'+30-50%',
-    peaEligible:false, maxInvest:150,
-    analysis:'ETF thématique axé sur la chaîne de valeur complète des batteries : extraction du lithium (Albemarle, SQM), fabrication de batteries (Panasonic, Samsung SDI, LG Energy), matériaux actifs et recyclage. Exposition globale au mégatrend de l\'électrification. Frais annuels : 0,75 %.',
-    catalysts:['Accélération de la demande en batteries EV','Hausse des prix du lithium avec l\'électrification','Nouvelles gigafactories en Europe','Développement des batteries LFP nouvelle génération'],
-    risks:['Forte dépendance aux acteurs asiatiques (>50 % du fonds)','Volatilité du prix du lithium','Surcapacité de production temporaire en Chine','Risque réglementaire en Amérique Latine (Chili, Argentine)'],
-  },
-  // ── Terres Rares supplémentaires ──
-  {
-    id:'o11', symbol:'UMI.BR', name:'Umicore', sector:'Matériaux Batteries / Recyclage', category:'rareearth',
-    risk:5, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:18, stopLoss:8.00, horizon:'12-18 mois', potReturn:'+30-55%',
-    peaEligible:false, maxInvest:150,
-    analysis:'Umicore est un leader mondial du raffinage de métaux précieux et de la production de matériaux actifs pour batteries (NMC, NCA). Acteur de l\'économie circulaire, Umicore développe le recyclage des batteries usagées (Cobalt, Lithium, Nickel). Son repositionnement stratégique sur le recyclage est un catalyseur majeur alors que les premières vagues de batteries EV arrivent en fin de vie (2025-2027).',
-    catalysts:['Démarrage des contrats de recyclage batteries EV grande échelle en Europe','Politique CRMA imposant 15% de contenu recyclé d\'ici 2030','Amélioration des marges avec la montée en charge de l\'usine Hoboken','Hausse du prix du Cobalt et Nickel favorisant la rentabilité du raffinage'],
-    risks:['Concurrence asiatique (Huayou, GEM) sur les matériaux actifs','Ralentissement de l\'électrification automobile en Europe','Pression sur les prix du cobalt (surproduction Congo)','Capex élevé pour les nouvelles capacités de recyclage'],
-  },
-  {
-    id:'o12', symbol:'AMG.AS', name:'AMG Advanced Metallurgy', sector:'Métaux Critiques / Terres Rares', category:'rareearth',
-    risk:6, conviction:'Conviction moyenne', convClass:'cm',
-    targetPrice:26, stopLoss:11.00, horizon:'12-24 mois', potReturn:'+35-65%',
-    peaEligible:false, maxInvest:150,
-    analysis:'AMG Advanced Metallurgy est un producteur néerlandais de métaux critiques et matériaux spéciaux : vanadium, chrome, tantale, graphite naturel, silicium. Ces matériaux sont indispensables aux batteries nouvelle génération et aux alliages aéronautique/défense. Le graphite naturel d\'AMG est une alternative stratégique à la dépendance chinoise (>80 % de la production mondiale).',
-    catalysts:['Hausse des prix du vanadium (batteries à flux V-RFB en plein essor)','Demande en graphite naturel pour anodes de batteries (+300 % d\'ici 2030)','Politique européenne de souveraineté sur les matériaux critiques (CRMA)','Exposition à la défense européenne (aluminium spécial, aciers)'],
-    risks:['Volatilité des prix des métaux de spécialité','Faible liquidité du titre (small cap)','Exposition aux pays producteurs à risque (Afrique, Amérique du Sud)','Capex de développement minier élevé'],
-  },
-  // ── Infrastructure supplémentaire ──
-  {
-    id:'o13', symbol:'NEX.PA', name:'Nexans', sector:'Câbles & Infrastructure Réseau', category:'infra',
-    risk:5, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:120, stopLoss:65.00, horizon:'12-18 mois', potReturn:'+30-45%',
-    peaEligible:true, maxInvest:150,
-    analysis:'Nexans est le leader mondial des câbles électriques, positionné sur deux mégatrends : câbles HVDC pour l\'éolien offshore et interconnexions réseau européennes. La société bénéficie d\'un carnet de commandes record (>€7 Md) et d\'une capacité d\'exécution rare (navires câbliers en mer). Le marché des câbles est en pénurie structurelle avec un pricing power fort.',
-    catalysts:['Commandes HVDC pour l\'éolien offshore Mer du Nord et Baltique','Interconnexions électriques REPowerEU (10 projets PCI financés)','Demande data centers IA nécessitant câbles HTA/HTB','Extension de la capacité d\'usine (Halden Norvège, Charleston USA)'],
-    risks:['Risque d\'exécution sur les projets HVDC sous-marins','Concurrence de Prysmian (Italie) et NKT (Danemark)','Exposition aux prix du cuivre et de l\'aluminium','Délais de certification sur les nouveaux câbles 525 kV'],
-  },
-  {
-    id:'o14', symbol:'RWE.DE', name:'RWE AG', sector:'Utility Renouvelable / Grid', category:'infra',
-    risk:4, conviction:'Forte conviction', convClass:'cf',
-    targetPrice:42, stopLoss:24.00, horizon:'12-18 mois', potReturn:'+30-50%',
-    peaEligible:false, maxInvest:150,
-    analysis:'RWE est le principal producteur d\'électricité renouvelable en Europe après avoir opéré une transformation radicale de son modèle : exit quasi-total du charbon, pipeline ENR de +65 GW (éolien offshore, solaire, stockage). Valorisation attractive vs Iberdrola et Ørsted malgré des fondamentaux comparables. RWE bénéficie de subsides allemands stables et de contrats d\'État long terme.',
-    catalysts:['Mise en service de nouveaux parcs éoliens offshore (mer du Nord)','Déploiement massif du stockage batteries grande échelle en Allemagne','Vente des derniers actifs fossiles améliorant le profil ESG','Hausse des prix de l\'électricité long terme (PPAs en hausse)'],
-    risks:['Risque réglementaire en Allemagne (Energiewende 2.0, prix plafond)','Baisse du prix spot de l\'électricité en période de surproduction solaire','Délais sur les permis éoliens offshore','Capex très élevé sur le programme ENR 2030 (€15 Md)'],
-  },
-];
-
-/* ════════════════════════════════════════
-   STATE
-════════════════════════════════════════ */
-let holdings = JSON.parse(localStorage.getItem('pf_holdings') || 'null') || [];
-let prices = {}; // {symbol: {price, change, pct, hi, lo, whi, wlo, vol}}
+/* ════════════ ÉTAT ════════════ */
+let holdings = JSON.parse(localStorage.getItem('pf_h') || 'null') || [];
+let prices = {};          // symbol -> {price, prev, change, pct, currency, name, closes[], whi, wlo, error}
 let charts = {};
 let editId = null;
-let activeFilter = 'all';
-let refreshTimer = null;
-let preferredSector = localStorage.getItem('pf_pref_sector') || null;
-let syncConfig = JSON.parse(localStorage.getItem('pf_sync') || 'null');
-let syncDebounce = null;
+let prefSector = localStorage.getItem('pf_pref') || null;
+let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
+let fbUser = null, fbApp = null, fbTimer = null;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ════════════ BASE PEA (ISIN ↔ Yahoo) — Boursobank ════════════
+   isin = code visible sur votre relevé Boursobank
+   sym  = symbole Yahoo utilisé pour récupérer le cours          */
+const PEA_DB = [
+  // — Énergies renouvelables / énergie —
+  {isin:'FR0011995588',name:'Voltalia',sym:'VLTSA.PA',type:'Action',sector:'Énergies renouvelables',pea:true},
+  {isin:'FR0012532810',name:'Waga Energy',sym:'WAGA.PA',type:'Action',sector:'Biométhane',pea:true},
+  {isin:'FR0011742329',name:'McPhy Energy',sym:'MCPHY.PA',type:'Action',sector:'Hydrogène',pea:true},
+  {isin:'ES0105563003',name:'Acciona Energías Renovables',sym:'ANE.MC',type:'Action',sector:'Énergies renouvelables',pea:true},
+  {isin:'ES0165386014',name:'Solaria Energía',sym:'SLR.MC',type:'Action',sector:'Énergies renouvelables',pea:true},
+  {isin:'ES0127797019',name:'EDP Renováveis',sym:'EDPR.LS',type:'Action',sector:'Énergies renouvelables',pea:true},
+  {isin:'DK0061539921',name:'Vestas Wind Systems',sym:'VWS.CO',type:'Action',sector:'Éolien',pea:true},
+  {isin:'DK0060094928',name:'Ørsted',sym:'ORSTED.CO',type:'Action',sector:'Éolien offshore',pea:true},
+  {isin:'DE0007037129',name:'RWE',sym:'RWE.DE',type:'Action',sector:'Utility renouvelable',pea:true},
+  {isin:'ES0144580Y14',name:'Iberdrola',sym:'IBE.MC',type:'Action',sector:'Utility renouvelable',pea:true},
+  {isin:'IT0003128367',name:'Enel',sym:'ENEL.MI',type:'Action',sector:'Utility renouvelable',pea:true},
+  {isin:'FR0010208488',name:'Engie',sym:'ENGI.PA',type:'Action',sector:'Utility',pea:true},
+  {isin:'FR0000120271',name:'TotalEnergies',sym:'TTE.PA',type:'Action',sector:'Énergie',pea:true},
+  {isin:'FR0011726835',name:'GTT (Gaztransport & Technigaz)',sym:'GTT.PA',type:'Action',sector:'Infra. GNL',pea:true},
+  // — Batteries / matériaux —
+  {isin:'FR0000039620',name:'Mersen',sym:'MRN.PA',type:'Action',sector:'Composants batteries',pea:true},
+  {isin:'FR0014005SB3',name:'Forsee Power',sym:'FORSE.PA',type:'Action',sector:'Batteries transport',pea:true},
+  {isin:'NL0012817175',name:'Alfen',sym:'ALFEN.AS',type:'Action',sector:'Stockage / EV charging',pea:true},
+  {isin:'BE0974320526',name:'Umicore',sym:'UMI.BR',type:'Action',sector:'Matériaux batteries / recyclage',pea:true},
+  {isin:'FR0010313833',name:'Arkema',sym:'AKE.PA',type:'Action',sector:'Chimie / matériaux',pea:true},
+  // — Terres rares / métaux critiques —
+  {isin:'FR0000131757',name:'Eramet',sym:'ERA.PA',type:'Action',sector:'Métaux critiques / terres rares',pea:true},
+  {isin:'NL0000888691',name:'AMG Critical Materials',sym:'AMG.AS',type:'Action',sector:'Métaux critiques',pea:true},
+  {isin:'FR0000120859',name:'Imerys',sym:'NK.PA',type:'Action',sector:'Minéraux de spécialité',pea:true},
+  // — Infrastructure / réseau —
+  {isin:'FR0000044448',name:'Nexans',sym:'NEX.PA',type:'Action',sector:'Câbles & réseau',pea:true},
+  {isin:'DE000ENER6Y0',name:'Siemens Energy',sym:'ENR.DE',type:'Action',sector:'Infra. énergie',pea:true},
+  {isin:'FR0010220475',name:'Alstom',sym:'ALO.PA',type:'Action',sector:'Mobilité / infra',pea:true},
+  {isin:'FR0012757854',name:'SPIE',sym:'SPIE.PA',type:'Action',sector:'Services énergie',pea:true},
+  {isin:'FR0000121972',name:'Schneider Electric',sym:'SU.PA',type:'Action',sector:'Gestion énergie',pea:true},
+  {isin:'FR0010307819',name:'Legrand',sym:'LR.PA',type:'Action',sector:'Équipement électrique',pea:true},
+  {isin:'FR0000125486',name:'Vinci',sym:'DG.PA',type:'Action',sector:'Concessions / infra',pea:true},
+  {isin:'FR0000120073',name:'Air Liquide',sym:'AI.PA',type:'Action',sector:'Gaz industriels / H2',pea:true},
+  // — Semi-conducteurs / tech —
+  {isin:'NL0000226223',name:'STMicroelectronics',sym:'STMPA.PA',type:'Action',sector:'Semi-conducteurs',pea:true},
+  {isin:'FR0013227113',name:'Soitec',sym:'SOI.PA',type:'Action',sector:'Semi-conducteurs',pea:true},
+  {isin:'DE0006231004',name:'Infineon Technologies',sym:'IFX.DE',type:'Action',sector:'Semi-conducteurs',pea:true},
+  {isin:'NL0010273215',name:'ASML Holding',sym:'ASML.AS',type:'Action',sector:'Semi-conducteurs',pea:true},
+  {isin:'DE0007236101',name:'Siemens AG',sym:'SIE.DE',type:'Action',sector:'Industrie',pea:true},
+  // — ETF éligibles PEA —
+  {isin:'FR0010315770',name:'Amundi MSCI World (CW8)',sym:'CW8.PA',type:'ETF',sector:'Actions Monde',pea:true},
+  {isin:'FR0013412285',name:'Amundi PEA S&P 500 (PE500)',sym:'PE500.PA',type:'ETF',sector:'Actions USA',pea:true},
+  {isin:'FR0011871110',name:'Amundi PEA Nasdaq-100 (PANX)',sym:'PANX.PA',type:'ETF',sector:'Tech USA',pea:true},
+  // — ETF sectoriels NON éligibles PEA (CTO) —
+  {isin:'IE00B1XNHC34',name:'iShares Global Clean Energy',sym:'IQQH.DE',type:'ETF',sector:'ENR Monde',pea:false},
+  {isin:'IE00BLCHJN13',name:'L&G Battery Value-Chain',sym:'BATT.L',type:'ETF',sector:'Batteries Monde',pea:false},
+  // — ETF PEA supplémentaires —
+  {isin:'FR0007052782',name:'Lyxor CAC 40',sym:'CAC.PA',type:'ETF',sector:'Actions France',pea:true},
+  {isin:'FR0013412020',name:'Amundi PEA Marchés Émergents (PAEM)',sym:'PAEM.PA',type:'ETF',sector:'Actions Émergents',pea:true},
+  {isin:'LU1681045370',name:'Amundi MSCI Europe (MEUD)',sym:'MEUD.PA',type:'ETF',sector:'Actions Europe',pea:true},
+  // — CAC 40 / grandes caps françaises —
+  {isin:'FR0000121014',name:'LVMH',sym:'MC.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000120321',name:"L'Oréal",sym:'OR.PA',type:'Action',sector:'Cosmétiques',pea:true},
+  {isin:'NL0000235190',name:'Airbus',sym:'AIR.PA',type:'Action',sector:'Aérospatial',pea:true},
+  {isin:'FR0000131104',name:'BNP Paribas',sym:'BNP.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000120578',name:'Sanofi',sym:'SAN.PA',type:'Action',sector:'Pharmacie',pea:true},
+  {isin:'FR0000120628',name:'AXA',sym:'CS.PA',type:'Action',sector:'Assurance',pea:true},
+  {isin:'FR0000073272',name:'Safran',sym:'SAF.PA',type:'Action',sector:'Aérospatial',pea:true},
+  {isin:'FR0000125338',name:'Capgemini',sym:'CAP.PA',type:'Action',sector:'IT Services',pea:true},
+  {isin:'FR0014003TT8',name:'Dassault Systèmes',sym:'DSY.PA',type:'Action',sector:'Logiciel',pea:true},
+  {isin:'FR0000121485',name:'Kering',sym:'KER.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000052292',name:'Hermès International',sym:'RMS.PA',type:'Action',sector:'Luxe',pea:true},
+  {isin:'FR0000131906',name:'Renault',sym:'RNO.PA',type:'Action',sector:'Automobile',pea:true},
+  {isin:'FR0000131261',name:'Michelin',sym:'ML.PA',type:'Action',sector:'Pneumatiques',pea:true},
+  {isin:'FR0000120693',name:'Pernod Ricard',sym:'RI.PA',type:'Action',sector:'Spiritueux',pea:true},
+  {isin:'FR0000130577',name:'Publicis Groupe',sym:'PUB.PA',type:'Action',sector:'Communication',pea:true},
+  {isin:'FR0000133308',name:'Orange',sym:'ORA.PA',type:'Action',sector:'Télécom',pea:true},
+  {isin:'FR0000120503',name:'Bouygues',sym:'EN.PA',type:'Action',sector:'Construction',pea:true},
+  {isin:'FR0000120644',name:'Danone',sym:'BN.PA',type:'Action',sector:'Alimentation',pea:true},
+  {isin:'FR0000130809',name:'Société Générale',sym:'GLE.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000045072',name:'Crédit Agricole',sym:'ACA.PA',type:'Action',sector:'Banque',pea:true},
+  {isin:'FR0000120404',name:'Accor',sym:'AC.PA',type:'Action',sector:'Hôtellerie',pea:true},
+  {isin:'FR0000120172',name:'Carrefour',sym:'CA.PA',type:'Action',sector:'Distribution',pea:true},
+  {isin:'FR0000121667',name:'EssilorLuxottica',sym:'EL.PA',type:'Action',sector:'Optique',pea:true},
+  {isin:'FR0000125007',name:'Saint-Gobain',sym:'SGO.PA',type:'Action',sector:'Matériaux',pea:true},
+  {isin:'FR0000121329',name:'Thales',sym:'HO.PA',type:'Action',sector:'Défense',pea:true},
+  {isin:'FR0004037071',name:'Amundi',sym:'AMUN.PA',type:'Action',sector:'Finance',pea:true},
+  {isin:'FR0000127771',name:'Vivendi',sym:'VIV.PA',type:'Action',sector:'Médias',pea:true},
+  {isin:'NL00150001Q9',name:'Stellantis',sym:'STLAM.MI',type:'Action',sector:'Automobile',pea:true},
+  // — Euronext Paris mid/small —
+  {isin:'FR0000121220',name:'Sodexo',sym:'SW.PA',type:'Action',sector:'Services',pea:true},
+  {isin:'FR0013477337',name:'Believe',sym:'BLV.PA',type:'Action',sector:'Musique digitale',pea:true},
+  {isin:'FR0011981968',name:'Solutions 30',sym:'S30.PA',type:'Action',sector:'IT Services',pea:true},
+  {isin:'FR0000075343',name:'Guerbet',sym:'GBT.PA',type:'Action',sector:'Pharma',pea:true},
+  {isin:'FR0000125585',name:'Vallourec',sym:'VK.PA',type:'Action',sector:'Tubes acier',pea:true},
+];
+const DB_BY_ISIN = Object.fromEntries(PEA_DB.map(d=>[d.isin,d]));
+
+const DEMO = [
+  {isin:'FR0010315770',name:'Amundi MSCI World (CW8)',sym:'CW8.PA',type:'ETF',sector:'Actions Monde',qty:1,buy:610},
+  {isin:'FR0011995588',name:'Voltalia',sym:'VLTSA.PA',type:'Action',sector:'Énergies renouvelables',qty:40,buy:9.20},
+  {isin:'FR0000039620',name:'Mersen',sym:'MRN.PA',type:'Action',sector:'Composants batteries',qty:15,buy:28.50},
+  {isin:'BE0974320526',name:'Umicore',sym:'UMI.BR',type:'Action',sector:'Matériaux batteries',qty:25,buy:23.00},
+  {isin:'FR0000044448',name:'Nexans',sym:'NEX.PA',type:'Action',sector:'Câbles & réseau',qty:3,buy:95.00},
+];
+
+/* ════════════ OPPORTUNITÉS (réf. juin 2026) ════════════ */
+const SECTOR_LABEL = {renewable:'Renouvelables',battery:'Batteries',rareearth:'Terres rares',infra:'Infrastructure',etf:'ETF'};
 const CONV_RANK = {'Très forte conviction':4,'Forte conviction':3,'Conviction moyenne':2,'Spéculative':1};
-const SECTOR_NAMES = {renewable:'Énergies Renouvelables',battery:'Batteries & Stockage',rareearth:'Terres Rares / Matériaux',infra:'Infrastructure Énergie',etf:'ETF Thématiques'};
+const OPPS = [
+  {id:'o1',sym:'ANE.MC',isin:'ES0105563003',name:'Acciona Energías Renovables',sector:'Énergies renouvelables',cat:'renewable',risk:4,conv:'Très forte conviction',cls:'ctf',target:28,stop:18,horizon:'12-18 mois',ret:'+25-45%',pea:true,
+   an:"Pure-player ENR coté parmi les plus grands d'Europe (~13 GW : éolien, solaire, hydro sur 16 pays). Pipeline >15 GW, revenus sécurisés par des PPAs longue durée. Valorisation décotée après l'échec du processus de cession partielle 2024-2025 → point d'entrée intéressant.",
+   cat_:['Mises en service solaire (Espagne, USA, Australie)','Hausse des prix PPAs (demande IA/data centers)','Désendettement post-cessions','Possible relance d\'une opération stratégique'],
+   risk_:['Faible flottant (82 % Acciona)','Baisse des prix spot électricité','Sensibilité aux taux','Risque réglementaire Espagne']},
+  {id:'o2',sym:'VLTSA.PA',isin:'FR0011995588',name:'Voltalia',sector:'Énergies renouvelables',cat:'renewable',risk:5,conv:'Forte conviction',cls:'cf',target:14,stop:7,horizon:'12-18 mois',ret:'+40-70%',pea:true,
+   an:"Producteur français ENR (solaire, éolien, hydro, biogaz) dans 20 pays, avec une activité services B2B récurrente. Forte exposition aux marchés émergents à croissance (Brésil, Afrique). Bilan en amélioration à mesure que les projets entrent en service.",
+   cat_:['Mises en service Brésil (pipeline ~1,5 GW)','Croissance du segment services','Contrats PPA industriels Europe','Baisse de l\'endettement'],
+   risk_:['Risque de change émergents','Délais de permis','Concurrence sur les appels d\'offres','Refinancement']},
+  {id:'o3',sym:'MRN.PA',isin:'FR0000039620',name:'Mersen',sector:'Composants batteries',cat:'battery',risk:4,conv:'Forte conviction',cls:'cf',target:48,stop:30,horizon:'12-24 mois',ret:'+25-45%',pea:true,
+   an:"Spécialiste mondial du graphite et carbone (électrodes lithium-ion) et des matériaux pour semi-conducteurs SiC. Fournisseur clé des gigafactories européennes. Marges solides, génération de cash robuste.",
+   cat_:['Montée en charge gigafactories Europe','Contrats constructeurs auto','Croissance semi-conducteurs SiC','M&A matériaux avancés'],
+   risk_:['Ralentissement électrification auto','Prix matières premières','Concurrence asiatique','Capacités de production']},
+  {id:'o4',sym:'ALFEN.AS',isin:'NL0012817175',name:'Alfen N.V.',sector:'Stockage / EV charging',cat:'battery',risk:6,conv:'Conviction moyenne',cls:'cm',target:24,stop:13,horizon:'12-18 mois',ret:'+35-60%',pea:true,
+   an:"Acteur néerlandais intégré : bornes de recharge EV, stockage batteries (Eve) et postes de transformation intelligents. Bien placé sur les appels d'offres smart grid européens. Valorisation déprimée après corrections successives.",
+   cat_:['Carnet stockage batteries en hausse','Contrats smart grid','Expansion UK/Belgique/Allemagne','Redressement des marges bornes EV'],
+   risk_:['Concurrence sur les bornes','Exécution grands projets','Dépendance aux subventions','Coûts composants']},
+  {id:'o5',sym:'ERA.PA',isin:'FR0000131757',name:'Eramet',sector:'Métaux critiques / terres rares',cat:'rareearth',risk:6,conv:'Conviction moyenne',cls:'cm',target:95,stop:50,horizon:'12-24 mois',ret:'+30-55%',pea:true,
+   an:"Groupe minier français stratégique : manganèse (batteries NMC), nickel, lithium (Centenario, Argentine). Fournisseur clé de la chaîne batteries européenne. Le Critical Raw Materials Act est un catalyseur réglementaire majeur.",
+   cat_:['Montée en puissance lithium Centenario','Hausse manganèse/nickel','Contrats lithium OEM européens','Intégration vers le raffinage'],
+   risk_:['Volatilité des métaux','Risque pays (Gabon, Argentine)','Capex élevé','Concurrence producteurs']},
+  {id:'o6',sym:'UMI.BR',isin:'BE0974320526',name:'Umicore',sector:'Matériaux batteries / recyclage',cat:'rareearth',risk:5,conv:'Forte conviction',cls:'cf',target:32,stop:20,horizon:'12-18 mois',ret:'+25-45%',pea:true,
+   an:"Leader du raffinage de métaux précieux et des matériaux actifs batteries (NMC/NCA). Acteur clé de l'économie circulaire : le recyclage des batteries EV en fin de vie (vagues 2025-2027) est un catalyseur structurel, renforcé par le CRMA.",
+   cat_:['Contrats de recyclage batteries grande échelle','CRMA : 15 % de contenu recyclé d\'ici 2030','Amélioration des marges (Hoboken)','Hausse cobalt/nickel'],
+   risk_:['Concurrence asiatique sur les matériaux','Ralentissement EV Europe','Prix du cobalt','Capex recyclage']},
+  {id:'o7',sym:'AMG.AS',isin:'NL0000888691',name:'AMG Critical Materials',sector:'Métaux critiques',cat:'rareearth',risk:6,conv:'Conviction moyenne',cls:'cm',target:55,stop:30,horizon:'12-24 mois',ret:'+25-50%',pea:true,
+   an:"Producteur de métaux critiques et matériaux spéciaux : vanadium, chrome, tantale, graphite naturel, silicium. Le graphite naturel est une alternative stratégique à la dépendance chinoise (>80 % de la production mondiale).",
+   cat_:['Hausse vanadium (batteries à flux)','Demande graphite anodes (+300 % d\'ici 2030)','Souveraineté UE (CRMA)','Exposition défense européenne'],
+   risk_:['Volatilité métaux de spécialité','Faible liquidité (small cap)','Pays producteurs à risque','Capex minier']},
+  {id:'o8',sym:'NEX.PA',isin:'FR0000044448',name:'Nexans',sector:'Câbles & réseau',cat:'infra',risk:5,conv:'Très forte conviction',cls:'ctf',target:155,stop:95,horizon:'12-18 mois',ret:'+20-40%',pea:true,
+   an:"Leader mondial des câbles électriques, sur deux mégatrends : câbles HVDC pour l'éolien offshore et interconnexions réseau. Carnet de commandes record (>7 Md€), capacité d'exécution rare (navires câbliers). Pénurie structurelle → fort pricing power.",
+   cat_:['Commandes HVDC offshore (Mer du Nord, Baltique)','Interconnexions REPowerEU','Demande data centers IA','Extension de capacité (Halden, Charleston)'],
+   risk_:['Exécution projets HVDC sous-marins','Concurrence Prysmian/NKT','Prix cuivre/aluminium','Certification câbles 525 kV']},
+  {id:'o9',sym:'ENR.DE',isin:'DE000ENER6Y0',name:'Siemens Energy',sector:'Infra. énergie',cat:'infra',risk:5,conv:'Forte conviction',cls:'cf',target:95,stop:55,horizon:'12-18 mois',ret:'+20-40%',pea:true,
+   an:"Leader mondial des équipements de transition énergétique (turbines, transformateurs, HVDC, éolien via Gamesa). Après la crise des garanties Gamesa, restructuration profonde et trajectoire de nouveau positive. Carnet de commandes historique.",
+   cat_:['Résorption des problèmes Gamesa','Forte demande transformateurs/interconnexions','Contrats HVDC en Europe','Demande data centers (IA)'],
+   risk_:['Surcoûts éolien offshore','Exécution du carnet','Concurrence GE Vernova/ABB','Marchés émergents']},
+  {id:'o10',sym:'RWE.DE',isin:'DE0007037129',name:'RWE',sector:'Utility renouvelable',cat:'infra',risk:4,conv:'Forte conviction',cls:'cf',target:48,stop:32,horizon:'12-18 mois',ret:'+20-40%',pea:true,
+   an:"Premier producteur d'électricité renouvelable d'Europe après sa transformation (sortie du charbon, pipeline ENR >65 GW). Valorisation attractive vs Iberdrola/Ørsted. Subsides allemands stables et contrats d'État long terme.",
+   cat_:['Nouveaux parcs offshore (Mer du Nord)','Stockage batteries grande échelle','Cession des derniers actifs fossiles','Hausse des prix électricité long terme'],
+   risk_:['Risque réglementaire Allemagne','Baisse prix spot (surproduction solaire)','Délais permis offshore','Capex élevé ENR 2030']},
+  {id:'o11',sym:'CW8.PA',isin:'FR0010315770',name:'Amundi MSCI World (CW8)',sector:'Actions Monde',cat:'etf',risk:3,conv:'Très forte conviction',cls:'ctf',target:null,stop:null,horizon:'Long terme',ret:'socle',pea:true,
+   an:"Cœur de portefeuille PEA : exposition diversifiée à ~1 500 grandes capitalisations mondiales en un seul ETF, éligible PEA. Idéal comme socle (50-60 %) pour réduire le risque spécifique des paris sectoriels small/mid cap.",
+   cat_:['Diversification mondiale instantanée','Frais réduits (0,38 %)','Éligible PEA malgré l\'exposition Monde','Capitalisation des dividendes'],
+   risk_:['Risque de change USD','Concentration sur les méga-caps US/tech','Volatilité de marché','Pas de couverture EUR']},
+  {id:'o12',sym:'WAGA.PA',isin:'FR0012532810',name:'Waga Energy',sector:'Biométhane',cat:'renewable',risk:6,conv:'Conviction moyenne',cls:'cm',target:30,stop:16,horizon:'18-24 mois',ret:'+30-55%',pea:true,
+   an:"Pionnier français du biométhane issu des décharges (technologie WAGABOX). Modèle récurrent avec contrats long terme. Présence France, USA, Canada, Europe. Croissance soutenue par l'IRA américain.",
+   cat_:['Accélération aux USA (IRA)','Nouveaux contrats (Veolia, Suez)','Réglementation gaz vert favorable','Cap vers la rentabilité'],
+   risk_:['Financement de la croissance (dilution)','Dépendance aux tarifs de rachat','Risque technologique','Concurrence émergente']},
+];
 
-/* ════════════════════════════════════════
-   API – Yahoo Finance via CORS proxy
-════════════════════════════════════════ */
-const PROXY = 'https://api.allorigins.win/raw?url=';
-const YF_QUOTE = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=';
-const YF_CHART = 'https://query8.finance.yahoo.com/v8/finance/chart/';
-const YF_SEARCH = 'https://query1.finance.yahoo.com/v1/finance/search?lang=fr&region=FR&quotesCount=8&newsCount=0&q=';
-
-/* ════════════════════════════════════════
-   SYMBOL AUTOCOMPLETE
-════════════════════════════════════════ */
-let _ddTarget = null;   // {input, nameInput, symInput, context:'modal'|'bulk'}
-let _ddTimer  = null;
-let _ddIdx    = -1;
-let _ddResults = [];
-
-async function searchSymbol(query) {
-  if(!query || query.length < 2) return [];
-  try {
-    const url = YF_SEARCH + encodeURIComponent(query);
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
-    if(!r.ok) return [];
-    const d = await r.json();
-    return (d?.quotes || []).filter(q => q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'MUTUALFUND'));
-  } catch(e) { return []; }
+/* ════════════ SOURCES DE DONNÉES ════════════
+   Cours  → Stooq (gratuit, sans clé) pour FR/DE/NL, Yahoo v8 en fallback
+   Recherche → Twelve Data symbol_search (CORS direct, sans clé)
+═══════════════════════════════════════════════════════════════════════ */
+const PROXIES = [
+  {wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u), unwrap:t=>t},
+  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u), unwrap:t=>{try{return JSON.parse(t).contents;}catch(e){return t;}}},
+  {wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+u, unwrap:t=>t},
+];
+async function proxyFetch(url, timeout=11000){
+  let lastErr;
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p.wrap(url),{signal:AbortSignal.timeout(timeout)});
+      if(!r.ok){lastErr=new Error('HTTP '+r.status);continue;}
+      const txt=p.unwrap(await r.text());
+      if(!txt||!txt.trim()){lastErr=new Error('vide');continue;}
+      if(txt.trim()[0]==='<'){lastErr=new Error('page HTML reçue');continue;}
+      return txt;
+    }catch(e){lastErr=e;continue;}
+  }
+  throw lastErr||new Error('tous les proxies ont échoué');
+}
+async function proxyJSON(url,timeout=11000){
+  const txt=await proxyFetch(url,timeout); return JSON.parse(txt);
 }
 
-function showDD(results, anchorEl) {
-  const dd = document.getElementById('symDD');
-  _ddResults = results;
-  _ddIdx = -1;
-
-  if(!results.length) { dd.style.display = 'none'; return; }
-
-  const rect = anchorEl.getBoundingClientRect();
-  dd.style.display = 'block';
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 300) + 'px';
-  dd.style.maxHeight = '260px';
-  dd.style.overflowY = 'auto';
-
-  dd.innerHTML = results.map((q, i) => {
-    const name = q.longname || q.shortname || q.symbol;
-    const exch = q.exchDisp || q.exchange || '';
-    const type = q.quoteType === 'ETF' ? 'ETF' : (q.quoteType === 'MUTUALFUND' ? 'Fonds' : 'Action');
-    return `<div class="sym-res" data-idx="${i}" onmousedown="selectSym(${i})">
-      <div class="sym-tick">${q.symbol}</div>
-      <div class="sym-info"><div class="sym-nm" title="${name}">${name}</div><div class="sym-ex">${exch}</div></div>
-      <div class="sym-badge">${type}</div>
-    </div>`;
-  }).join('');
+/* ── Stooq : prix cours du soir pour valeurs FR / DE / NL ── */
+const STOOQ_SFX = {'.PA':'.FR','.AS':'.NL','.DE':'.DE','.BR':'.BE','.MI':'.IT','.MC':'.ES','.CO':'.DK','.LS':'.PT'};
+const STOOQ_CUR = {'.FR':'EUR','.NL':'EUR','.DE':'EUR','.BE':'EUR','.IT':'EUR','.ES':'EUR','.PT':'EUR','.DK':'DKK'};
+function toStooqSym(sym){
+  for(const [y,s] of Object.entries(STOOQ_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+s;
+  return null;
+}
+function stooqDateRange(){
+  const d2=new Date(),d1=new Date(d2-35*864e5);
+  const fmt=d=>d.toISOString().slice(0,10).replace(/-/g,'');
+  return {d1:fmt(d1),d2:fmt(d2)};
+}
+async function fetchOneStooq(sym){
+  const stooqSym=toStooqSym(sym); if(!stooqSym) throw new Error('exchange non supporté');
+  const {d1,d2}=stooqDateRange();
+  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&d1=${d1}&d2=${d2}&i=d`;
+  const txt=await proxyFetch(url,10000);
+  const lines=txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
+  if(!lines.length) throw new Error('aucune donnée Stooq');
+  const parse=l=>{const c=l.split(',');return{date:c[0],o:+c[1],h:+c[2],lo:+c[3],cl:+c[4],v:+c[5]};};
+  const rows=lines.map(parse).filter(r=>!isNaN(r.cl)&&r.cl>0);
+  if(!rows.length) throw new Error('données Stooq invalides');
+  const last=rows[rows.length-1], prev=rows.length>1?rows[rows.length-2]:null;
+  const price=last.cl, prevClose=prev?prev.cl:last.o;
+  const sfx=stooqSym.slice(stooqSym.lastIndexOf('.'));
+  const closes=rows.map(r=>r.cl);
+  return{price,prev:prevClose,change:price-prevClose,pct:prevClose?(price-prevClose)/prevClose*100:0,
+         currency:STOOQ_CUR[sfx]||'EUR',name:null,closes,
+         whi:Math.max(...closes),wlo:Math.min(...closes)};
 }
 
-function closeDD() {
-  document.getElementById('symDD').style.display = 'none';
-  _ddTarget = null;
-  _ddIdx = -1;
+/* ── Yahoo Finance v8/chart : fallback si Stooq échoue ── */
+async function fetchOneYahoo(symbol){
+  const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1mo';
+  const d=await proxyJSON(url);
+  const res=d?.chart?.result?.[0]; const m=res?.meta;
+  if(!m||m.regularMarketPrice==null) throw new Error('pas de données');
+  const closes=(res.indicators?.quote?.[0]?.close||[]).filter(v=>v!=null);
+  const prev=m.chartPreviousClose??m.previousClose??null;
+  const price=m.regularMarketPrice;
+  return{price,prev,change:prev!=null?price-prev:0,pct:prev?((price-prev)/prev*100):0,
+         currency:m.currency,name:m.longName||m.shortName||null,closes,
+         whi:m.fiftyTwoWeekHigh,wlo:m.fiftyTwoWeekLow};
 }
 
-function selectSym(idx) {
-  const q = _ddResults[idx];
-  if(!q || !_ddTarget) return;
-  const name = q.longname || q.shortname || q.symbol;
-  const type = q.quoteType === 'ETF' ? 'ETF' : 'Action';
+async function fetchOne(symbol){
+  // Stooq en priorité (gratuit, sans clé), Yahoo en fallback
+  try{ return await fetchOneStooq(symbol); }catch(e){}
+  return fetchOneYahoo(symbol);
+}
 
-  if(_ddTarget.context === 'modal') {
-    document.getElementById('mSearch').value = name;
-    document.getElementById('mSymbol').value = q.symbol;
-    document.getElementById('mName').value = name;
-    document.getElementById('mType').value = type;
-  } else if(_ddTarget.context === 'bulk') {
-    const inp = _ddTarget.input;
-    inp.value = name;
-    inp.dataset.sym = q.symbol;
-    // Update the symbol label below the input
-    let lbl = inp.parentElement.querySelector('.bulk-sym-lbl');
-    if(!lbl) {
-      lbl = document.createElement('div');
-      lbl.className = 'bulk-sym-lbl';
-      lbl.style.cssText = 'font-size:.65rem;color:var(--blue);margin-top:1px;font-family:monospace';
-      inp.parentElement.appendChild(lbl);
+async function fetchPrices(symbols, onProg){
+  let done=0;
+  for(const s of symbols){
+    let ok=false;
+    for(let attempt=0;attempt<3&&!ok;attempt++){
+      if(attempt) await sleep(600*attempt);
+      try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
     }
-    lbl.textContent = q.symbol;
-    // Fill name column (next input in the row)
-    const nameInp = _ddTarget.nameInput;
-    if(nameInp && !nameInp.value) nameInp.value = name;
-    // Fill type select
-    const sel = inp.closest('tr')?.querySelector('select');
-    if(sel) sel.value = type;
+    if(!ok) prices[s]={error:true};
+    done++; onProg&&onProg(done,symbols.length);
+    await sleep(250);
+  }
+}
+
+/* ── Recherche en ligne : Twelve Data symbol_search (CORS direct, sans clé) ── */
+async function searchOnline(q){
+  // Twelve Data : API publique sans clé, CORS natif
+  try{
+    const url='https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(q)+'&outputsize=10';
+    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data.status==='error') throw new Error(data.message);
+    const items=(data.data||[]).filter(x=>['Common Stock','ETF','Mutual Fund'].includes(x.instrument_type));
+    if(items.length) return items.map(x=>({symbol:x.symbol,longname:x.instrument_name,
+      quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange}));
+  }catch(e){}
+  // Fallback : Yahoo Finance autoc (via proxy)
+  try{
+    const url='https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr';
+    const d=await proxyJSON(url,8000);
+    const r=(d?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
+    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,
+      quoteType:x.type==='S'?'EQUITY':'ETF',exchDisp:x.exchDisp||x.exch||''}));
+  }catch(e){}
+  throw new Error('recherche indisponible');
+}
+
+/* ════════════ RECHERCHE (base locale + Twelve Data) ════════════ */
+let ddTimer=null, ddIdx=-1, ddItems=[], ddCtx=null, ddInput=null;
+
+function searchLocal(q){
+  q=q.trim().toUpperCase();
+  if(q.length<2) return [];
+  return PEA_DB.filter(d=>
+    d.isin.includes(q)||d.sym.toUpperCase().includes(q)||d.name.toUpperCase().includes(q)
+  ).slice(0,8).map(d=>({local:true,...d}));
+}
+function looksLikeSymbol(q){
+  return /^[A-Z0-9]{1,10}(\.[A-Z]{1,4})?$/.test(q.trim().toUpperCase());
+}
+function onSearch(inp, ctx){
+  clearTimeout(ddTimer);
+  ddCtx=ctx; ddInput=inp;
+  const q=inp.value.trim();
+  if(q.length<2){ closeDD(); return; }
+  const loc=searchLocal(q);
+  if(loc.length){ showDD(loc, inp); }
+  else{ ddOpen(inp,'<div class="dd-msg"><span class="spin"></span> Recherche en cours…</div>'); }
+  ddTimer=setTimeout(async()=>{
+    if(ddInput!==inp) return;
+    try{
+      const online=await searchOnline(q);
+      const seen=new Set(loc.map(d=>d.sym));
+      const extra=online.filter(y=>!seen.has(y.symbol)).map(y=>({local:false,
+        sym:y.symbol,name:y.longname||y.shortname||y.symbol,isin:'',
+        type:y.quoteType==='ETF'?'ETF':'Action',sector:'',exch:y.exchDisp||'',pea:null}));
+      const merged=[...loc,...extra];
+      if(merged.length) showDD(merged,inp);
+      else ddOpen(inp,'<div class="dd-msg">Aucun résultat — vérifiez le code ISIN ou le nom</div>');
+    }catch(e){
+      if(loc.length) return;
+      const q2=q.toUpperCase();
+      if(looksLikeSymbol(q2)){
+        ddItems=[{manual:true,sym:q2,name:'Utiliser ce code directement',type:'Action',isin:'',sector:'',pea:null,exch:'mnémonique boursier'}];
+        ddIdx=-1;
+        ddOpen(inp,
+          '<div class="dd-msg" style="color:var(--yel);padding-bottom:4px">⚠ Réseau indisponible</div>'
+          +'<div class="dd-r" data-i="0" onmousedown="pickDD(0)">'
+          +'<div class="dd-tk">'+q2+'</div>'
+          +'<div class="dd-i"><div class="dd-nm">Utiliser ce code directement</div>'
+          +'<div class="dd-sub">Vérifiez que c\'est un mnémonique boursier valide (ex&nbsp;: MC.PA)</div></div>'
+          +'<span class="dd-bd bdg-a">Manuel</span></div>');
+      }else{
+        ddOpen(inp,'<div class="dd-msg" style="color:var(--red)">⚠ Réseau indisponible — saisissez le mnémonique boursier (ex&nbsp;: MC.PA, SAN.PA)</div>');
+      }
+    }
+  }, loc.length?500:350);
+}
+function ddOpen(anchor, html){
+  const dd=document.getElementById('dd');
+  const r=anchor.getBoundingClientRect();
+  dd.style.top=(r.bottom+window.scrollY+4)+'px';
+  dd.style.left=(r.left+window.scrollX)+'px';
+  dd.style.width=Math.max(r.width,300)+'px';
+  dd.innerHTML=html; dd.style.display='block';
+}
+function showDD(items, anchor){
+  ddItems=items; ddIdx=-1;
+  const html=items.map((d,i)=>{
+    const badge = d.pea===true?'<span class="dd-bd bdg-pea">PEA</span>'
+      : d.pea===false?'<span class="dd-bd bdg-npea">CTO</span>'
+      : '<span class="dd-bd bdg-a">'+(d.type||'')+'</span>';
+    const sub = d.isin ? d.isin : (d.exch||'');
+    return `<div class="dd-r" data-i="${i}" onmousedown="pickDD(${i})">
+      <div class="dd-tk">${d.sym}</div>
+      <div class="dd-i"><div class="dd-nm">${d.name}</div><div class="dd-sub">${sub}${d.local?' · base PEA':''}</div></div>
+      ${badge}</div>`;
+  }).join('');
+  ddOpen(anchor, html);
+}
+function pickDD(i){
+  const d=ddItems[i]; if(!d) return;
+  // manual direct-symbol entry: use sym as both name and symbol
+  const name = d.manual ? d.sym : d.name;
+  if(ddCtx==='modal'){
+    document.getElementById('aSearch').value=name;
+    document.getElementById('aIsin').value=d.isin||'';
+    document.getElementById('aSym').value=d.sym;
+    document.getElementById('aName').value=name;
+    document.getElementById('aType').value=d.type||'Action';
+    if(d.sector) document.getElementById('aSector').value=d.sector;
+  } else if(ddCtx==='bulk' && ddInput){
+    const tr=ddInput.closest('tr'); const inp=tr.querySelectorAll('input');
+    ddInput.value=name; ddInput.dataset.isin=d.isin||''; ddInput.dataset.sym=d.sym;
+    let lbl=ddInput.parentElement.querySelector('.bsym');
+    if(!lbl){lbl=document.createElement('div');lbl.className='bsym';lbl.style.cssText='font-size:.64rem;color:var(--blue);margin-top:1px;font-family:monospace';ddInput.parentElement.appendChild(lbl);}
+    lbl.textContent=d.sym+(d.isin?' · '+d.isin:'');
+    inp[1].value=name;
+    tr.querySelector('select').value=d.type||'Action';
+    if(d.sector) inp[2].value=d.sector;
   }
   closeDD();
 }
-
-function ddKeyNav(e, context, bulkInput) {
-  const dd = document.getElementById('symDD');
-  if(dd.style.display === 'none') return;
-  const items = dd.querySelectorAll('.sym-res');
-  if(e.key === 'ArrowDown') {
-    e.preventDefault();
-    _ddIdx = Math.min(_ddIdx + 1, items.length - 1);
-  } else if(e.key === 'ArrowUp') {
-    e.preventDefault();
-    _ddIdx = Math.max(_ddIdx - 1, -1);
-  } else if(e.key === 'Enter' && _ddIdx >= 0) {
-    e.preventDefault();
-    selectSym(_ddIdx);
-    return;
-  } else if(e.key === 'Escape') {
-    closeDD(); return;
-  } else return;
-  items.forEach((el,i) => el.classList.toggle('active', i === _ddIdx));
-  if(_ddIdx >= 0) items[_ddIdx].scrollIntoView({block:'nearest'});
+function ddNav(e, ctx){
+  const dd=document.getElementById('dd');
+  if(dd.style.display==='none') return;
+  const rows=dd.querySelectorAll('.dd-r');
+  if(e.key==='ArrowDown'){e.preventDefault();ddIdx=Math.min(ddIdx+1,rows.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();ddIdx=Math.max(ddIdx-1,-1);}
+  else if(e.key==='Enter'&&ddIdx>=0){e.preventDefault();pickDD(ddIdx);return;}
+  else if(e.key==='Escape'){closeDD();return;}
+  else return;
+  rows.forEach((r,i)=>r.classList.toggle('on',i===ddIdx));
+  if(ddIdx>=0) rows[ddIdx].scrollIntoView({block:'nearest'});
 }
-
-function onModalSearch(inp) {
-  clearTimeout(_ddTimer);
-  const q = inp.value.trim();
-  if(!q) { closeDD(); return; }
-  _ddTarget = {context:'modal'};
-  document.getElementById('symDD').innerHTML = '<div class="sym-loading">Recherche…</div>';
-  document.getElementById('symDD').style.display = 'block';
-  const rect = inp.getBoundingClientRect();
-  const dd = document.getElementById('symDD');
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 300) + 'px';
-  _ddTimer = setTimeout(async () => {
-    const res = await searchSymbol(q);
-    if(_ddTarget?.context === 'modal') showDD(res, inp);
-  }, 350);
-}
-
-function onBulkSearch(inp) {
-  clearTimeout(_ddTimer);
-  const q = inp.value.trim();
-  const row = inp.closest('tr');
-  const nameInp = row ? row.querySelectorAll('input')[1] : null;
-  if(!q) { closeDD(); return; }
-  _ddTarget = {context:'bulk', input: inp, nameInput: nameInp};
-  const dd = document.getElementById('symDD');
-  dd.innerHTML = '<div class="sym-loading">Recherche…</div>';
-  dd.style.display = 'block';
-  const rect = inp.getBoundingClientRect();
-  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  dd.style.left = (rect.left + window.scrollX) + 'px';
-  dd.style.width = Math.max(rect.width, 280) + 'px';
-  _ddTimer = setTimeout(async () => {
-    const res = await searchSymbol(q);
-    if(_ddTarget?.context === 'bulk' && _ddTarget.input === inp) showDD(res, inp);
-  }, 350);
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', e => {
-  const dd = document.getElementById('symDD');
-  if(dd && !dd.contains(e.target) && e.target.id !== 'mSearch' && !e.target.classList.contains('fi')) {
-    closeDD();
-  }
+function closeDD(){document.getElementById('dd').style.display='none';ddIdx=-1;ddItems=[];}
+document.addEventListener('click',e=>{
+  const dd=document.getElementById('dd');
+  if(dd.style.display==='none')return;
+  if(dd.contains(e.target))return;
+  if(e.target===ddInput)return;
+  if(e.target.id==='aSearch')return;
+  closeDD();
 });
 
-async function fetchQuotes(symbols) {
-  const url = YF_QUOTE + symbols.join(',') + '&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketDayHigh,regularMarketDayLow,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume';
-  try {
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(12000)});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    const results = d?.quoteResponse?.result || [];
-    results.forEach(q => {
-      prices[q.symbol] = {
-        price: q.regularMarketPrice ?? null,
-        change: q.regularMarketChange ?? 0,
-        pct: q.regularMarketChangePercent ?? 0,
-        hi: q.regularMarketDayHigh ?? null,
-        lo: q.regularMarketDayLow ?? null,
-        whi: q.fiftyTwoWeekHigh ?? null,
-        wlo: q.fiftyTwoWeekLow ?? null,
-        vol: q.regularMarketVolume ?? null,
-      };
-    });
-    return true;
-  } catch(e) {
-    console.warn('Quote fetch error:', e.message);
-    return false;
-  }
+/* ════════════ CALCULS ════════════ */
+function stat(h){
+  const p=prices[h.sym];
+  const price=p&&!p.error?p.price:null;
+  const cost=h.qty*h.buy;
+  const value=price!=null?h.qty*price:null;
+  const pl=value!=null?value-cost:null;
+  const plPct=pl!=null?pl/cost*100:null;
+  const dayPL=(p&&!p.error&&price!=null)?h.qty*p.change:null;
+  return {p,price,cost,value,pl,plPct,dayPL,dayPct:p&&!p.error?p.pct:null};
+}
+function totals(){
+  let val=0,cost=0,day=0,priced=0,pea=0;
+  holdings.forEach(h=>{const s=stat(h);cost+=s.cost;if(s.value!=null){val+=s.value;priced++;}if(s.dayPL!=null)day+=s.dayPL;
+    const db=DB_BY_ISIN[h.isin];if((db&&db.pea)||h.pea)pea++;});
+  return {val,cost,day,priced,pea};
+}
+function advice(h){
+  const s=stat(h); if(s.price==null) return {t:'—',c:''};
+  const p=s.p; const pct=s.plPct;
+  // proximité 52 semaines
+  let near='';
+  if(p.whi&&p.wlo){const range=p.whi-p.wlo;const pos=range>0?(s.price-p.wlo)/range:0.5;
+    if(pos>0.9)near='high';else if(pos<0.15)near='low';}
+  if(pct<=-20) return {t:'Surveiller',c:'adv-watch'};       // forte MV → réévaluer la thèse
+  if(near==='low'&&pct<0) return {t:'Renforcer',c:'adv-buy'};// bas de range + MV → opportunité
+  if(near==='high'&&pct>30) return {t:'Alléger',c:'adv-trim'};// haut de range + forte PV → prendre profit
+  if(pct>=15) return {t:'Conserver',c:'adv-hold'};
+  return {t:'Conserver',c:'adv-hold'};
 }
 
-async function fetchHistorical(symbol, range='1mo') {
-  const url = YF_CHART + symbol + '?interval=1d&range=' + range;
-  try {
-    const r = await fetch(PROXY + encodeURIComponent(url), {signal: AbortSignal.timeout(10000)});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    const res = d?.chart?.result?.[0];
-    if (!res) return null;
-    return {
-      timestamps: res.timestamp,
-      closes: res.indicators?.quote?.[0]?.close,
-    };
-  } catch(e) {
-    console.warn('Historical fetch error:', e.message);
-    return null;
-  }
+/* ════════════ FORMAT ════════════ */
+const eur=n=>n==null?'—':n.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2});
+const pct=n=>n==null?'—':(n>=0?'+':'')+n.toFixed(2)+' %';
+const cls=n=>n==null?'neu':n>=0?'pos':'neg';
+
+/* ════════════ RENDU ════════════ */
+function renderAll(){ renderSummary(); renderPort(); renderDash(); }
+
+function renderSummary(){
+  const t=totals();
+  document.getElementById('sVal').textContent=eur(t.val);
+  document.getElementById('sCost').textContent='Investi : '+eur(t.cost);
+  const pl=t.val-t.cost;
+  const plEl=document.getElementById('sPL'); plEl.textContent=eur(pl); plEl.className='sval '+cls(pl);
+  const plp=document.getElementById('sPLp'); const pp=t.cost?pl/t.cost*100:null; plp.textContent=pct(pp); plp.className='ssub '+cls(pp);
+  const d=document.getElementById('sDay'); d.textContent=t.day?eur(t.day):'—'; d.className='sval '+cls(t.day);
+  const dp=document.getElementById('sDayp'); const dpp=t.val-t.day?(t.day/(t.val-t.day)*100):null; dp.textContent=pct(dpp); dp.className='ssub '+cls(t.day);
+  document.getElementById('sPos').textContent=holdings.length;
+  document.getElementById('sPea').textContent=t.pea+'/'+holdings.length+' éligibles PEA';
 }
 
-/* ════════════════════════════════════════
-   CALCULATIONS
-════════════════════════════════════════ */
-function holdingStats(h) {
-  const p = prices[h.symbol];
-  const price = p?.price ?? null;
-  const cost = h.qty * h.buy;
-  const value = price !== null ? h.qty * price : null;
-  const pl = value !== null ? value - cost : null;
-  const plPct = pl !== null ? (pl / cost) * 100 : null;
-  const dayPL = (p?.change != null && price !== null) ? h.qty * p.change : null;
-  const dayPct = p?.pct ?? null;
-  return {price, cost, value, pl, plPct, dayPL, dayPct, p};
-}
-
-function portfolioStats() {
-  let totalValue = 0, totalCost = 0, dayPL = 0, priced = 0;
-  holdings.forEach(h => {
-    const s = holdingStats(h);
-    totalCost += s.cost;
-    if (s.value !== null) { totalValue += s.value; priced++; }
-    if (s.dayPL !== null) dayPL += s.dayPL;
-  });
-  const totalPL = totalValue - totalCost;
-  const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
-  const dayPct = totalValue > 0 ? (dayPL / (totalValue - dayPL)) * 100 : 0;
-  return {totalValue, totalCost, totalPL, totalPLPct, dayPL, dayPct, priced};
-}
-
-/* ════════════════════════════════════════
-   FORMATTING
-════════════════════════════════════════ */
-const fmt = (v, d=2) => v !== null && !isNaN(v) ? v.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
-const fmtEur = (v) => v !== null && !isNaN(v) ? v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-const sign = (v) => v > 0 ? '+' : '';
-const cls = (v) => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
-const pill = (v) => `<span class="pill ${v>0?'pill-g':v<0?'pill-r':'pill-n'}">${sign(v)}${fmt(v)}%</span>`;
-const riskColor = (r) => r <= 3 ? 'lo' : r >= 7 ? 'hi' : '';
-
-function riskDots(r, max=10) {
-  let s = '<div class="rdots">';
-  for(let i=1;i<=max;i++) s+=`<div class="rd${i<=r?' f '+riskColor(r):''}"></div>`;
-  s += `</div>`;
-  return s;
-}
-
-function convBadge(conviction, cls2) {
-  return `<span class="conv ${cls2}">${conviction}</span>`;
-}
-
-/* ════════════════════════════════════════
-   RENDER – SUMMARY BAR
-════════════════════════════════════════ */
-function renderSummary() {
-  const s = portfolioStats();
-  document.getElementById('sTotalVal').textContent = s.totalValue > 0 ? fmtEur(s.totalValue) : '—';
-  document.getElementById('sTotalCost').textContent = s.totalCost > 0 ? 'Investi : ' + fmtEur(s.totalCost) : '—';
-  const pl = document.getElementById('sTotalPL');
-  pl.textContent = s.totalValue > 0 ? fmtEur(s.totalPL) : '—';
-  pl.className = 'sval ' + cls(s.totalPL);
-  document.getElementById('sTotalPLPct').innerHTML = s.totalValue > 0 ? pill(s.totalPLPct) : '—';
-  document.getElementById('sTotalPLPct').className = 'ssub';
-  const dp = document.getElementById('sDayPL');
-  dp.textContent = fmtEur(s.dayPL);
-  dp.className = 'sval ' + cls(s.dayPL);
-  document.getElementById('sDayPLPct').innerHTML = pill(s.dayPct);
-  document.getElementById('sDayPLPct').className = 'ssub';
-  document.getElementById('sPositions').textContent = holdings.length;
-  const etfs = holdings.filter(h=>h.type==='ETF').length;
-  document.getElementById('sBestPos').textContent = `${etfs} ETF • ${holdings.length-etfs} Actions`;
-}
-
-/* ════════════════════════════════════════
-   RENDER – KPI CARDS
-════════════════════════════════════════ */
-function renderKPIs() {
-  const stats = holdings.map(h=>{
-    const s = holdingStats(h);
-    return {...h,...s};
-  }).filter(h=>h.plPct!==null);
-  if(!stats.length) return;
-  const best = stats.reduce((a,b)=>b.plPct>a.plPct?b:a);
-  const worst = stats.reduce((a,b)=>b.plPct<a.plPct?b:a);
-  const s = portfolioStats();
-  document.getElementById('kBest').innerHTML = `<span class="pos">${sign(best.plPct)}${fmt(best.plPct)}%</span>`;
-  document.getElementById('kBestSym').textContent = best.symbol + ' — ' + best.name;
-  document.getElementById('kWorst').innerHTML = `<span class="neg">${sign(worst.plPct)}${fmt(worst.plPct)}%</span>`;
-  document.getElementById('kWorstSym').textContent = worst.symbol + ' — ' + worst.name;
-  document.getElementById('kUnrPL').innerHTML = `<span class="${cls(s.totalPL)}">${fmtEur(s.totalPL)}</span>`;
-  document.getElementById('kUnrPLPct').innerHTML = pill(s.totalPLPct);
-  document.getElementById('kNbPos').textContent = holdings.length;
-  const etf = holdings.filter(h=>h.type==='ETF').length;
-  document.getElementById('kNbETF').textContent = `${etf} ETF — ${holdings.length-etf} Actions`;
-}
-
-/* ════════════════════════════════════════
-   RENDER – ALLOCATION CHART
-════════════════════════════════════════ */
-const COLORS = ['#3b82f6','#22c55e','#a855f7','#f97316','#14b8a6','#eab308','#ef4444','#06b6d4','#8b5cf6','#f43f5e'];
-
-function renderAllocChart() {
-  const s = portfolioStats();
-  if(s.totalValue <= 0) return;
-  const labels = [], data = [], colors = [];
-  holdings.forEach((h,i) => {
-    const st = holdingStats(h);
-    if(st.value !== null) {
-      labels.push(h.symbol);
-      data.push(+((st.value/s.totalValue)*100).toFixed(1));
-      colors.push(COLORS[i % COLORS.length]);
-    }
-  });
-
-  // Allocation bar
-  const bar = document.getElementById('allocBar');
-  const leg = document.getElementById('allocLegend');
-  bar.innerHTML = data.map((d,i)=>`<div class="aseg" style="width:${d}%;background:${colors[i]}" title="${labels[i]}: ${d}%"></div>`).join('');
-  leg.innerHTML = labels.map((l,i)=>`<div class="alg-item"><div class="alg-dot" style="background:${colors[i]}"></div>${l} ${data[i]}%</div>`).join('');
-
-  if(charts.alloc) charts.alloc.destroy();
-  const ctx = document.getElementById('allocChart').getContext('2d');
-  charts.alloc = new Chart(ctx, {
-    type:'doughnut',
-    data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0d1526',borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8ea3bd',font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toFixed(1)}%`}}},cutout:'65%'},
-  });
-}
-
-/* ════════════════════════════════════════
-   RENDER – PERFORMANCE CHART
-════════════════════════════════════════ */
-function renderPerfChart() {
-  const data = holdings.map((h,i) => {
-    const s = holdingStats(h);
-    return {label: h.symbol, value: s.plPct, color: (s.plPct ?? 0) >= 0 ? COLORS[i%COLORS.length] : '#ef4444'};
-  }).filter(d=>d.value!==null).sort((a,b)=>b.value-a.value);
-  if(!data.length) return;
-  if(charts.perf) charts.perf.destroy();
-  const ctx = document.getElementById('perfChart').getContext('2d');
-  charts.perf = new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:data.map(d=>d.label),
-      datasets:[{data:data.map(d=>+d.value.toFixed(2)),backgroundColor:data.map(d=>d.color),borderRadius:4,borderSkipped:false}]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,indexAxis:'y',
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${sign(c.parsed.x)}${c.parsed.x.toFixed(2)}%`}}},
-      scales:{x:{ticks:{color:'#4e6380',callback:v=>`${sign(v)}${v}%`},grid:{color:'rgba(30,45,69,.4)'},border:{color:'#1e2d45'}},y:{ticks:{color:'#8ea3bd',font:{size:11}},grid:{display:false},border:{display:false}}},
-    }
-  });
-}
-
-/* ════════════════════════════════════════
-   RENDER – DASHBOARD TABLE
-════════════════════════════════════════ */
-function renderDashTable() {
-  const s = portfolioStats();
-  const tbody = document.getElementById('dashTbody');
-  tbody.innerHTML = holdings.map(h => {
-    const st = holdingStats(h);
-    const wt = st.value !== null && s.totalValue > 0 ? (st.value/s.totalValue*100).toFixed(1)+'%' : '—';
-    return `<tr>
-      <td><strong class="mono">${h.symbol}</strong></td>
-      <td>${h.name}</td>
-      <td><span class="bdg ${h.type==='ETF'?'bdg-e':'bdg-a'}">${h.type}</span></td>
-      <td><span class="bdg bdg-t" style="font-size:.7rem">${h.sector}</span></td>
-      <td class="mono">${h.qty}</td>
-      <td class="mono">${fmtEur(h.buy)}</td>
-      <td class="mono"><strong>${st.price!==null?fmtEur(st.price):'<span class="spin"></span>'}</strong></td>
-      <td class="mono">${st.value!==null?fmtEur(st.value):'—'}</td>
-      <td class="mono ${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</td>
-      <td>${st.plPct!==null?pill(st.plPct):'—'}</td>
-      <td class="mono">${wt}</td>
-    </tr>`;
-  }).join('');
-}
-
-/* ════════════════════════════════════════
-   RENDER – PORTFOLIO TABLE
-════════════════════════════════════════ */
-function renderPortfolio() {
-  document.getElementById('portCount').textContent = holdings.length;
-  const tbody = document.getElementById('portTbody');
-  tbody.innerHTML = holdings.map(h => {
-    const st = holdingStats(h);
-    return `<tr>
-      <td><strong class="mono">${h.symbol}</strong></td>
-      <td>${h.name}</td>
-      <td><span class="bdg ${h.type==='ETF'?'bdg-e':'bdg-a'}">${h.type}</span></td>
-      <td><span class="bdg bdg-t" style="font-size:.7rem">${h.sector}</span></td>
-      <td class="mono">${h.qty}</td>
-      <td class="mono">${fmtEur(h.buy)}</td>
-      <td class="mono"><strong>${st.price!==null?fmtEur(st.price):'<span class="spin"></span>'}</strong></td>
-      <td class="mono">${st.value!==null?fmtEur(st.value):'—'}</td>
-      <td class="mono ${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</td>
-      <td>${st.plPct!==null?pill(st.plPct):'—'}</td>
-      <td>${st.dayPL!==null?`<span class="${cls(st.dayPL)}">${sign(st.dayPL)}${fmtEur(st.dayPL)}</span>`:'—'} ${st.dayPct!==null?pill(st.dayPct):''}</td>
-      <td class="mono">${st.p?.whi?fmtEur(st.p.whi):'—'}</td>
-      <td class="mono">${st.p?.wlo?fmtEur(st.p.wlo):'—'}</td>
-      <td>
-        <button class="btn btn-g btn-s" onclick="editHolding(${h.id})">✏️</button>
-        <button class="btn btn-d btn-s" onclick="deleteHolding(${h.id})" style="margin-left:4px">🗑</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  // Spark cards
-  renderSparkCards();
-}
-
-/* ════════════════════════════════════════
-   RENDER – SPARK CARDS
-════════════════════════════════════════ */
-async function renderSparkCards() {
-  const container = document.getElementById('sparkCards');
-  container.innerHTML = '';
-
-  for(let i=0; i<holdings.length; i++) {
-    const h = holdings[i];
-    const st = holdingStats(h);
-    const color = COLORS[i % COLORS.length];
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.style.padding = '14px';
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div>
-          <div style="font-weight:700;font-size:.95rem;font-family:monospace">${h.symbol}</div>
-          <div style="font-size:.78rem;color:var(--t2)">${h.name}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="mono" style="font-weight:600">${st.price!==null?fmtEur(st.price):'—'}</div>
-          <div>${st.dayPct!==null?pill(st.dayPct):''}</div>
-        </div>
-      </div>
-      <div style="height:70px;margin-bottom:10px"><canvas id="spark_${h.id}"></canvas></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.76rem">
-        <div><span style="color:var(--t3)">Qté:</span> <strong>${h.qty}</strong></div>
-        <div><span style="color:var(--t3)">PRU:</span> <strong>${fmtEur(h.buy)}</strong></div>
-        <div><span style="color:var(--t3)">Valeur:</span> <strong>${st.value!==null?fmtEur(st.value):'—'}</strong></div>
-        <div><span style="color:var(--t3)">P&L:</span> <strong class="${cls(st.pl)}">${st.pl!==null?fmtEur(st.pl):'—'}</strong></div>
-      </div>
-      <div style="margin-top:8px">${st.plPct!==null?`<div style="font-size:.72rem;color:var(--t3);margin-bottom:3px">Performance</div><div class="riskbar"><div class="riskfill" style="width:${Math.min(Math.abs(st.plPct),100)}%;background:${st.plPct>=0?'var(--green)':'var(--red)'}"></div></div>`:'<div style="font-size:.75rem;color:var(--t3)">Cours non disponible</div>'}</div>
-    `;
-    container.appendChild(card);
-
-    // Async: fetch and draw sparkline
-    fetchHistorical(h.symbol, '1mo').then(hist => {
-      const canvas = document.getElementById('spark_'+h.id);
-      if(!canvas || !hist) return;
-      const closes = (hist.closes||[]).filter(v=>v!==null);
-      if(!closes.length) return;
-      if(charts['spark_'+h.id]) charts['spark_'+h.id].destroy();
-      const ctx = canvas.getContext('2d');
-      const grad = ctx.createLinearGradient(0,0,0,70);
-      grad.addColorStop(0, color+'44');
-      grad.addColorStop(1, color+'00');
-      charts['spark_'+h.id] = new Chart(ctx, {
-        type:'line',
-        data:{labels:closes.map((_,i)=>i),datasets:[{data:closes,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:grad,pointRadius:0,tension:.3}]},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:400}},
-      });
-    });
-  }
-}
-
-/* ════════════════════════════════════════
-   RENDER – OPPORTUNITIES
-════════════════════════════════════════ */
-function oppCardHTML(o) {
-  const p = prices[o.symbol];
-  const priceStr = p?.price ? fmtEur(p.price) : '<span class="spin"></span>';
-  const dayStr = p?.pct ? pill(p.pct) : '';
-  const upsidePct = p?.price && o.targetPrice ? ((o.targetPrice-p.price)/p.price*100).toFixed(0) : null;
-  return `<div class="ocard">
-    <div class="ohdr">
-      <div>
-        <div class="osym">${o.symbol}</div>
-        <div class="oname">${o.name}</div>
-        <div style="margin-top:6px"><span class="bdg bdg-t" style="font-size:.7rem">${o.sector}</span></div>
-      </div>
-      <div style="text-align:right">
-        <div class="mono" style="font-size:1.1rem;font-weight:700">${priceStr}</div>
-        <div style="margin-top:2px">${dayStr}</div>
-        <div style="margin-top:6px">${convBadge(o.conviction,o.convClass)}</div>
-      </div>
+function onbHTML(icon,title,body){
+  return `<div class="onb"><div class="i">${icon}</div><h2>${title}</h2><p>${body}</p>
+    <div class="steps">
+      <b>1.</b> Ouvrez votre PEA sur <b>Boursobank</b> et notez, pour chaque ligne, le <b>code ISIN</b>, la <b>quantité</b> et le <b>PRU</b> (prix de revient unitaire).<br>
+      <b>2.</b> Cliquez « Mon portefeuille » et collez/saisissez chaque code ISIN → le nom et le symbole de prix se remplissent.<br>
+      <b>3.</b> Renseignez quantité + PRU, enregistrez. Les cours se chargent en temps réel.
     </div>
-    <div class="obody">
-      <div class="ometrics">
-        <div><div class="oml">Objectif</div><div class="omv pos">${fmtEur(o.targetPrice)}</div></div>
-        <div><div class="oml">Stop-Loss</div><div class="omv neg">${fmtEur(o.stopLoss)}</div></div>
-        <div><div class="oml">Potentiel</div><div class="omv ${upsidePct>0?'pos':''}">${upsidePct?'+'+upsidePct+'%':o.potReturn}</div></div>
-        <div><div class="oml">Horizon</div><div class="omv">${o.horizon}</div></div>
-        <div><div class="oml">Risque (${o.risk}/10)</div><div style="margin-top:4px">${riskDots(o.risk)}</div></div>
-        <div><div class="oml">Max investi</div><div class="omv">${fmtEur(o.maxInvest)}</div></div>
-      </div>
-      <div class="atext">${o.analysis}</div>
-      <div style="font-size:.75rem;font-weight:600;color:var(--green);margin-bottom:4px;text-transform:uppercase">Catalyseurs</div>
-      <ul class="clist">${o.catalysts.map(c=>`<li>${c}</li>`).join('')}</ul>
-      <div style="font-size:.75rem;font-weight:600;color:var(--org);margin-bottom:4px;margin-top:8px;text-transform:uppercase">Risques</div>
-      <ul class="clist rlist">${o.risks.map(r=>`<li>${r}</li>`).join('')}</ul>
-      ${o.peaEligible!==undefined?`<div style="margin-top:10px;font-size:.74rem;color:var(--t3)">PEA éligible : <strong style="color:${o.peaEligible?'var(--green)':'var(--org)'}">${o.peaEligible?'✓ Oui':'⚠ À vérifier'}</strong></div>`:''}
-      <button class="btn btn-p btn-s" style="width:100%;margin-top:12px" onclick="addOppToPortfolio('${o.symbol}','${o.name}','${o.sector}')">+ Ajouter au portefeuille</button>
+    <div class="cta">
+      <button class="btn btn-p" onclick="openBulk()">📋 Saisir mon portefeuille</button>
+      <button class="btn btn-g" onclick="loadDemoDirect()">🧪 Voir un exemple</button>
+    </div></div>`;
+}
+function renderPort(){
+  const empty=holdings.length===0;
+  document.getElementById('portEmpty').style.display=empty?'block':'none';
+  document.getElementById('portContent').style.display=empty?'none':'block';
+  if(empty){document.getElementById('portEmpty').innerHTML=onbHTML('💼','Votre portefeuille est vide','Suivez vos positions Boursobank, leurs cours en temps réel et des conseils indicatifs.');return;}
+  document.getElementById('portMeta').textContent='· '+holdings.length+' lignes';
+  const body=document.getElementById('portBody'); body.innerHTML='';
+  holdings.forEach(h=>{
+    const s=stat(h); const a=advice(h);
+    const db=DB_BY_ISIN[h.isin]; const isPea=(db&&db.pea)||h.pea;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><div style="font-weight:600">${h.name}</div><div class="tk">${h.sym}</div></td>
+      <td class="isin">${h.isin||'—'}</td>
+      <td><span class="bdg ${h.type==='ETF'?'bdg-e':'bdg-a'}">${h.type}</span></td>
+      <td>${isPea?'<span class="bdg bdg-pea">PEA</span>':'<span class="bdg bdg-npea">CTO</span>'}</td>
+      <td>${h.qty}</td><td>${eur(h.buy)}</td>
+      <td>${s.price==null?(s.p&&s.p.error?'<span style="color:var(--red)">échec</span>':'<span class="spin"></span>'):eur(s.price)}</td>
+      <td class="${cls(s.dayPct)}">${pct(s.dayPct)}</td>
+      <td>${eur(s.value)}</td>
+      <td class="${cls(s.pl)}">${eur(s.pl)}<div style="font-size:.72rem">${pct(s.plPct)}</div></td>
+      <td><span class="advice ${a.c}">${a.t}</span></td>
+      <td style="white-space:nowrap">
+        <button class="ico-btn" onclick="editH(${h.id})" title="Modifier">✏️</button>
+        <button class="ico-btn" onclick="delH(${h.id})" title="Supprimer">🗑</button></td>`;
+    body.appendChild(tr);
+  });
+}
+
+function renderDash(){
+  const empty=holdings.length===0;
+  document.getElementById('dashEmpty').style.display=empty?'block':'none';
+  document.getElementById('dashContent').style.display=empty?'none':'block';
+  if(empty){document.getElementById('dashEmpty').innerHTML=onbHTML('📈','Bienvenue sur votre PEA Tracker','Visualisez la répartition de votre portefeuille et son évolution.');return;}
+  const priced=holdings.filter(h=>stat(h).value!=null);
+  if(!priced.length) return;
+  const PAL=['#3b82f6','#22c55e','#f97316','#a855f7','#14b8a6','#eab308','#ef4444','#1d4ed8','#8ea3bd','#10b981'];
+  // Allocation par valeur
+  drawDoughnut('chAlloc', priced.map(h=>h.name), priced.map(h=>stat(h).value), PAL);
+  // Allocation sectorielle
+  const bySec={}; priced.forEach(h=>{const s=stat(h);bySec[h.sector||'Autre']=(bySec[h.sector||'Autre']||0)+s.value;});
+  drawDoughnut('chSector', Object.keys(bySec), Object.values(bySec), PAL);
+  // +/- value par position
+  const labels=priced.map(h=>h.name); const data=priced.map(h=>stat(h).pl);
+  if(charts.chPL)charts.chPL.destroy();
+  charts.chPL=new Chart(document.getElementById('chPL'),{type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:data.map(v=>v>=0?'rgba(34,197,94,.7)':'rgba(239,68,68,.7)'),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>eur(c.raw)}}},
+      scales:{x:{ticks:{color:'#8ea3bd',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8ea3bd',callback:v=>v+' €'},grid:{color:'#1e2d45'}}}}});
+}
+function drawDoughnut(id,labels,data,pal){
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),{type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:pal,borderColor:'#0d1526',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:{color:'#8ea3bd',font:{size:11},boxWidth:12,padding:8}},
+        tooltip:{callbacks:{label:c=>c.label+' : '+eur(c.raw)}}}}});
+}
+
+/* ════════════ OPPORTUNITÉS ════════════ */
+function initPref(){
+  ['renewable','battery','rareearth','infra','etf'].forEach(c=>{
+    document.getElementById('c-'+c).textContent=OPPS.filter(o=>o.cat===c).length+' valeurs';});
+  document.querySelectorAll('.pref-card').forEach(c=>c.classList.toggle('active',c.dataset.s===prefSector));
+  document.getElementById('clearPref').style.display=prefSector?'':'none';
+}
+function setPref(s,el){
+  if(prefSector===s){clearPref();return;}
+  prefSector=s; localStorage.setItem('pf_pref',s); scheduleFb();
+  document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('clearPref').style.display='';
+  renderOpps();
+}
+function clearPref(){
+  prefSector=null; localStorage.removeItem('pf_pref'); scheduleFb();
+  document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('clearPref').style.display='none'; renderOpps();
+}
+function riskBar(r){let h='';for(let i=1;i<=7;i++)h+=`<span class="risk-seg ${i<=r?'risk-on':''}"></span>`;return `<span class="risk-bar">${h}</span>`;}
+function oppCard(o,compl){
+  const p=prices[o.sym]; const now=p&&!p.error?p.price:null;
+  let signal='';
+  if(now!=null&&o.target&&o.stop){
+    if(now<=o.stop)signal='<span class="advice adv-watch">≤ stop</span>';
+    else if(now>=o.target)signal='<span class="advice adv-trim">≥ objectif</span>';
+    else{const up=(o.target-now)/now*100;signal=`<span class="advice adv-buy">+${up.toFixed(0)}% vs objectif</span>`;}
+  }
+  return `<div class="opp ${compl?'compl':''}">
+    <div class="opp-h">
+      <div><div class="opp-nm">${o.name}</div><div class="opp-sec">${o.sector} · <span class="tk">${o.sym}</span></div>
+        <div class="isin" style="margin-top:2px">${o.isin}</div></div>
+      <div class="opp-px"><div class="now ${cls(p&&!p.error?p.pct:null)}">${now!=null?eur(now):'<span class="spin"></span>'}</div>
+        <div style="font-size:.72rem" class="${cls(p&&!p.error?p.pct:null)}">${p&&!p.error?pct(p.pct):''}</div></div>
     </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span class="conv ${o.cls}">${o.conv}</span>
+      ${o.pea?'<span class="bdg bdg-pea">PEA</span>':'<span class="bdg bdg-npea">CTO</span>'}
+      ${signal}
+    </div>
+    <div class="opp-meta">
+      <div><div class="k">Objectif</div><div class="v">${o.target?eur(o.target):'—'}</div></div>
+      <div><div class="k">Stop</div><div class="v">${o.stop?eur(o.stop):'—'}</div></div>
+      <div><div class="k">Horizon</div><div class="v">${o.horizon}</div></div>
+      <div><div class="k">Potentiel</div><div class="v pos">${o.ret}</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="k" style="font-size:.72rem;color:var(--t3)">Risque ${o.risk}/7</span>${riskBar(o.risk)}</div>
+    <div class="opp-an">${o.an}</div>
+    <details><summary>Catalyseurs &amp; risques</summary>
+      <div style="margin-top:8px"><div style="font-size:.74rem;color:var(--green);font-weight:600;margin-bottom:3px">✓ Catalyseurs</div>
+        <ul class="opp-list">${o.cat_.map(c=>`<li>${c}</li>`).join('')}</ul></div>
+      <div style="margin-top:8px"><div style="font-size:.74rem;color:var(--red);font-weight:600;margin-bottom:3px">⚠ Risques</div>
+        <ul class="opp-list">${o.risk_.map(c=>`<li>${c}</li>`).join('')}</ul></div>
+    </details>
+    <button class="btn btn-p btn-s" onclick="addOpp('${o.id}')">+ Ajouter à mon portefeuille</button>
   </div>`;
 }
-
-function renderOpportunities(filter='all') {
-  const grid = document.getElementById('oppGrid');
-  let mainList, compList = null, mainLabel = null, compLabel = null;
-
-  if(preferredSector && filter === 'all') {
-    // 3 depuis le secteur préféré
-    mainList = OPPORTUNITIES.filter(o => o.category === preferredSector).slice(0, 3);
-    // 2 meilleures des autres secteurs (tri : conviction desc, risque asc)
-    compList = OPPORTUNITIES
-      .filter(o => o.category !== preferredSector)
-      .sort((a,b) => (CONV_RANK[b.conviction]||0)-(CONV_RANK[a.conviction]||0) || a.risk-b.risk)
-      .slice(0, 2);
-    mainLabel = {icon:'⭐', label: SECTOR_NAMES[preferredSector] + ' — Votre sélection', color:'var(--blue)'};
-    compLabel = {icon:'🎯', label: 'Recommandations complémentaires', color:'var(--teal)'};
-  } else if(filter === 'all') {
-    mainList = OPPORTUNITIES;
-  } else {
-    mainList = OPPORTUNITIES.filter(o => o.category === filter);
+function renderOpps(){
+  const grid=document.getElementById('oppGrid');
+  let main,compl=null;
+  if(prefSector){
+    main=OPPS.filter(o=>o.cat===prefSector).slice(0,3);
+    compl=OPPS.filter(o=>o.cat!==prefSector)
+      .sort((a,b)=>(CONV_RANK[b.conv]-CONV_RANK[a.conv])||a.risk-b.risk).slice(0,2);
+  } else { main=OPPS.slice(); }
+  let html=main.map(o=>oppCard(o,false)).join('');
+  if(compl&&compl.length){
+    html+=`<div style="grid-column:1/-1;font-size:.78rem;color:var(--teal);font-weight:600;margin:6px 0 -4px">🔹 Complémentaires (meilleure conviction / risque min., hors secteur choisi)</div>`;
+    html+=compl.map(o=>oppCard(o,true)).join('');
   }
-
-  if(!mainList.length){ grid.innerHTML='<div class="empty"><div class="empty-i">🔍</div><p>Aucune opportunité dans ce secteur</p></div>'; return; }
-
-  let html = '';
-
-  if(mainLabel) {
-    html += `<div class="opp-sh"><span style="font-size:1.1rem">${mainLabel.icon}</span><span style="color:${mainLabel.color}">${mainLabel.label}</span><span class="bdg bdg-e" style="margin-left:auto">${mainList.length} valeur${mainList.length>1?'s':''}</span></div>`;
-  }
-  html += mainList.map(o => oppCardHTML(o)).join('');
-
-  if(compList && compList.length) {
-    html += `<div class="opp-sh" style="margin-top:8px"><span style="font-size:1.1rem">${compLabel.icon}</span><span style="color:${compLabel.color}">${compLabel.label}</span><span class="bdg bdg-t" style="margin-left:auto">${compList.length} valeur${compList.length>1?'s':''}</span></div>`;
-    html += compList.map(o => oppCardHTML(o)).join('');
-  }
-
-  grid.innerHTML = html;
-
-  // Fetch live prices for all displayed symbols
-  const allShown = compList ? [...mainList, ...compList] : mainList;
-  const syms = allShown.map(o=>o.symbol).filter((s,i,a)=>a.indexOf(s)===i && !prices[s]);
-  if(syms.length) fetchQuotes(syms).then(()=>renderOpportunities(filter));
+  grid.innerHTML=html;
+  // charge les prix manquants
+  const syms=[...new Set([...(main||[]),...(compl||[])].map(o=>o.sym))].filter(s=>!prices[s]);
+  if(syms.length) fetchPrices(syms).then(renderOpps);
+}
+function addOpp(id){
+  const o=OPPS.find(x=>x.id===id); if(!o)return;
+  openAdd();
+  document.getElementById('addTitle').textContent='➕ Ajouter depuis les opportunités';
+  document.getElementById('aSearch').value=o.name;
+  document.getElementById('aIsin').value=o.isin;
+  document.getElementById('aSym').value=o.sym;
+  document.getElementById('aName').value=o.name;
+  document.getElementById('aSector').value=o.sector;
+  document.getElementById('aType').value=o.sym.includes('CW8')||o.cat==='etf'?'ETF':'Action';
+  const p=prices[o.sym]; if(p&&!p.error)document.getElementById('aBuy').value=p.price.toFixed(2);
 }
 
-/* ════════════════════════════════════════
-   ADD OPP TO PORTFOLIO
-════════════════════════════════════════ */
-function addOppToPortfolio(symbol, name, sector) {
-  const p = prices[symbol];
-  document.getElementById('mSearch').value = name;
-  document.getElementById('mSymbol').value = symbol;
-  document.getElementById('mName').value = name;
-  document.getElementById('mSector').value = sector;
-  if(p?.price) document.getElementById('mBuy').value = p.price.toFixed(4);
-  document.getElementById('mType').value = 'Action';
-  editId = null;
-  closeDD();
+/* ════════════ CRUD ════════════ */
+function saveLocal(){localStorage.setItem('pf_h',JSON.stringify(holdings));scheduleFb();}
+function openAdd(){
+  editId=null; document.getElementById('addTitle').textContent='➕ Ajouter une position';
+  ['aSearch','aIsin','aSym','aName','aSector','aQty','aBuy'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('aType').value='Action'; closeDD();
   document.getElementById('addModal').classList.add('open');
 }
-
-/* ════════════════════════════════════════
-   CLOUD SYNC — JSONBin.io
-════════════════════════════════════════ */
-function scheduleSync() {
-  if(!syncConfig?.apiKey) return;
-  if(syncDebounce) clearTimeout(syncDebounce);
-  syncDebounce = setTimeout(syncToCloud, 1500);
+function closeAdd(){document.getElementById('addModal').classList.remove('open');closeDD();editId=null;}
+function editH(id){
+  const h=holdings.find(x=>x.id===id); if(!h)return; editId=id;
+  document.getElementById('addTitle').textContent='✏️ Modifier la position';
+  document.getElementById('aSearch').value=h.name;
+  document.getElementById('aIsin').value=h.isin||'';
+  document.getElementById('aSym').value=h.sym;
+  document.getElementById('aName').value=h.name;
+  document.getElementById('aType').value=h.type;
+  document.getElementById('aSector').value=h.sector||'';
+  document.getElementById('aQty').value=h.qty;
+  document.getElementById('aBuy').value=h.buy;
+  closeDD(); document.getElementById('addModal').classList.add('open');
 }
-
-async function syncToCloud() {
-  if(!syncConfig?.apiKey) return;
-  setSyncIndicator('syncing');
-  const payload = {holdings, preferredSector:preferredSector||null, savedAt:new Date().toISOString(), v:2};
-  try {
-    if(!syncConfig.binId) {
-      const r = await fetch('https://api.jsonbin.io/v3/b', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-Master-Key':syncConfig.apiKey,'X-Bin-Name':'PortfolioTracker'},
-        body:JSON.stringify(payload),
-        signal:AbortSignal.timeout(12000)
-      });
-      if(!r.ok) throw new Error('Clé invalide (HTTP '+r.status+')');
-      const d = await r.json();
-      syncConfig.binId = d.metadata.id;
-      localStorage.setItem('pf_sync', JSON.stringify(syncConfig));
-      const bi = document.getElementById('syncBinId');
-      if(bi) bi.value = syncConfig.binId;
-      updateShareCode();
-      updateSyncModalState();
-    } else {
-      const r = await fetch('https://api.jsonbin.io/v3/b/'+syncConfig.binId, {
-        method:'PUT',
-        headers:{'Content-Type':'application/json','X-Master-Key':syncConfig.apiKey},
-        body:JSON.stringify(payload),
-        signal:AbortSignal.timeout(12000)
-      });
-      if(!r.ok) throw new Error('Erreur sauvegarde (HTTP '+r.status+')');
-    }
-    setSyncIndicator('ok');
-  } catch(e) {
-    console.warn('Sync error:', e.message);
-    setSyncIndicator('error');
-  }
+function saveAdd(){
+  const isin=document.getElementById('aIsin').value.trim().toUpperCase();
+  const sym=document.getElementById('aSym').value.trim().toUpperCase();
+  const name=document.getElementById('aName').value.trim();
+  const type=document.getElementById('aType').value;
+  const sector=document.getElementById('aSector').value.trim();
+  const qty=parseFloat(document.getElementById('aQty').value);
+  const buy=parseFloat(document.getElementById('aBuy').value);
+  if(!sym||!name||isNaN(qty)||isNaN(buy)||qty<=0||buy<=0){alert('Renseignez au minimum le mnémonique boursier, le nom, la quantité et le PRU.');return;}
+  const db=DB_BY_ISIN[isin];
+  const rec={isin,sym,name,type,sector:sector||(db?db.sector:''),buy,qty,pea:db?db.pea:(type==='ETF'?null:true)};
+  if(editId){const i=holdings.findIndex(h=>h.id===editId);if(i>=0)holdings[i]={...holdings[i],...rec};}
+  else holdings.push({id:Date.now(),...rec});
+  delete prices[sym]; saveLocal(); closeAdd(); refresh();
 }
+function delH(id){if(!confirm('Supprimer cette position ?'))return;holdings=holdings.filter(h=>h.id!==id);saveLocal();renderAll();}
 
-async function syncFromCloud() {
-  if(!syncConfig?.apiKey || !syncConfig?.binId) return false;
-  setSyncIndicator('syncing');
-  try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/'+syncConfig.binId+'/latest', {
-      headers:{'X-Master-Key':syncConfig.apiKey},
-      signal:AbortSignal.timeout(12000)
-    });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const data = (await r.json()).record;
-    if(Array.isArray(data.holdings)) {
-      holdings = data.holdings;
-      localStorage.setItem('pf_holdings', JSON.stringify(holdings));
-    }
-    if('preferredSector' in data) {
-      preferredSector = data.preferredSector;
-      preferredSector ? localStorage.setItem('pf_pref_sector', preferredSector) : localStorage.removeItem('pf_pref_sector');
-    }
-    setSyncIndicator('ok');
-    return true;
-  } catch(e) {
-    console.warn('Load error:', e.message);
-    setSyncIndicator('error');
-    return false;
-  }
-}
-
-function setSyncIndicator(status) {
-  const icon = document.getElementById('syncIcon');
-  const dot  = document.getElementById('syncDot');
-  if(!icon || !dot) return;
-  if(status==='syncing') {
-    icon.textContent='↻'; icon.style.animation='sp .6s linear infinite';
-    dot.style.cssText='background:var(--blue);width:6px;height:6px';
-  } else if(status==='ok') {
-    icon.textContent='☁️'; icon.style.animation='';
-    dot.className='dot dot-live'; dot.style.cssText='width:6px;height:6px';
-  } else if(status==='error') {
-    icon.textContent='☁️'; icon.style.animation='';
-    dot.className='dot dot-off'; dot.style.cssText='width:6px;height:6px';
-  } else {
-    icon.textContent='☁️'; icon.style.animation='';
-    dot.className='dot'; dot.style.cssText='background:var(--t3);width:6px;height:6px';
-  }
-}
-
-/* ── Sync modal ── */
-function openSyncModal() {
-  const ai = document.getElementById('syncApiKey');
-  const bi = document.getElementById('syncBinId');
-  if(syncConfig?.apiKey) ai.value = syncConfig.apiKey;
-  if(syncConfig?.binId)  bi.value = syncConfig.binId;
-  document.getElementById('syncMsg').style.display = 'none';
-  updateShareCode();
-  updateSyncModalState();
-  document.getElementById('syncModal').classList.add('open');
-}
-
-function closeSyncModal() {
-  document.getElementById('syncModal').classList.remove('open');
-}
-
-function updateSyncModalState() {
-  const ok = !!(syncConfig?.apiKey && syncConfig?.binId);
-  document.getElementById('syncNowBtn').style.display   = ok ? '' : 'none';
-  document.getElementById('disconnectBtn').style.display = ok ? '' : 'none';
-  document.getElementById('shareSec').style.display      = ok ? '' : 'none';
-}
-
-function toggleKeyVis() {
-  const i = document.getElementById('syncApiKey');
-  i.type = i.type==='password' ? 'text' : 'password';
-}
-
-function copySyncId() {
-  const v = document.getElementById('syncBinId').value;
-  if(v) { navigator.clipboard.writeText(v); showSyncMsg('ID copié dans le presse-papier !','ok'); }
-}
-
-function updateShareCode() {
-  const el = document.getElementById('shareCodeVal');
-  if(!el || !syncConfig?.apiKey || !syncConfig?.binId) return;
-  el.textContent = btoa(syncConfig.apiKey+'::'+syncConfig.binId);
-}
-
-function copyShareCode() {
-  const txt = document.getElementById('shareCodeVal').textContent;
-  if(txt) { navigator.clipboard.writeText(txt); showSyncMsg('Code de partage copié !','ok'); }
-}
-
-function pasteShareCode() {
-  const raw = document.getElementById('shareCodeInput').value.trim();
-  if(!raw) return;
-  try {
-    const parts = atob(raw).split('::');
-    if(parts.length!==2 || !parts[0] || !parts[1]) throw new Error('format');
-    document.getElementById('syncApiKey').value = parts[0];
-    document.getElementById('syncBinId').value  = parts[1];
-    showSyncMsg('✓ Code décodé — vérifiez les champs et cliquez Sauvegarder','ok');
-  } catch { showSyncMsg('Code invalide ou corrompu','err'); }
-}
-
-async function saveSyncConfig() {
-  const key = document.getElementById('syncApiKey').value.trim();
-  const bid = document.getElementById('syncBinId').value.trim();
-  if(!key) { showSyncMsg('Veuillez entrer votre clé API Master Key','err'); return; }
-  syncConfig = {apiKey:key, binId:bid||null};
-  localStorage.setItem('pf_sync', JSON.stringify(syncConfig));
-  showSyncMsg('Configuration sauvegardée — synchronisation en cours…','loading');
-  await syncToCloud();
-  if(syncConfig.binId) showSyncMsg('✅ Connecté ! Bin ID : '+syncConfig.binId+' — Copiez-le pour vos autres appareils','ok');
-}
-
-function disconnectSync() {
-  if(!confirm('Déconnecter la synchro cloud ? Vos données locales sont conservées.')) return;
-  syncConfig = null;
-  localStorage.removeItem('pf_sync');
-  document.getElementById('syncApiKey').value = '';
-  document.getElementById('syncBinId').value  = '';
-  document.getElementById('shareCodeVal').textContent = '';
-  updateSyncModalState();
-  setSyncIndicator('idle');
-  showSyncMsg('Déconnecté. Données toujours disponibles localement.','ok');
-}
-
-async function syncNow() {
-  showSyncMsg('Synchronisation en cours…','loading');
-  await syncToCloud();
-  showSyncMsg('✅ Synchronisé avec succès !','ok');
-}
-
-function showSyncMsg(msg, type) {
-  const el = document.getElementById('syncMsg');
-  if(!el) return;
-  el.className = 'sync-badge sync-'+(type==='ok'?'ok':type==='err'?'err':'loading');
-  el.textContent = msg;
-  el.style.display = 'flex';
-}
-
-/* ── Export / Import JSON ── */
-function exportJSON() {
-  const blob = new Blob([JSON.stringify({holdings,preferredSector,exportedAt:new Date().toISOString(),v:2},null,2)],{type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'portfolio-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-}
-
-function importJSON(input) {
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if(!Array.isArray(data.holdings)) throw new Error('Format invalide');
-      if(!confirm('Importer '+data.holdings.length+' position(s) ? Cela remplacera votre portefeuille actuel.')) return;
-      holdings = data.holdings;
-      if(data.preferredSector !== undefined) {
-        preferredSector = data.preferredSector;
-        preferredSector ? localStorage.setItem('pf_pref_sector',preferredSector) : localStorage.removeItem('pf_pref_sector');
-      }
-      saveHoldings();
-      renderAll(); initPrefCards(); refreshAll();
-      closeSyncModal();
-    } catch(err) { alert('Fichier invalide : '+err.message); }
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
-
-/* ════════════════════════════════════════
-   HOLDINGS MANAGEMENT
-════════════════════════════════════════ */
-function saveHoldings() {
-  localStorage.setItem('pf_holdings', JSON.stringify(holdings));
-  scheduleSync();
-}
-
-function openAddModal() {
-  editId = null;
-  ['mSearch','mSymbol','mName','mSector','mQty','mBuy'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('mType').value = 'Action';
-  closeDD();
-  document.getElementById('addModal').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('addModal').classList.remove('open');
-  closeDD();
-  editId = null;
-}
-
-function editHolding(id) {
-  const h = holdings.find(h=>h.id===id);
-  if(!h) return;
-  editId = id;
-  document.getElementById('mSearch').value = h.name;
-  document.getElementById('mSymbol').value = h.symbol;
-  document.getElementById('mName').value = h.name;
-  document.getElementById('mType').value = h.type;
-  document.getElementById('mSector').value = h.sector;
-  document.getElementById('mQty').value = h.qty;
-  document.getElementById('mBuy').value = h.buy;
-  closeDD();
-  document.getElementById('addModal').classList.add('open');
-}
-
-function saveHolding() {
-  const symbol = document.getElementById('mSymbol').value.trim().toUpperCase();
-  const name = document.getElementById('mName').value.trim();
-  const type = document.getElementById('mType').value;
-  const sector = document.getElementById('mSector').value.trim();
-  const qty = parseFloat(document.getElementById('mQty').value);
-  const buy = parseFloat(document.getElementById('mBuy').value);
-  if(!symbol||!name||isNaN(qty)||isNaN(buy)||qty<=0||buy<=0) { alert('Veuillez remplir tous les champs correctement.'); return; }
-
-  if(editId) {
-    const i = holdings.findIndex(h=>h.id===editId);
-    if(i>=0) holdings[i] = {...holdings[i],symbol,name,type,sector,qty,buy};
-  } else {
-    const id = Date.now();
-    holdings.push({id,symbol,name,type,sector,qty,buy});
-  }
-  saveHoldings();
-  closeModal();
-  refreshAll();
-}
-
-function deleteHolding(id) {
-  if(!confirm('Supprimer cette position ?')) return;
-  holdings = holdings.filter(h=>h.id!==id);
-  saveHoldings();
-  renderAll();
-}
-
-/* ════════════════════════════════════════
-   BULK ENTRY
-════════════════════════════════════════ */
-function openBulkModal() {
-  const body = document.getElementById('bulkBody');
-  body.innerHTML = '';
-  // Pre-fill with existing holdings for editing, or 4 empty rows
-  if(holdings.length > 0) {
-    holdings.forEach(h => addBulkRow(h));
-    addBulkRow({});
-  } else {
-    for(let i=0;i<4;i++) addBulkRow({});
-  }
+/* ════════════ SAISIE EN MASSE ════════════ */
+function openBulk(){
+  const body=document.getElementById('bulkBody'); body.innerHTML='';
+  if(holdings.length){holdings.forEach(h=>addBulkRow(h));addBulkRow({});}
+  else for(let i=0;i<4;i++)addBulkRow({});
   document.getElementById('bulkModal').classList.add('open');
 }
-
-function closeBulkModal() {
-  document.getElementById('bulkModal').classList.remove('open');
-}
-
-function clearBulkRows() {
-  document.getElementById('bulkBody').innerHTML = '';
-  for(let i=0;i<4;i++) addBulkRow({});
-}
-
-function addBulkRow(data) {
-  const body = document.getElementById('bulkBody');
-  const tr = document.createElement('tr');
-  const sym = data?.symbol || '';
-  const name = data?.name || '';
-  const type = data?.type || 'Action';
-  const sec = data?.sector || '';
-  const qty = data?.qty || '';
-  const buy = data?.buy || '';
-  tr.innerHTML = `
+function closeBulk(){document.getElementById('bulkModal').classList.remove('open');closeDD();}
+function clearBulk(){document.getElementById('bulkBody').innerHTML='';for(let i=0;i<4;i++)addBulkRow({});}
+function addBulkRow(d){
+  const body=document.getElementById('bulkBody'); const tr=document.createElement('tr');
+  const isin=d?.isin||'',sym=d?.sym||'',name=d?.name||'',type=d?.type||'Action',sec=d?.sector||'',qty=d?.qty||'',buy=d?.buy||'';
+  tr.innerHTML=`
     <td style="position:relative">
-      <input type="text" class="fi" style="min-width:110px" placeholder="Nom ou symbole" value="${sym||name}"
-        autocomplete="off" data-sym="${sym}"
-        oninput="onBulkSearch(this)" onkeydown="ddKeyNav(event,'bulk',this)" onfocus="onBulkSearch(this)"
-        title="${sym ? sym : ''}">
-      ${sym ? `<div style="font-size:.65rem;color:var(--blue);margin-top:1px;font-family:monospace">${sym}</div>` : ''}
+      <input type="text" class="fi" style="min-width:150px" placeholder="ISIN ou nom" value="${name||isin}"
+        data-isin="${isin}" data-sym="${sym}" autocomplete="off"
+        oninput="onSearch(this,'bulk')" onkeydown="ddNav(event,'bulk')" onfocus="onSearch(this,'bulk')">
+      ${sym?`<div class="bsym" style="font-size:.64rem;color:var(--blue);margin-top:1px;font-family:monospace">${sym}${isin?' · '+isin:''}</div>`:''}
     </td>
-    <td><input type="text" class="fi" style="min-width:120px" placeholder="Nom de la valeur" value="${name}"></td>
-    <td>
-      <select class="fsel" style="min-width:70px">
-        <option value="Action" ${type==='Action'?'selected':''}>Action</option>
-        <option value="ETF" ${type==='ETF'?'selected':''}>ETF</option>
-      </select>
-    </td>
-    <td><input type="text" class="fi" style="min-width:90px" placeholder="Secteur" value="${sec}"></td>
-    <td><input type="number" class="fi" style="min-width:70px" placeholder="10" min="0.0001" step="any" value="${qty}"></td>
-    <td><input type="number" class="fi" style="min-width:80px" placeholder="15,50" min="0.0001" step="any" value="${buy}"></td>
-    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1.2rem;padding:2px 6px;line-height:1">×</button></td>
-  `;
+    <td><input type="text" class="fi" style="min-width:130px" placeholder="Nom" value="${name}"></td>
+    <td><select class="fsel" style="min-width:80px"><option ${type==='Action'?'selected':''}>Action</option><option ${type==='ETF'?'selected':''}>ETF</option></select></td>
+    <td><input type="text" class="fi" style="min-width:120px" placeholder="Secteur" value="${sec}"></td>
+    <td><input type="number" class="fi" style="min-width:70px" placeholder="40" min="0.0001" step="any" value="${qty}"></td>
+    <td><input type="number" class="fi" style="min-width:80px" placeholder="9,20" min="0.0001" step="any" value="${buy}"></td>
+    <td><button class="ico-btn" style="color:var(--red)" onclick="this.closest('tr').remove()">×</button></td>`;
   body.appendChild(tr);
 }
-
-function saveBulk() {
-  const rows = document.querySelectorAll('#bulkBody tr');
-  const newHoldings = [];
-  let hasError = false;
-
-  rows.forEach((row, idx) => {
-    const inputs = row.querySelectorAll('input');
-    const select = row.querySelector('select');
-    // Use data-sym (set by autocomplete selection) as the Yahoo Finance symbol,
-    // falling back to the raw text if user typed it directly in uppercase
-    const symInput = inputs[0];
-    const symbol = (symInput.dataset.sym || symInput.value.trim()).toUpperCase();
-    const name   = inputs[1].value.trim();
-    const type   = select.value;
-    const sector = inputs[2].value.trim() || 'Non défini';
-    const qty    = parseFloat(inputs[3].value.replace(',','.'));
-    const buy    = parseFloat(inputs[4].value.replace(',','.'));
-
-    // Skip completely empty rows
-    if(!symbol && !name && !inputs[3].value && !inputs[4].value) return;
-
-    const errSym = !symbol;
-    const errNam = !name;
-    const errQty = isNaN(qty) || qty <= 0;
-    const errBuy = isNaN(buy) || buy <= 0;
-
-    symInput.style.borderColor = errSym ? 'var(--red)' : '';
-    inputs[1].style.borderColor = errNam ? 'var(--red)' : '';
-    inputs[3].style.borderColor = errQty ? 'var(--red)' : '';
-    inputs[4].style.borderColor = errBuy ? 'var(--red)' : '';
-
-    if(errSym || errNam || errQty || errBuy) { hasError = true; return; }
-
-    newHoldings.push({id: Date.now() + idx * 7, symbol, name, type, sector, qty, buy});
+function saveBulk(){
+  const rows=document.querySelectorAll('#bulkBody tr'); const out=[]; let err=false;
+  rows.forEach((row,idx)=>{
+    const inp=row.querySelectorAll('input'); const sel=row.querySelector('select');
+    const s0=inp[0];
+    const sym=(s0.dataset.sym||'').toUpperCase();
+    const isin=(s0.dataset.isin||'').toUpperCase();
+    const name=inp[1].value.trim()||s0.value.trim();
+    const type=sel.value; const sec=inp[2].value.trim();
+    const qty=parseFloat((inp[3].value||'').replace(',','.'));
+    const buy=parseFloat((inp[4].value||'').replace(',','.'));
+    if(!sym&&!name&&!inp[3].value&&!inp[4].value)return;     // ligne vide
+    const bad=!sym||!name||isNaN(qty)||qty<=0||isNaN(buy)||buy<=0;
+    s0.style.borderColor=!sym?'var(--red)':''; inp[1].style.borderColor=!name?'var(--red)':'';
+    inp[3].style.borderColor=(isNaN(qty)||qty<=0)?'var(--red)':''; inp[4].style.borderColor=(isNaN(buy)||buy<=0)?'var(--red)':'';
+    if(bad){err=true;return;}
+    const db=DB_BY_ISIN[isin];
+    out.push({id:Date.now()+idx*7,isin,sym,name,type,sector:sec||(db?db.sector:''),qty,buy,pea:db?db.pea:(type==='ETF'?null:true)});
   });
+  if(err){alert('⚠️ Lignes en rouge incomplètes — sélectionnez une valeur dans la liste de recherche pour remplir le mnémonique boursier.');return;}
+  if(!out.length){alert('Aucune position valide. Saisissez au moins une ligne complète.');return;}
+  holdings=out; prices={}; saveLocal(); closeBulk(); refresh();
+}
+function loadDemo(){
+  document.getElementById('bulkBody').innerHTML=''; DEMO.forEach(d=>addBulkRow(d)); addBulkRow({});
+}
+function loadDemoDirect(){holdings=DEMO.map((d,i)=>({id:Date.now()+i,...d}));prices={};saveLocal();refresh();}
 
-  if(hasError) { alert('⚠️ Certains champs sont invalides (en rouge). Corrigez-les avant d\'enregistrer.'); return; }
-  if(!newHoldings.length) { alert('Aucune position valide saisie. Remplissez au moins une ligne complète.'); return; }
+/* ════════════ FIREBASE ════════════ */
+function parseFbConfig(raw){
+  // Extraction champ par champ (robuste : ne casse pas sur les URL https://)
+  const get=k=>{const m=raw.match(new RegExp(k+'\\s*:\\s*["\\\']([^"\\\']+)["\\\']'));return m?m[1]:null;};
+  const cfg={};
+  ['apiKey','authDomain','databaseURL','projectId','storageBucket','messagingSenderId','appId','measurementId']
+    .forEach(k=>{const v=get(k);if(v)cfg[k]=v;});
+  return cfg;
+}
+function initFb(cfg){
+  try{ if(firebase.apps.length) firebase.app().delete(); }catch(e){}
+  fbApp=firebase.initializeApp(cfg);
+  firebase.auth().onAuthStateChanged(onAuth);
+}
+async function onAuth(user){
+  fbUser=user; renderAcct(); updateSyncSections();
+  if(user){ setNetDot('load'); const ok=await loadFb(user.uid); if(ok){renderAll();initPref();renderOpps();} setNetDot(ok?'ok':'idle'); }
+}
+async function loadFb(uid){
+  try{
+    const snap=await firebase.database().ref('users/'+uid+'/pf').once('value');
+    const d=snap.val(); if(!d)return false;
+    if(Array.isArray(d.holdings)){holdings=d.holdings;localStorage.setItem('pf_h',JSON.stringify(holdings));}
+    if('pref' in d){prefSector=d.pref;prefSector?localStorage.setItem('pf_pref',prefSector):localStorage.removeItem('pf_pref');}
+    if(d.savedAt){const e=document.getElementById('fbLast');if(e)e.textContent='Dernière synchro : '+new Date(d.savedAt).toLocaleString('fr-FR');}
+    return true;
+  }catch(e){console.warn('loadFb',e.message);return false;}
+}
+function scheduleFb(){if(!fbUser)return;clearTimeout(fbTimer);fbTimer=setTimeout(saveFb,1500);}
+async function saveFb(){
+  if(!fbUser)return;
+  try{
+    const savedAt=new Date().toISOString();
+    await firebase.database().ref('users/'+fbUser.uid+'/pf').set({holdings,pref:prefSector||null,savedAt,v:1});
+    const e=document.getElementById('fbLast');if(e)e.textContent='Dernière synchro : '+new Date(savedAt).toLocaleString('fr-FR');
+  }catch(e){console.warn('saveFb',e.message);}
+}
+async function fbSignIn(){
+  if(!fbApp)return;
+  try{await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());}
+  catch(e){showFbMsg('Connexion impossible : '+e.message,'b-err');}
+}
+async function fbSignOut(){if(!confirm('Se déconnecter ? Données locales conservées.'))return;await firebase.auth().signOut();}
+function renderAcct(){
+  const c=document.getElementById('acctChip');
+  if(!fbCfg){c.innerHTML='<span>☁️</span><span class="lbl-hide" style="font-size:.74rem">Connexion</span>';return;}
+  if(!fbUser){c.innerHTML='<span>🔑</span><span class="dot" style="background:var(--t3)"></span>';return;}
+  const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" onerror="this.style.display='none'">`:'';
+  c.innerHTML=`${av}<span class="nm">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" style="background:var(--green)"></span>`;
+}
+function openSync(){updateSyncSections();document.getElementById('syncModal').classList.add('open');}
+function closeSync(){document.getElementById('syncModal').classList.remove('open');}
+function updateSyncSections(){
+  const a=document.getElementById('syncSetup'),b=document.getElementById('syncSignin'),c=document.getElementById('syncConnected');
+  if(!fbCfg){a.style.display='';b.style.display='none';c.style.display='none';}
+  else if(!fbUser){a.style.display='none';b.style.display='';c.style.display='none';}
+  else{a.style.display='none';b.style.display='none';c.style.display='';
+    document.getElementById('fbName').textContent=fbUser.displayName||fbUser.email||'—';
+    document.getElementById('fbAvatar').src=fbUser.photoURL||'';}
+}
+function saveFbConfig(){
+  const raw=document.getElementById('fbInput').value.trim();
+  if(!raw){showFbSetup('Collez votre firebaseConfig.','b-err');return;}
+  const cfg=parseFbConfig(raw);
+  if(!cfg.apiKey||!cfg.authDomain){showFbSetup('apiKey ou authDomain introuvable — copiez le bloc firebaseConfig complet.','b-err');return;}
+  if(!cfg.databaseURL){showFbSetup('databaseURL manquant : activez Realtime Database dans Firebase, puis recopiez le config.','b-err');return;}
+  fbCfg=cfg; localStorage.setItem('pf_fb',JSON.stringify(cfg));
+  showFbSetup('✅ Configuration enregistrée — initialisation…','b-ok');
+  try{initFb(cfg);}catch(e){showFbSetup('Erreur init Firebase : '+e.message,'b-err');return;}
+  setTimeout(()=>{renderAcct();updateSyncSections();},500);
+}
+function resetFb(){if(!confirm('Supprimer la configuration Firebase ?'))return;fbCfg=null;fbUser=null;localStorage.removeItem('pf_fb');try{firebase.auth().signOut();}catch(e){}renderAcct();updateSyncSections();}
+async function fbSyncNow(){showFbMsg('Sauvegarde…','b-load');await saveFb();showFbMsg('✅ Sauvegardé.','b-ok');}
+function showFbSetup(m,c){const e=document.getElementById('fbSetupMsg');e.className='badge '+c;e.textContent=m;e.style.display='flex';}
+function showFbMsg(m,c){const e=document.getElementById('fbMsg');e.className='badge '+c;e.textContent=m;e.style.display='flex';}
 
-  // Replace all holdings with the new ones
-  holdings = newHoldings;
-  saveHoldings();
-  closeBulkModal();
-  refreshAll();
+/* ════════════ EXPORT / IMPORT ════════════ */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({holdings,pref:prefSector,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pea-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function importJSON(input){
+  const f=input.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d.holdings))throw 0;
+    if(!confirm('Importer '+d.holdings.length+' position(s) ? Remplace le portefeuille actuel.'))return;
+    holdings=d.holdings; if('pref'in d){prefSector=d.pref;prefSector?localStorage.setItem('pf_pref',prefSector):localStorage.removeItem('pf_pref');}
+    prices={};saveLocal();closeSync();refresh();}catch(_){alert('Fichier invalide.');}};
+  rd.readAsText(f);
 }
 
-function loadDemo() {
-  const bulkOpen = document.getElementById('bulkModal').classList.contains('open');
-  if(bulkOpen) {
-    document.getElementById('bulkBody').innerHTML = '';
-    DEMO_HOLDINGS.forEach(d => addBulkRow(d));
-    return;
-  }
-  if(holdings.length > 0 && !confirm('Remplacer le portefeuille actuel par les exemples de démonstration ?')) return;
-  holdings = DEMO_HOLDINGS.map((d,i) => ({...d, id: Date.now() + i}));
-  saveHoldings();
-  refreshAll();
+/* ════════════ NAV / REFRESH ════════════ */
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));
+  document.getElementById('pane-'+t).classList.add('active');
+  if(t==='opp'){initPref();renderOpps();}
+  if(t==='dash')renderDash();
 }
-
-function resetPortfolio() {
-  if(!confirm('🗑 Supprimer toutes les positions du portefeuille ? Cette action est irréversible.')) return;
-  holdings = [];
-  saveHoldings();
+function setNetDot(s){const d=document.getElementById('netDot');const m={ok:'var(--green)',load:'var(--blue)',err:'var(--red)',idle:'var(--t3)'};d.style.background=m[s]||m.idle;}
+let refreshTimer=null;
+async function refresh(){
   renderAll();
-}
-
-/* ════════════════════════════════════════
-   SECTOR PREFERENCE
-════════════════════════════════════════ */
-function initPrefCards() {
-  ['renewable','battery','rareearth','infra','etf'].forEach(cat => {
-    const cnt = OPPORTUNITIES.filter(o=>o.category===cat).length;
-    const el = document.getElementById('cnt-'+cat);
-    if(el) el.textContent = cnt + ' opportunité' + (cnt>1?'s':'');
-  });
-  // Restore active card
-  document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
-  if(preferredSector) {
-    const card = document.querySelector(`.pref-card[data-sector="${preferredSector}"]`);
-    if(card) card.classList.add('active');
-    const btn = document.getElementById('clearPrefBtn');
-    if(btn) btn.style.display = '';
-  }
-}
-
-function setPreferredSector(sector, el) {
-  if(preferredSector === sector) { clearPreference(); return; }
-  preferredSector = sector;
-  localStorage.setItem('pf_pref_sector', sector);
-  scheduleSync();
-  document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
-  if(el) el.classList.add('active');
-  const btn = document.getElementById('clearPrefBtn');
-  if(btn) btn.style.display = '';
-  // Switch filter back to "Tout" to show 3+2 split
-  activeFilter = 'all';
-  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('#filterBar .fbtn')?.classList.add('active');
-  renderOpportunities('all');
-}
-
-function clearPreference() {
-  preferredSector = null;
-  localStorage.removeItem('pf_pref_sector');
-  scheduleSync();
-  document.querySelectorAll('.pref-card').forEach(c=>c.classList.remove('active'));
-  const btn = document.getElementById('clearPrefBtn');
-  if(btn) btn.style.display = 'none';
-  renderOpportunities(activeFilter);
-}
-
-/* ════════════════════════════════════════
-   FILTER
-════════════════════════════════════════ */
-function filterOpps(cat, btn) {
-  activeFilter = cat;
-  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderOpportunities(cat);
-}
-
-/* ════════════════════════════════════════
-   TABS
-════════════════════════════════════════ */
-function switchTab(id, el) {
-  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('pane-'+id).classList.add('active');
-  el.classList.add('active');
-  if(id==='dashboard') { renderAllocChart(); renderPerfChart(); }
-  if(id==='opportunities') { initPrefCards(); renderOpportunities(activeFilter); }
-}
-
-/* ════════════════════════════════════════
-   FULL RENDER
-════════════════════════════════════════ */
-function renderAll() {
-  const empty = holdings.length === 0;
-
-  // Toggle onboarding / main sections
-  const emptyDash = document.getElementById('emptyDash');
-  const mainDash  = document.getElementById('mainDash');
-  const emptyPort = document.getElementById('emptyPort');
-  const mainPort  = document.getElementById('mainPort');
-  if(emptyDash) emptyDash.style.display = empty ? 'block' : 'none';
-  if(mainDash)  mainDash.style.display  = empty ? 'none'  : 'block';
-  if(emptyPort) emptyPort.style.display = empty ? 'block' : 'none';
-  if(mainPort)  mainPort.style.display  = empty ? 'none'  : 'block';
-
-  renderSummary();
-  if(!empty) {
-    renderKPIs();
-    renderAllocChart();
-    renderPerfChart();
-    renderDashTable();
-    renderPortfolio();
-  }
-}
-
-/* ════════════════════════════════════════
-   REFRESH ALL DATA
-════════════════════════════════════════ */
-async function refreshAll() {
-  const btn = document.getElementById('refreshBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Chargement…';
-  document.getElementById('dashSpin').style.display = '';
-  document.getElementById('statusDot').className = 'dot dot-off';
-
-  const syms = [...new Set(holdings.map(h=>h.symbol))];
-  const ok = await fetchQuotes(syms);
-
-  document.getElementById('statusDot').className = ok ? 'dot dot-live' : 'dot dot-off';
-  const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('updateTime').textContent = ok ? `MAJ ${now}` : `Erreur CORS — ${now}`;
-
-  renderAll();
-
-  // Refresh opportunity prices if tab open
-  const oppPane = document.getElementById('pane-opportunities');
-  if(oppPane.classList.contains('active')) renderOpportunities(activeFilter);
-
-  btn.disabled = false;
-  btn.textContent = '↻ Actualiser';
-  document.getElementById('dashSpin').style.display = 'none';
-
-  // Schedule next refresh (5 min)
-  if(refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(refreshAll, 5*60*1000);
-}
-
-/* ════════════════════════════════════════
-   INIT
-════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', async () => {
-  // Si synchro cloud configurée, charger les données du cloud en premier
-  if(syncConfig?.apiKey && syncConfig?.binId) {
-    setSyncIndicator('syncing');
-    const loaded = await syncFromCloud();
-    if(loaded) { renderAll(); initPrefCards(); } else { renderAll(); initPrefCards(); }
-  } else {
+  const btn=document.getElementById('refBtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  setNetDot('load');
+  const syms=[...new Set(holdings.map(h=>h.sym))];
+  if(syms.length){
+    await fetchPrices(syms,(d,n)=>{document.getElementById('updTime').textContent='Chargement '+d+'/'+n;});
     renderAll();
-    initPrefCards();
-    setSyncIndicator('idle');
   }
-  refreshAll();
+  const ok=holdings.every(h=>prices[h.sym]&&!prices[h.sym].error)||!syms.length;
+  setNetDot(syms.length?(ok?'ok':'err'):'idle');
+  document.getElementById('updTime').textContent='MàJ '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  btn.disabled=false; btn.innerHTML='↻';
+  if(document.getElementById('pane-opp').classList.contains('active'))renderOpps();
+  clearTimeout(refreshTimer); refreshTimer=setTimeout(refresh,5*60*1000);
+}
+
+/* ════════════ INIT ════════════ */
+document.addEventListener('DOMContentLoaded',()=>{
+  renderAcct();
+  if(fbCfg){try{initFb(fbCfg);}catch(e){console.warn(e);} }
+  renderAll(); initPref();
+  refresh();
 });
 </script>
 </body>
