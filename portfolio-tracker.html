@@ -433,6 +433,24 @@ details[open] summary:before{content:'▾ '}
     </div>
 
     <hr class="div">
+    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px">🔑 Clé API Alpha Vantage (source de cours principale)</div>
+    <div style="font-size:.75rem;color:var(--t3);line-height:1.65;margin-bottom:10px">
+      Obtenez une clé gratuite sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> (25 cours/jour, sans carte bancaire). Indispensable si Google Sheets n'est pas configuré.
+    </div>
+    <div class="card" style="background:var(--bg3);margin-bottom:0">
+      <div class="fg" style="margin-bottom:8px">
+        <label class="fl">Clé API Alpha Vantage</label>
+        <input type="text" class="fi" id="avKeyInput" placeholder="Votre clé (ex: ABCDE12345…)" autocomplete="off" style="font-family:monospace;font-size:.78rem">
+      </div>
+      <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer</button>
+        <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
+      </div>
+      <div id="avCallsEl" style="font-size:.71rem;color:var(--t3);margin-top:6px"></div>
+    </div>
+
+    <hr class="div">
     <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px">📊 Source de cours : Google Sheets</div>
     <div style="font-size:.75rem;color:var(--t3);line-height:1.65;margin-bottom:12px">
       Connectez une feuille Google Sheets alimentée par <code>GOOGLEFINANCE()</code> pour des cours fiables, gratuits et sans proxy. Configuration en 3 étapes :
@@ -468,13 +486,14 @@ details[open] summary:before{content:'▾ '}
 <script>
 /* ════════════ ÉTAT ════════════ */
 let holdings = JSON.parse(localStorage.getItem('pf_h') || 'null') || [];
-let prices = {};          // symbol -> {price, prev, change, pct, currency, name, closes[], whi, wlo, error}
+let prices = {};
 let charts = {};
 let editId = null;
 let prefSector = localStorage.getItem('pf_pref') || null;
 let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
 let fbUser = null, fbApp = null, fbTimer = null;
-let gsheetUrl = localStorage.getItem('pf_gs') || null;   // Google Sheets CSV URL
+let avKey = localStorage.getItem('pf_av') || null;           // clé Alpha Vantage
+let gsheetUrl = localStorage.getItem('pf_gs') || null;       // URL Google Sheets CSV
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 /* ════════════ BASE PEA (ISIN ↔ mnémonique) — Boursobank ════════════
@@ -632,43 +651,112 @@ const OPPS = [
    risk_:['Financement de la croissance (dilution)','Dépendance aux tarifs de rachat','Risque technologique','Concurrence émergente']},
 ];
 
-/* ════════════ SOURCES DE DONNÉES ════════════
-   1. Google Sheets (GOOGLEFINANCE) — direct, sans proxy, fiable
-   2. Stooq   — gratuit, sans clé, via proxy CORS (FR/DE/NL)
-   3. Yahoo Finance v8/chart — via proxy CORS (fallback universel)
-   Recherche → Twelve Data symbol_search (CORS direct, sans clé)
-═══════════════════════════════════════════════════════════════════════ */
+/* ════════════ SOURCES DE DONNÉES ═══════════════════════════════════════
+   Source principale : Alpha Vantage GLOBAL_QUOTE (clé API gratuite)
+   Source secondaire : Google Sheets GOOGLEFINANCE (URL publiée)
+   Recherche         : Alpha Vantage SYMBOL_SEARCH + Twelve Data fallback
+   Limite free tier  : 25 appels/jour · 5 appels/minute
+   Cache local       : 60 min (heures de marché) · 24 h (hors marché)
+══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Mapping mnémonique → codes Google Finance / Stooq ── */
-const GOOG_PFX = {'.PA':'EPA:','.AS':'AMS:','.BR':'EBR:','.MI':'BIT:','.MC':'BME:','.CO':'CPH:','.LS':'ELI:','.DE':'ETR:','.L':'LON:'};
-const STOOQ_SFX = {'.PA':'.FR','.AS':'.NL','.DE':'.DE'};  // exchanges fiables sur Stooq
-function toGoogleTicker(sym){
-  for(const [sfx,pfx] of Object.entries(GOOG_PFX)) if(sym.endsWith(sfx)) return pfx+sym.slice(0,-sfx.length);
-  return sym;
-}
-function toStooqSym(sym){
-  for(const [y,s] of Object.entries(STOOQ_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+s;
-  return null;
+/* ── Conversion mnémonique (format Boursobank) → symbole Alpha Vantage ── */
+const AV_SFX = {
+  '.PA':'.PAR', '.AS':'.AMS', '.BR':'.BRU', '.MI':'.MIL',
+  '.MC':'.MCE', '.CO':'.CPH', '.LS':'.LIS', '.DE':'.DEX',
+  '.L': '.LON', '.ST':'.STO', '.HE':'.HEL',
+};
+function toAVSym(sym){
+  for(const [y,a] of Object.entries(AV_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+a;
+  return sym;  // actions US : ticker nu
 }
 
-/* ── Google Sheets : parsing CSV publié ── */
+/* ── Compteur d'appels journaliers ── */
+function avCalls(){
+  const today=new Date().toISOString().slice(0,10);
+  let s=JSON.parse(localStorage.getItem('pf_av_calls')||'null')||{date:'',n:0};
+  if(s.date!==today) s={date:today,n:0};
+  return s;
+}
+function trackAVCall(){
+  const s=avCalls(); s.n++;
+  localStorage.setItem('pf_av_calls',JSON.stringify(s));
+  const el=document.getElementById('avCallsEl');
+  if(el) el.textContent=`${s.n}/25 appels utilisés aujourd'hui`;
+}
+function refreshAVCounter(){
+  const s=avCalls();
+  const el=document.getElementById('avCallsEl');
+  if(el) el.textContent=s.n>0?`${s.n}/25 appels utilisés aujourd'hui`:'';
+}
+
+/* ── Cache prix (localStorage) ── */
+function loadCache(){try{return JSON.parse(localStorage.getItem('pf_cache')||'{}')}catch{return {}}}
+function saveCache(){localStorage.setItem('pf_cache',JSON.stringify(priceCache))}
+function cacheOk(e){
+  if(!e||!e.ts) return false;
+  const age=Date.now()-e.ts, h=new Date().getHours(), d=new Date().getDay();
+  return (d>=1&&d<=5&&h>=9&&h<18) ? age<3600000 : age<86400000;  // 1 h marché / 24 h fermé
+}
+let priceCache=loadCache();
+
+/* ── Alpha Vantage : GLOBAL_QUOTE (un cours en temps réel) ── */
+async function fetchOneAV(sym){
+  if(!avKey) throw new Error('nokey');
+  const avSym=toAVSym(sym);
+  const url=`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(avSym)}&apikey=${encodeURIComponent(avKey)}`;
+  const r=await fetch(url,{signal:AbortSignal.timeout(20000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  trackAVCall();
+  if(d.Note)       throw new Error('ratelimit');   // 5 req/min dépassé
+  if(d.Information) throw new Error('daylimit');   // 25 req/jour dépassé
+  const q=d['Global Quote'];
+  if(!q||!q['05. price']) throw new Error(`Symbole "${avSym}" introuvable`);
+  const price=parseFloat(q['05. price']);
+  const prev=parseFloat(q['08. previous close']);
+  const change=parseFloat(q['09. change']);
+  const pct=parseFloat((q['10. change percent']||'').replace('%',''));
+  return{price,prev:isNaN(prev)?price:prev,
+    change:isNaN(change)?0:change,
+    pct:isNaN(pct)?0:pct,
+    currency:'EUR',name:null,closes:[],whi:null,wlo:null};
+}
+
+/* ── fetchOneWithCache : cache d'abord, AV sinon ── */
+async function fetchOneWithCache(sym){
+  if(cacheOk(priceCache[sym])){prices[sym]=priceCache[sym].data;return;}
+  if(!avKey){prices[sym]={error:true,nokey:true};return;}
+  try{
+    const data=await fetchOneAV(sym);
+    prices[sym]=data;
+    priceCache[sym]={data,ts:Date.now()};
+  }catch(e){
+    const msg=e.message;
+    if(msg==='ratelimit'||msg==='daylimit'){
+      prices[sym]=priceCache[sym]?.data?{...priceCache[sym].data,stale:true}:{error:true,limitMsg:msg};
+    }else if(priceCache[sym]?.data){
+      prices[sym]={...priceCache[sym].data,stale:true};
+    }else{
+      prices[sym]={error:true};
+    }
+  }
+}
+
+/* ── Google Sheets : parsing CSV publié (source secondaire rapide) ── */
 function parseGSheetCSV(csv){
-  const rows=[]; let line=[],field='',inQ=false;
+  const rows=[];let line=[],field='',inQ=false;
   for(let i=0;i<csv.length;i++){
     const c=csv[i];
     if(c==='"'&&inQ&&csv[i+1]==='"'){field+='"';i++;}
     else if(c==='"'){inQ=!inQ;}
     else if(c===','&&!inQ){line.push(field);field='';}
-    else if((c==='\n'||c==='\r')&&!inQ){
-      if(c==='\r'&&csv[i+1]==='\n')i++;
-      line.push(field);rows.push(line);line=[];field='';
-    }else field+=c;
+    else if((c==='\n'||c==='\r')&&!inQ){if(c==='\r'&&csv[i+1]==='\n')i++;line.push(field);rows.push(line);line=[];field='';}
+    else field+=c;
   }
   if(field||line.length){line.push(field);rows.push(line);}
   return rows;
 }
 async function fetchPricesFromSheet(url){
-  // Accepte l'URL "pub?output=csv" ou l'URL d'édition (on extrait l'ID)
   let csvUrl=url.trim();
   if(!csvUrl.includes('output=csv')&&!csvUrl.includes('tqx=out:csv')){
     const m=csvUrl.match(/\/spreadsheets\/d\/([^\/]+)/);
@@ -676,165 +764,96 @@ async function fetchPricesFromSheet(url){
     csvUrl=`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv`;
   }
   const r=await fetch(csvUrl,{signal:AbortSignal.timeout(15000)});
-  if(!r.ok) throw new Error('HTTP '+r.status+' — feuille inaccessible');
+  if(!r.ok) throw new Error('HTTP '+r.status);
   const txt=await r.text();
-  if(txt.trim().startsWith('<')) throw new Error('Feuille non publiée — activez "Publier sur le web" dans Google Sheets');
+  if(txt.trim().startsWith('<')) throw new Error('Feuille non publiée (activez "Publier sur le web")');
   const rows=parseGSheetCSV(txt);
-  if(rows.length<2) throw new Error('feuille vide ou format incorrect');
+  if(rows.length<2) throw new Error('feuille vide');
   const hdr=rows[0].map(h=>h.toLowerCase().trim());
-  const iS=hdr.findIndex(h=>h==='symbol'||h==='symbole'||h==='sym');
-  const iP=hdr.findIndex(h=>h.includes('cours')||h==='price'||h.includes('prix'));
-  const iPc=hdr.findIndex(h=>h.includes('veille')||h.includes('prev')||h.includes('close')||h.includes('clot'));
-  const iH=hdr.findIndex(h=>h.includes('haut')||h.includes('high')||h.includes('52'));
-  const iL=hdr.findIndex(h=>h.includes('bas')&&h.includes('52')||h.includes('low')||h==='bas 52sem');
-  if(iS<0||iP<0) throw new Error('Colonnes "Symbol" et "Cours" introuvables — vérifiez les en-têtes');
-  const num=v=>{if(!v||v.startsWith('#'))return NaN;return parseFloat(v.replace(',','.'));};
+  const iS=hdr.findIndex(h=>h==='symbol'||h==='symbole');
+  const iP=hdr.findIndex(h=>h.includes('cours')||h==='price');
+  const iPc=hdr.findIndex(h=>h.includes('veille')||h.includes('prev')||h.includes('clot'));
+  const iH=hdr.findIndex(h=>h.includes('haut')||h.includes('high'));
+  const iL=hdr.findIndex(h=>(h.includes('bas')&&h.includes('52'))||h.includes('low'));
+  if(iS<0||iP<0) throw new Error('Colonnes Symbol/Cours introuvables');
+  const num=v=>(!v||v.startsWith('#'))?NaN:parseFloat(v.replace(',','.'));
   const result={};
   for(const row of rows.slice(1)){
     const sym=(row[iS]||'').trim(); if(!sym) continue;
-    const price=num(row[iP]);
-    if(isNaN(price)||price<=0) continue;
+    const price=num(row[iP]); if(isNaN(price)||price<=0) continue;
     const prev=iPc>=0?num(row[iPc]):NaN;
-    result[sym]={price,prev:isNaN(prev)?price:prev,
-      change:isNaN(prev)?0:price-prev,
+    result[sym]={price,prev:isNaN(prev)?price:prev,change:isNaN(prev)?0:price-prev,
       pct:isNaN(prev)||prev===0?0:(price-prev)/prev*100,
       currency:'EUR',name:null,closes:[],
-      whi:iH>=0?num(row[iH])||null:null,
-      wlo:iL>=0?num(row[iL])||null:null};
+      whi:iH>=0?num(row[iH])||null:null,wlo:iL>=0?num(row[iL])||null:null};
   }
   return result;
 }
 
-/* ── Génération du contenu à coller dans Google Sheets ── */
+/* ── Génération du contenu TSV pour Google Sheets ── */
+const GOOG_PFX={'.PA':'EPA:','.AS':'AMS:','.BR':'EBR:','.MI':'BIT:','.MC':'BME:','.CO':'CPH:','.LS':'ELI:','.DE':'ETR:','.L':'LON:'};
+function toGoogleTicker(sym){for(const [sfx,pfx] of Object.entries(GOOG_PFX)) if(sym.endsWith(sfx)) return pfx+sym.slice(0,-sfx.length); return sym;}
 function generateSheetContent(symbols){
-  const hdr=['Symbol','Cours','Cloture Veille','Haut 52sem','Bas 52sem'];
-  const rows=[hdr.join('\t')];
-  for(const sym of symbols){
-    const g=toGoogleTicker(sym);
-    rows.push([sym,
-      `=GOOGLEFINANCE("${g}","price")`,
-      `=GOOGLEFINANCE("${g}","closeyest")`,
-      `=GOOGLEFINANCE("${g}","high52")`,
-      `=GOOGLEFINANCE("${g}","low52")`,
-    ].join('\t'));
-  }
+  const rows=[['Symbol','Cours','Cloture Veille','Haut 52sem','Bas 52sem'].join('\t')];
+  for(const sym of symbols){const g=toGoogleTicker(sym);
+    rows.push([sym,`=GOOGLEFINANCE("${g}","price")`,`=GOOGLEFINANCE("${g}","closeyest")`,`=GOOGLEFINANCE("${g}","high52")`,`=GOOGLEFINANCE("${g}","low52")`].join('\t'));}
   return rows.join('\n');
 }
 
-/* ── Proxies CORS (fallback si pas de Google Sheet) ── */
-const PROXIES=[
-  {wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),unwrap:t=>t},
-  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u),unwrap:t=>{try{return JSON.parse(t).contents;}catch(e){return t;}}},
-  {wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+u,unwrap:t=>t},
-];
-async function proxyFetch(url,timeout=11000){
-  let lastErr;
-  for(const p of PROXIES){
-    try{
-      const r=await fetch(p.wrap(url),{signal:AbortSignal.timeout(timeout)});
-      if(!r.ok){lastErr=new Error('HTTP '+r.status);continue;}
-      const txt=p.unwrap(await r.text());
-      if(!txt||!txt.trim()){lastErr=new Error('vide');continue;}
-      if(txt.trim()[0]==='<'){lastErr=new Error('page HTML');continue;}
-      return txt;
-    }catch(e){lastErr=e;continue;}
-  }
-  throw lastErr||new Error('tous les proxies ont échoué');
-}
-async function proxyJSON(url,timeout=11000){return JSON.parse(await proxyFetch(url,timeout));}
-
-/* ── Stooq : fallback #2 pour FR/DE/NL ── */
-async function fetchOneStooq(sym){
-  const ss=toStooqSym(sym); if(!ss) throw new Error('exchange non supporté');
-  const d2=new Date(),d1=new Date(d2-35*864e5);
-  const fmt=d=>d.toISOString().slice(0,10).replace(/-/g,'');
-  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(ss)}&d1=${fmt(d1)}&d2=${fmt(d2)}&i=d`;
-  const txt=await proxyFetch(url,10000);
-  const lines=txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
-  if(!lines.length) throw new Error('aucune donnée');
-  const rows=lines.map(l=>{const c=l.split(',');return+c[4];}).filter(v=>!isNaN(v)&&v>0);
-  if(!rows.length) throw new Error('données invalides');
-  const price=rows[rows.length-1],prev=rows.length>1?rows[rows.length-2]:price;
-  return{price,prev,change:price-prev,pct:prev?(price-prev)/prev*100:0,
-         currency:'EUR',name:null,closes:rows,whi:Math.max(...rows),wlo:Math.min(...rows)};
-}
-
-/* ── Yahoo Finance v8/chart : fallback #3 ── */
-async function fetchOneYahoo(sym){
-  const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1mo';
-  const d=await proxyJSON(url);
-  const res=d?.chart?.result?.[0];const m=res?.meta;
-  if(!m||m.regularMarketPrice==null) throw new Error('pas de données');
-  const closes=(res.indicators?.quote?.[0]?.close||[]).filter(v=>v!=null);
-  const prev=m.chartPreviousClose??m.previousClose??null;
-  const price=m.regularMarketPrice;
-  return{price,prev,change:prev!=null?price-prev:0,pct:prev?((price-prev)/prev*100):0,
-         currency:m.currency,name:m.longName||m.shortName||null,closes,
-         whi:m.fiftyTwoWeekHigh,wlo:m.fiftyTwoWeekLow};
-}
-
-async function fetchOne(sym){
-  try{return await fetchOneStooq(sym);}catch(e){}
-  return fetchOneYahoo(sym);
-}
-
-/* ── fetchPrices : Google Sheet d'abord, puis fallback par symbole ── */
+/* ── fetchPrices : orchestration des sources ── */
 async function fetchPrices(symbols,onProg){
-  // Source 1 : Google Sheets — un seul appel réseau pour tous les cours
+  // Source A : Google Sheets (un seul appel, illimité) — si configurée
   if(gsheetUrl){
     try{
-      const sheetData=await fetchPricesFromSheet(gsheetUrl);
-      let done=0;
-      const missing=[];
-      for(const s of symbols){
-        if(sheetData[s]){prices[s]=sheetData[s];done++;}
-        else missing.push(s);
-      }
+      const sd=await fetchPricesFromSheet(gsheetUrl);
+      let done=0; const missing=[];
+      for(const s of symbols){ if(sd[s]){prices[s]=sd[s];done++;} else missing.push(s); }
       onProg&&onProg(done,symbols.length);
-      // Fallback par symbole pour les titres absents de la feuille
       for(const s of missing){
-        let ok=false;
-        for(let a=0;a<3&&!ok;a++){
-          if(a)await sleep(600*a);
-          try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
-        }
-        if(!ok)prices[s]={error:true};
-        done++;onProg&&onProg(done,symbols.length);
-        await sleep(200);
+        await fetchOneWithCache(s); done++;
+        onProg&&onProg(done,symbols.length);
+        if(done<symbols.length) await sleep(12500); // 5 req/min AV
       }
-      return;
+      saveCache(); return;
     }catch(e){console.warn('Google Sheets:',e.message);}
   }
-  // Source 2+3 : Stooq → Yahoo, séquentiel avec throttle
+  // Source B : Alpha Vantage GLOBAL_QUOTE avec cache et throttle
   let done=0;
   for(const s of symbols){
-    let ok=false;
-    for(let a=0;a<3&&!ok;a++){
-      if(a)await sleep(600*a);
-      try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
-    }
-    if(!ok)prices[s]={error:true};
-    done++;onProg&&onProg(done,symbols.length);
-    await sleep(250);
+    const wasInCache=cacheOk(priceCache[s]);
+    await fetchOneWithCache(s);
+    done++; onProg&&onProg(done,symbols.length);
+    if(!wasInCache && done<symbols.length) await sleep(12500); // 5 req/min
   }
+  saveCache();
 }
 
-/* ── Recherche : Twelve Data (CORS direct, sans clé) ── */
+/* ── searchOnline : Alpha Vantage SYMBOL_SEARCH + Twelve Data fallback ── */
 async function searchOnline(q){
+  // Alpha Vantage SYMBOL_SEARCH (utilise 1 appel AV si clé présente)
+  if(avKey){
+    try{
+      const url=`https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(q)}&apikey=${encodeURIComponent(avKey)}`;
+      const r=await fetch(url,{signal:AbortSignal.timeout(10000)});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json(); trackAVCall();
+      if(d.Note||d.Information) throw new Error('limite AV');
+      const matches=(d.bestMatches||[]).filter(x=>['Equity','ETF'].includes(x['3. type']));
+      if(matches.length) return matches.slice(0,8).map(x=>({
+        symbol:x['1. symbol'],longname:x['2. name'],
+        quoteType:x['3. type']==='ETF'?'ETF':'EQUITY',
+        exchDisp:x['4. region']||'',currency:x['8. currency']||'EUR'
+      }));
+    }catch(e){}
+  }
+  // Twelve Data SYMBOL_SEARCH (sans clé, CORS direct)
   try{
-    const r=await fetch('https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(q)+'&outputsize=10',{signal:AbortSignal.timeout(8000)});
+    const r=await fetch(`https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(q)}&outputsize=10`,{signal:AbortSignal.timeout(8000)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    if(data.status==='error') throw new Error(data.message);
-    const items=(data.data||[]).filter(x=>['Common Stock','ETF','Mutual Fund'].includes(x.instrument_type));
+    const d=await r.json();
+    const items=(d.data||[]).filter(x=>['Common Stock','ETF'].includes(x.instrument_type));
     if(items.length) return items.map(x=>({symbol:x.symbol,longname:x.instrument_name,
       quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange}));
-  }catch(e){}
-  // Fallback : Yahoo autoc via proxy
-  try{
-    const d=await proxyJSON('https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr',8000);
-    const r=(d?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
-    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,quoteType:x.type==='S'?'EQUITY':'ETF',exchDisp:x.exchDisp||x.exch||''}));
   }catch(e){}
   throw new Error('recherche indisponible');
 }
@@ -1314,6 +1333,11 @@ function renderAcct(){
 }
 function openSync(){
   updateSyncSections();
+  // Populate AV key fields
+  document.getElementById('avKeyInput').value=avKey||'';
+  document.getElementById('avRemoveBtn').style.display=avKey?'':'none';
+  document.getElementById('avKeyMsg').style.display='none';
+  refreshAVCounter();
   // Populate GSheet fields
   document.getElementById('gsUrlInput').value=gsheetUrl||'';
   document.getElementById('gsRemoveBtn').style.display=gsheetUrl?'':'none';
@@ -1321,6 +1345,24 @@ function openSync(){
   document.getElementById('gsStatus').style.display=gsheetUrl?'':'none';
   if(gsheetUrl) document.getElementById('gsStatus').textContent='✅ Feuille configurée — cours chargés à chaque actualisation';
   document.getElementById('syncModal').classList.add('open');
+}
+function saveAvKey(){
+  const k=document.getElementById('avKeyInput').value.trim();
+  const msgEl=document.getElementById('avKeyMsg');
+  if(!k){msgEl.textContent='Entrez votre clé Alpha Vantage.';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
+  avKey=k; localStorage.setItem('pf_av',k);
+  document.getElementById('avRemoveBtn').style.display='';
+  msgEl.textContent='✅ Clé enregistrée.';msgEl.className='badge b-ok';msgEl.style.display='flex';
+  refreshAVCounter();
+  setTimeout(()=>msgEl.style.display='none',3000);
+}
+function removeAvKey(){
+  if(!confirm('Supprimer la clé Alpha Vantage ? Les cours ne pourront plus se charger sans Google Sheets.'))return;
+  avKey=null; localStorage.removeItem('pf_av');
+  document.getElementById('avKeyInput').value='';
+  document.getElementById('avRemoveBtn').style.display='none';
+  document.getElementById('avKeyMsg').style.display='none';
+  document.getElementById('avCallsEl').textContent='';
 }
 function closeSync(){document.getElementById('syncModal').classList.remove('open');}
 
