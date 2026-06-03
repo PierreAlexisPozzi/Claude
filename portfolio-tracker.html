@@ -431,6 +431,37 @@ details[open] summary:before{content:'▾ '}
       <button class="btn btn-g" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
       <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
     </div>
+
+    <hr class="div">
+    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px">📊 Source de cours : Google Sheets</div>
+    <div style="font-size:.75rem;color:var(--t3);line-height:1.65;margin-bottom:12px">
+      Connectez une feuille Google Sheets alimentée par <code>GOOGLEFINANCE()</code> pour des cours fiables, gratuits et sans proxy. Configuration en 3 étapes :
+    </div>
+    <!-- Étape 1 -->
+    <div class="card" style="margin-bottom:9px;background:var(--bg3)">
+      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">① Créer la feuille Google Sheets</div>
+      <div style="font-size:.74rem;color:var(--t2);margin-bottom:8px">Ouvrez <a href="https://sheets.google.com" target="_blank">Google Sheets</a>, créez une nouvelle feuille vide, cliquez sur la cellule <b>A1</b>, puis collez le contenu généré ci-dessous — les formules <code>GOOGLEFINANCE()</code> se remplissent automatiquement.</div>
+      <button class="btn btn-g" style="width:100%" onclick="generateAndCopySheet()">📋 Générer &amp; copier le contenu (à coller dans A1)</button>
+      <div id="gsGenMsg" style="font-size:.72rem;color:var(--green);margin-top:5px;display:none">✅ Copié ! Collez dans Google Sheets avec Ctrl+V (ou ⌘V). Patientez quelques secondes que GOOGLEFINANCE() se charge.</div>
+    </div>
+    <!-- Étape 2 -->
+    <div class="card" style="margin-bottom:9px;background:var(--bg3)">
+      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">② Publier la feuille</div>
+      <div style="font-size:.74rem;color:var(--t2)">Dans Google Sheets : <b>Fichier → Partager → Publier sur le Web → Feuille 1 → Valeurs séparées par des virgules (.csv) → Publier</b>. Copiez l'URL obtenue.</div>
+    </div>
+    <!-- Étape 3 -->
+    <div class="card" style="background:var(--bg3)">
+      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">③ Coller l'URL ici</div>
+      <div class="fg" style="margin-bottom:8px">
+        <input type="text" class="fi" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="font-size:.72rem">
+      </div>
+      <div id="gsMsg" class="badge" style="display:none;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p" style="flex:1" onclick="saveGsUrl()">✅ Enregistrer &amp; tester</button>
+        <button class="btn btn-d btn-s" id="gsRemoveBtn" style="display:none" onclick="removeGsUrl()">Supprimer</button>
+      </div>
+      <div id="gsStatus" style="font-size:.71rem;color:var(--green);margin-top:5px;display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -443,11 +474,12 @@ let editId = null;
 let prefSector = localStorage.getItem('pf_pref') || null;
 let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
 let fbUser = null, fbApp = null, fbTimer = null;
+let gsheetUrl = localStorage.getItem('pf_gs') || null;   // Google Sheets CSV URL
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
-/* ════════════ BASE PEA (ISIN ↔ Yahoo) — Boursobank ════════════
+/* ════════════ BASE PEA (ISIN ↔ mnémonique) — Boursobank ════════════
    isin = code visible sur votre relevé Boursobank
-   sym  = symbole Yahoo utilisé pour récupérer le cours          */
+   sym  = mnémonique boursier (format Yahoo Finance) pour récupérer le cours */
 const PEA_DB = [
   // — Énergies renouvelables / énergie —
   {isin:'FR0011995588',name:'Voltalia',sym:'VLTSA.PA',type:'Action',sector:'Énergies renouvelables',pea:true},
@@ -601,15 +633,101 @@ const OPPS = [
 ];
 
 /* ════════════ SOURCES DE DONNÉES ════════════
-   Cours  → Stooq (gratuit, sans clé) pour FR/DE/NL, Yahoo v8 en fallback
+   1. Google Sheets (GOOGLEFINANCE) — direct, sans proxy, fiable
+   2. Stooq   — gratuit, sans clé, via proxy CORS (FR/DE/NL)
+   3. Yahoo Finance v8/chart — via proxy CORS (fallback universel)
    Recherche → Twelve Data symbol_search (CORS direct, sans clé)
 ═══════════════════════════════════════════════════════════════════════ */
-const PROXIES = [
-  {wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u), unwrap:t=>t},
-  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u), unwrap:t=>{try{return JSON.parse(t).contents;}catch(e){return t;}}},
-  {wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+u, unwrap:t=>t},
+
+/* ── Mapping mnémonique → codes Google Finance / Stooq ── */
+const GOOG_PFX = {'.PA':'EPA:','.AS':'AMS:','.BR':'EBR:','.MI':'BIT:','.MC':'BME:','.CO':'CPH:','.LS':'ELI:','.DE':'ETR:','.L':'LON:'};
+const STOOQ_SFX = {'.PA':'.FR','.AS':'.NL','.DE':'.DE'};  // exchanges fiables sur Stooq
+function toGoogleTicker(sym){
+  for(const [sfx,pfx] of Object.entries(GOOG_PFX)) if(sym.endsWith(sfx)) return pfx+sym.slice(0,-sfx.length);
+  return sym;
+}
+function toStooqSym(sym){
+  for(const [y,s] of Object.entries(STOOQ_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+s;
+  return null;
+}
+
+/* ── Google Sheets : parsing CSV publié ── */
+function parseGSheetCSV(csv){
+  const rows=[]; let line=[],field='',inQ=false;
+  for(let i=0;i<csv.length;i++){
+    const c=csv[i];
+    if(c==='"'&&inQ&&csv[i+1]==='"'){field+='"';i++;}
+    else if(c==='"'){inQ=!inQ;}
+    else if(c===','&&!inQ){line.push(field);field='';}
+    else if((c==='\n'||c==='\r')&&!inQ){
+      if(c==='\r'&&csv[i+1]==='\n')i++;
+      line.push(field);rows.push(line);line=[];field='';
+    }else field+=c;
+  }
+  if(field||line.length){line.push(field);rows.push(line);}
+  return rows;
+}
+async function fetchPricesFromSheet(url){
+  // Accepte l'URL "pub?output=csv" ou l'URL d'édition (on extrait l'ID)
+  let csvUrl=url.trim();
+  if(!csvUrl.includes('output=csv')&&!csvUrl.includes('tqx=out:csv')){
+    const m=csvUrl.match(/\/spreadsheets\/d\/([^\/]+)/);
+    if(!m) throw new Error('URL Google Sheets invalide');
+    csvUrl=`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv`;
+  }
+  const r=await fetch(csvUrl,{signal:AbortSignal.timeout(15000)});
+  if(!r.ok) throw new Error('HTTP '+r.status+' — feuille inaccessible');
+  const txt=await r.text();
+  if(txt.trim().startsWith('<')) throw new Error('Feuille non publiée — activez "Publier sur le web" dans Google Sheets');
+  const rows=parseGSheetCSV(txt);
+  if(rows.length<2) throw new Error('feuille vide ou format incorrect');
+  const hdr=rows[0].map(h=>h.toLowerCase().trim());
+  const iS=hdr.findIndex(h=>h==='symbol'||h==='symbole'||h==='sym');
+  const iP=hdr.findIndex(h=>h.includes('cours')||h==='price'||h.includes('prix'));
+  const iPc=hdr.findIndex(h=>h.includes('veille')||h.includes('prev')||h.includes('close')||h.includes('clot'));
+  const iH=hdr.findIndex(h=>h.includes('haut')||h.includes('high')||h.includes('52'));
+  const iL=hdr.findIndex(h=>h.includes('bas')&&h.includes('52')||h.includes('low')||h==='bas 52sem');
+  if(iS<0||iP<0) throw new Error('Colonnes "Symbol" et "Cours" introuvables — vérifiez les en-têtes');
+  const num=v=>{if(!v||v.startsWith('#'))return NaN;return parseFloat(v.replace(',','.'));};
+  const result={};
+  for(const row of rows.slice(1)){
+    const sym=(row[iS]||'').trim(); if(!sym) continue;
+    const price=num(row[iP]);
+    if(isNaN(price)||price<=0) continue;
+    const prev=iPc>=0?num(row[iPc]):NaN;
+    result[sym]={price,prev:isNaN(prev)?price:prev,
+      change:isNaN(prev)?0:price-prev,
+      pct:isNaN(prev)||prev===0?0:(price-prev)/prev*100,
+      currency:'EUR',name:null,closes:[],
+      whi:iH>=0?num(row[iH])||null:null,
+      wlo:iL>=0?num(row[iL])||null:null};
+  }
+  return result;
+}
+
+/* ── Génération du contenu à coller dans Google Sheets ── */
+function generateSheetContent(symbols){
+  const hdr=['Symbol','Cours','Cloture Veille','Haut 52sem','Bas 52sem'];
+  const rows=[hdr.join('\t')];
+  for(const sym of symbols){
+    const g=toGoogleTicker(sym);
+    rows.push([sym,
+      `=GOOGLEFINANCE("${g}","price")`,
+      `=GOOGLEFINANCE("${g}","closeyest")`,
+      `=GOOGLEFINANCE("${g}","high52")`,
+      `=GOOGLEFINANCE("${g}","low52")`,
+    ].join('\t'));
+  }
+  return rows.join('\n');
+}
+
+/* ── Proxies CORS (fallback si pas de Google Sheet) ── */
+const PROXIES=[
+  {wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),unwrap:t=>t},
+  {wrap:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u),unwrap:t=>{try{return JSON.parse(t).contents;}catch(e){return t;}}},
+  {wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+u,unwrap:t=>t},
 ];
-async function proxyFetch(url, timeout=11000){
+async function proxyFetch(url,timeout=11000){
   let lastErr;
   for(const p of PROXIES){
     try{
@@ -617,52 +735,35 @@ async function proxyFetch(url, timeout=11000){
       if(!r.ok){lastErr=new Error('HTTP '+r.status);continue;}
       const txt=p.unwrap(await r.text());
       if(!txt||!txt.trim()){lastErr=new Error('vide');continue;}
-      if(txt.trim()[0]==='<'){lastErr=new Error('page HTML reçue');continue;}
+      if(txt.trim()[0]==='<'){lastErr=new Error('page HTML');continue;}
       return txt;
     }catch(e){lastErr=e;continue;}
   }
   throw lastErr||new Error('tous les proxies ont échoué');
 }
-async function proxyJSON(url,timeout=11000){
-  const txt=await proxyFetch(url,timeout); return JSON.parse(txt);
-}
+async function proxyJSON(url,timeout=11000){return JSON.parse(await proxyFetch(url,timeout));}
 
-/* ── Stooq : prix cours du soir pour valeurs FR / DE / NL ── */
-const STOOQ_SFX = {'.PA':'.FR','.AS':'.NL','.DE':'.DE','.BR':'.BE','.MI':'.IT','.MC':'.ES','.CO':'.DK','.LS':'.PT'};
-const STOOQ_CUR = {'.FR':'EUR','.NL':'EUR','.DE':'EUR','.BE':'EUR','.IT':'EUR','.ES':'EUR','.PT':'EUR','.DK':'DKK'};
-function toStooqSym(sym){
-  for(const [y,s] of Object.entries(STOOQ_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+s;
-  return null;
-}
-function stooqDateRange(){
+/* ── Stooq : fallback #2 pour FR/DE/NL ── */
+async function fetchOneStooq(sym){
+  const ss=toStooqSym(sym); if(!ss) throw new Error('exchange non supporté');
   const d2=new Date(),d1=new Date(d2-35*864e5);
   const fmt=d=>d.toISOString().slice(0,10).replace(/-/g,'');
-  return {d1:fmt(d1),d2:fmt(d2)};
-}
-async function fetchOneStooq(sym){
-  const stooqSym=toStooqSym(sym); if(!stooqSym) throw new Error('exchange non supporté');
-  const {d1,d2}=stooqDateRange();
-  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&d1=${d1}&d2=${d2}&i=d`;
+  const url=`https://stooq.com/q/d/l/?s=${encodeURIComponent(ss)}&d1=${fmt(d1)}&d2=${fmt(d2)}&i=d`;
   const txt=await proxyFetch(url,10000);
   const lines=txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
-  if(!lines.length) throw new Error('aucune donnée Stooq');
-  const parse=l=>{const c=l.split(',');return{date:c[0],o:+c[1],h:+c[2],lo:+c[3],cl:+c[4],v:+c[5]};};
-  const rows=lines.map(parse).filter(r=>!isNaN(r.cl)&&r.cl>0);
-  if(!rows.length) throw new Error('données Stooq invalides');
-  const last=rows[rows.length-1], prev=rows.length>1?rows[rows.length-2]:null;
-  const price=last.cl, prevClose=prev?prev.cl:last.o;
-  const sfx=stooqSym.slice(stooqSym.lastIndexOf('.'));
-  const closes=rows.map(r=>r.cl);
-  return{price,prev:prevClose,change:price-prevClose,pct:prevClose?(price-prevClose)/prevClose*100:0,
-         currency:STOOQ_CUR[sfx]||'EUR',name:null,closes,
-         whi:Math.max(...closes),wlo:Math.min(...closes)};
+  if(!lines.length) throw new Error('aucune donnée');
+  const rows=lines.map(l=>{const c=l.split(',');return+c[4];}).filter(v=>!isNaN(v)&&v>0);
+  if(!rows.length) throw new Error('données invalides');
+  const price=rows[rows.length-1],prev=rows.length>1?rows[rows.length-2]:price;
+  return{price,prev,change:price-prev,pct:prev?(price-prev)/prev*100:0,
+         currency:'EUR',name:null,closes:rows,whi:Math.max(...rows),wlo:Math.min(...rows)};
 }
 
-/* ── Yahoo Finance v8/chart : fallback si Stooq échoue ── */
-async function fetchOneYahoo(symbol){
-  const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1d&range=1mo';
+/* ── Yahoo Finance v8/chart : fallback #3 ── */
+async function fetchOneYahoo(sym){
+  const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1mo';
   const d=await proxyJSON(url);
-  const res=d?.chart?.result?.[0]; const m=res?.meta;
+  const res=d?.chart?.result?.[0];const m=res?.meta;
   if(!m||m.regularMarketPrice==null) throw new Error('pas de données');
   const closes=(res.indicators?.quote?.[0]?.close||[]).filter(v=>v!=null);
   const prev=m.chartPreviousClose??m.previousClose??null;
@@ -672,32 +773,56 @@ async function fetchOneYahoo(symbol){
          whi:m.fiftyTwoWeekHigh,wlo:m.fiftyTwoWeekLow};
 }
 
-async function fetchOne(symbol){
-  // Stooq en priorité (gratuit, sans clé), Yahoo en fallback
-  try{ return await fetchOneStooq(symbol); }catch(e){}
-  return fetchOneYahoo(symbol);
+async function fetchOne(sym){
+  try{return await fetchOneStooq(sym);}catch(e){}
+  return fetchOneYahoo(sym);
 }
 
-async function fetchPrices(symbols, onProg){
+/* ── fetchPrices : Google Sheet d'abord, puis fallback par symbole ── */
+async function fetchPrices(symbols,onProg){
+  // Source 1 : Google Sheets — un seul appel réseau pour tous les cours
+  if(gsheetUrl){
+    try{
+      const sheetData=await fetchPricesFromSheet(gsheetUrl);
+      let done=0;
+      const missing=[];
+      for(const s of symbols){
+        if(sheetData[s]){prices[s]=sheetData[s];done++;}
+        else missing.push(s);
+      }
+      onProg&&onProg(done,symbols.length);
+      // Fallback par symbole pour les titres absents de la feuille
+      for(const s of missing){
+        let ok=false;
+        for(let a=0;a<3&&!ok;a++){
+          if(a)await sleep(600*a);
+          try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
+        }
+        if(!ok)prices[s]={error:true};
+        done++;onProg&&onProg(done,symbols.length);
+        await sleep(200);
+      }
+      return;
+    }catch(e){console.warn('Google Sheets:',e.message);}
+  }
+  // Source 2+3 : Stooq → Yahoo, séquentiel avec throttle
   let done=0;
   for(const s of symbols){
     let ok=false;
-    for(let attempt=0;attempt<3&&!ok;attempt++){
-      if(attempt) await sleep(600*attempt);
+    for(let a=0;a<3&&!ok;a++){
+      if(a)await sleep(600*a);
       try{prices[s]=await fetchOne(s);ok=true;}catch(e){}
     }
-    if(!ok) prices[s]={error:true};
-    done++; onProg&&onProg(done,symbols.length);
+    if(!ok)prices[s]={error:true};
+    done++;onProg&&onProg(done,symbols.length);
     await sleep(250);
   }
 }
 
-/* ── Recherche en ligne : Twelve Data symbol_search (CORS direct, sans clé) ── */
+/* ── Recherche : Twelve Data (CORS direct, sans clé) ── */
 async function searchOnline(q){
-  // Twelve Data : API publique sans clé, CORS natif
   try{
-    const url='https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(q)+'&outputsize=10';
-    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    const r=await fetch('https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(q)+'&outputsize=10',{signal:AbortSignal.timeout(8000)});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const data=await r.json();
     if(data.status==='error') throw new Error(data.message);
@@ -705,13 +830,11 @@ async function searchOnline(q){
     if(items.length) return items.map(x=>({symbol:x.symbol,longname:x.instrument_name,
       quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange}));
   }catch(e){}
-  // Fallback : Yahoo Finance autoc (via proxy)
+  // Fallback : Yahoo autoc via proxy
   try{
-    const url='https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr';
-    const d=await proxyJSON(url,8000);
+    const d=await proxyJSON('https://autoc.finance.yahoo.com/autoc?query='+encodeURIComponent(q)+'&region=1&lang=fr',8000);
     const r=(d?.ResultSet?.Result||[]).filter(x=>x.symbol&&['S','ETF','F','M'].includes(x.type));
-    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,
-      quoteType:x.type==='S'?'EQUITY':'ETF',exchDisp:x.exchDisp||x.exch||''}));
+    if(r.length) return r.map(x=>({symbol:x.symbol,longname:x.name||x.symbol,quoteType:x.type==='S'?'EQUITY':'ETF',exchDisp:x.exchDisp||x.exch||''}));
   }catch(e){}
   throw new Error('recherche indisponible');
 }
@@ -1189,8 +1312,60 @@ function renderAcct(){
   const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" onerror="this.style.display='none'">`:'';
   c.innerHTML=`${av}<span class="nm">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" style="background:var(--green)"></span>`;
 }
-function openSync(){updateSyncSections();document.getElementById('syncModal').classList.add('open');}
+function openSync(){
+  updateSyncSections();
+  // Populate GSheet fields
+  document.getElementById('gsUrlInput').value=gsheetUrl||'';
+  document.getElementById('gsRemoveBtn').style.display=gsheetUrl?'':'none';
+  document.getElementById('gsMsg').style.display='none';
+  document.getElementById('gsStatus').style.display=gsheetUrl?'':'none';
+  if(gsheetUrl) document.getElementById('gsStatus').textContent='✅ Feuille configurée — cours chargés à chaque actualisation';
+  document.getElementById('syncModal').classList.add('open');
+}
 function closeSync(){document.getElementById('syncModal').classList.remove('open');}
+
+/* ── Google Sheets : génération, sauvegarde, suppression ── */
+function generateAndCopySheet(){
+  const syms=[...new Set([...PEA_DB.map(d=>d.sym),...holdings.map(h=>h.sym)])];
+  const content=generateSheetContent(syms);
+  const el=document.getElementById('gsGenMsg');
+  const show=()=>{el.style.display='';setTimeout(()=>el.style.display='none',5000);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(content).then(show).catch(()=>{fallbackCopy(content);show();});
+  }else{fallbackCopy(content);show();}
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+}
+async function saveGsUrl(){
+  const url=document.getElementById('gsUrlInput').value.trim();
+  if(!url){alert('Collez d\'abord l\'URL de votre feuille Google Sheets publiée.');return;}
+  const msgEl=document.getElementById('gsMsg');
+  msgEl.textContent='⏳ Test de connexion…';msgEl.className='badge b-load';msgEl.style.display='';
+  try{
+    const data=await fetchPricesFromSheet(url);
+    const n=Object.keys(data).length;
+    if(!n) throw new Error('Aucun cours trouvé — vérifiez que les colonnes Symbol et Cours existent et que GOOGLEFINANCE() est chargé');
+    gsheetUrl=url;localStorage.setItem('pf_gs',url);
+    document.getElementById('gsRemoveBtn').style.display='';
+    document.getElementById('gsStatus').textContent=`✅ ${n} cours chargés depuis la feuille`;
+    document.getElementById('gsStatus').style.display='';
+    msgEl.textContent=`✅ Succès — ${n} cours récupérés ! Les prix s'actualisent maintenant depuis votre feuille.`;
+    msgEl.className='badge b-ok';
+    Object.assign(prices,data);renderAll();
+  }catch(e){
+    msgEl.textContent='❌ '+e.message;msgEl.className='badge b-err';
+  }
+}
+function removeGsUrl(){
+  if(!confirm('Supprimer la configuration Google Sheets ?'))return;
+  gsheetUrl=null;localStorage.removeItem('pf_gs');
+  document.getElementById('gsUrlInput').value='';
+  document.getElementById('gsRemoveBtn').style.display='none';
+  document.getElementById('gsMsg').style.display='none';
+  document.getElementById('gsStatus').style.display='none';
+}
 function updateSyncSections(){
   const a=document.getElementById('syncSetup'),b=document.getElementById('syncSignin'),c=document.getElementById('syncConnected');
   if(!fbCfg){a.style.display='';b.style.display='none';c.style.display='none';}
