@@ -373,112 +373,128 @@ details[open] summary:before{content:'▾ '}
 <!-- MODAL SYNC -->
 <div id="syncModal" class="mover" onclick="if(event.target===this)closeSync()">
   <div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div class="mtl" style="margin:0">☁️ Sauvegarde &amp; synchronisation</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="mtl" style="margin:0">⚙️ Paramètres &amp; sauvegarde</div>
       <button class="btn btn-g btn-s" onclick="closeSync()">✕</button>
     </div>
 
-    <!-- not configured -->
-    <div id="syncSetup">
-      <div class="card" style="background:var(--bg3);margin-bottom:14px">
-        <div style="font-size:.78rem;color:var(--teal);font-weight:600;margin-bottom:6px">⚡ Configuration unique (~5 min, gratuit)</div>
-        <ol style="padding-left:20px;font-size:.8rem;color:var(--t2);line-height:1.9">
-          <li><a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> → Créer un projet</li>
-          <li><b>Authentication</b> → activer le fournisseur <b>Google</b></li>
-          <li><b>Realtime Database</b> → Créer une base (mode test)</li>
-          <li>⚙️ Paramètres → Vos applications → app Web → copier l'objet <code>firebaseConfig</code></li>
-        </ol>
-      </div>
-      <div class="fg">
-        <label class="fl">Collez votre firebaseConfig (le bloc complet de la console)</label>
-        <textarea class="fi" id="fbInput" rows="7" placeholder='const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "mon-app.firebaseapp.com",
-  databaseURL: "https://mon-app-default-rtdb.firebaseio.com",
-  projectId: "mon-app",
-  ...
-};' style="font-family:monospace;font-size:.72rem;resize:vertical"></textarea>
-      </div>
-      <div id="fbSetupMsg" class="badge" style="display:none;margin-bottom:10px"></div>
-      <button class="btn btn-p" style="width:100%" onclick="saveFbConfig()">💾 Sauvegarder la configuration</button>
-    </div>
+    <!-- État global des sources -->
+    <div id="srcStatus" class="badge" style="display:flex;margin-bottom:12px"></div>
 
-    <!-- configured, signed out -->
-    <div id="syncSignin" style="display:none;text-align:center;padding:14px 0">
-      <div style="font-size:2rem">🔑</div>
-      <div style="font-size:.86rem;color:var(--t2);margin:8px 0 18px">Firebase configuré. Connectez-vous pour synchroniser sur tous vos appareils.</div>
-      <button class="btn btn-p" style="padding:10px 22px" onclick="fbSignIn()">Se connecter avec Google</button>
-      <div style="margin-top:14px"><button class="btn btn-g btn-s" onclick="resetFb()">Reconfigurer</button></div>
+    <!-- ═══ SECTION 1 : Source de cours principale (Alpha Vantage) ═══ -->
+    <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+      <span style="color:var(--blue)">🔑</span> Source de cours — Alpha Vantage
+      <span style="font-size:.66rem;background:rgba(239,68,68,.14);color:var(--red);padding:2px 7px;border-radius:5px;font-weight:600">indispensable</span>
     </div>
-
-    <!-- signed in -->
-    <div id="syncConnected" style="display:none">
-      <div class="card" style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-color:rgba(34,197,94,.25);margin-bottom:12px">
-        <img id="fbAvatar" src="" alt="" style="width:38px;height:38px;border-radius:50%" onerror="this.style.display='none'">
-        <div><div id="fbName" style="font-weight:600;font-size:.9rem">—</div><div style="font-size:.74rem;color:var(--green)">✅ Synchronisation automatique active</div></div>
-      </div>
-      <div id="fbLast" style="font-size:.74rem;color:var(--t3);text-align:center;margin-bottom:10px"></div>
-      <div id="fbMsg" class="badge" style="display:none;margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-g" style="flex:1" onclick="fbSyncNow()">↻ Sauvegarder maintenant</button>
-        <button class="btn btn-d btn-s" onclick="fbSignOut()">Déconnexion</button>
-      </div>
+    <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
+      Récupérez une clé gratuite (sans carte) sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a>. Quota : 25 cours/jour, suffisant grâce au cache local intelligent.
     </div>
-
-    <hr class="div">
-    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:8px">💾 Sauvegarde fichier (sans compte)</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-g" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
-      <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
-    </div>
-
-    <hr class="div">
-    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px">🔑 Clé API Alpha Vantage (source de cours principale)</div>
-    <div style="font-size:.75rem;color:var(--t3);line-height:1.65;margin-bottom:10px">
-      Obtenez une clé gratuite sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> (25 cours/jour, sans carte bancaire). Indispensable si Google Sheets n'est pas configuré.
-    </div>
-    <div class="card" style="background:var(--bg3);margin-bottom:0">
+    <div class="card" style="background:var(--bg3);margin-bottom:14px;border-color:rgba(59,130,246,.3)">
       <div class="fg" style="margin-bottom:8px">
-        <label class="fl">Clé API Alpha Vantage</label>
-        <input type="text" class="fi" id="avKeyInput" placeholder="Votre clé (ex: ABCDE12345…)" autocomplete="off" style="font-family:monospace;font-size:.78rem">
+        <input type="text" class="fi" id="avKeyInput" placeholder="Collez votre clé Alpha Vantage ici" autocomplete="off" style="font-family:monospace;font-size:.78rem">
       </div>
       <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:8px"></div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer</button>
+        <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer la clé</button>
         <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
       </div>
       <div id="avCallsEl" style="font-size:.71rem;color:var(--t3);margin-top:6px"></div>
     </div>
 
-    <hr class="div">
-    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px">📊 Source de cours : Google Sheets</div>
-    <div style="font-size:.75rem;color:var(--t3);line-height:1.65;margin-bottom:12px">
-      Connectez une feuille Google Sheets alimentée par <code>GOOGLEFINANCE()</code> pour des cours fiables, gratuits et sans proxy. Configuration en 3 étapes :
-    </div>
-    <!-- Étape 1 -->
-    <div class="card" style="margin-bottom:9px;background:var(--bg3)">
-      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">① Créer la feuille Google Sheets</div>
-      <div style="font-size:.74rem;color:var(--t2);margin-bottom:8px">Ouvrez <a href="https://sheets.google.com" target="_blank">Google Sheets</a>, créez une nouvelle feuille vide, cliquez sur la cellule <b>A1</b>, puis collez le contenu généré ci-dessous — les formules <code>GOOGLEFINANCE()</code> se remplissent automatiquement.</div>
-      <button class="btn btn-g" style="width:100%" onclick="generateAndCopySheet()">📋 Générer &amp; copier le contenu (à coller dans A1)</button>
-      <div id="gsGenMsg" style="font-size:.72rem;color:var(--green);margin-top:5px;display:none">✅ Copié ! Collez dans Google Sheets avec Ctrl+V (ou ⌘V). Patientez quelques secondes que GOOGLEFINANCE() se charge.</div>
-    </div>
-    <!-- Étape 2 -->
-    <div class="card" style="margin-bottom:9px;background:var(--bg3)">
-      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">② Publier la feuille</div>
-      <div style="font-size:.74rem;color:var(--t2)">Dans Google Sheets : <b>Fichier → Partager → Publier sur le Web → Feuille 1 → Valeurs séparées par des virgules (.csv) → Publier</b>. Copiez l'URL obtenue.</div>
-    </div>
-    <!-- Étape 3 -->
-    <div class="card" style="background:var(--bg3)">
-      <div style="font-size:.76rem;color:var(--blue);font-weight:700;margin-bottom:5px">③ Coller l'URL ici</div>
-      <div class="fg" style="margin-bottom:8px">
-        <input type="text" class="fi" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="font-size:.72rem">
+    <!-- ═══ SECTION 2 : Source alternative — Google Sheets (repliable) ═══ -->
+    <details style="margin-bottom:14px;border:1px solid var(--bd);border-radius:9px;padding:10px 12px;background:var(--bg3)">
+      <summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px">
+        <span style="color:var(--green)">📊</span> Source alternative — Google Sheets
+        <span style="font-size:.66rem;background:rgba(148,163,184,.12);color:var(--t3);padding:2px 7px;border-radius:5px;font-weight:600">optionnel · illimité</span>
+      </summary>
+      <div style="margin-top:10px">
+        <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
+          Une feuille Google Sheets avec <code>GOOGLEFINANCE()</code> = un seul appel HTTP pour tous vos cours, sans limite et sans appel à Alpha Vantage. Configuration en 3 étapes :
+        </div>
+        <div class="card" style="margin-bottom:8px;background:var(--bg2)">
+          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">① Créer la feuille</div>
+          <div style="font-size:.72rem;color:var(--t2);margin-bottom:8px">Ouvrez <a href="https://sheets.google.com" target="_blank">Google Sheets</a>, créez une feuille vide, cliquez sur <b>A1</b>, puis collez le contenu généré ci-dessous.</div>
+          <button class="btn btn-g btn-s" style="width:100%" onclick="generateAndCopySheet()">📋 Générer &amp; copier le contenu</button>
+          <div id="gsGenMsg" style="font-size:.7rem;color:var(--green);margin-top:5px;display:none">✅ Copié ! Collez avec Ctrl+V (⌘V).</div>
+        </div>
+        <div class="card" style="margin-bottom:8px;background:var(--bg2)">
+          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">② Publier la feuille</div>
+          <div style="font-size:.72rem;color:var(--t2)"><b>Fichier → Partager → Publier sur le Web → CSV → Publier</b>. Copiez l'URL.</div>
+        </div>
+        <div class="card" style="background:var(--bg2)">
+          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">③ Coller l'URL</div>
+          <div class="fg" style="margin-bottom:8px">
+            <input type="text" class="fi" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="font-size:.72rem">
+          </div>
+          <div id="gsMsg" class="badge" style="display:none;margin-bottom:8px"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-p btn-s" style="flex:1" onclick="saveGsUrl()">✅ Enregistrer &amp; tester</button>
+            <button class="btn btn-d btn-s" id="gsRemoveBtn" style="display:none" onclick="removeGsUrl()">Supprimer</button>
+          </div>
+          <div id="gsStatus" style="font-size:.7rem;color:var(--green);margin-top:5px;display:none"></div>
+        </div>
       </div>
-      <div id="gsMsg" class="badge" style="display:none;margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-p" style="flex:1" onclick="saveGsUrl()">✅ Enregistrer &amp; tester</button>
-        <button class="btn btn-d btn-s" id="gsRemoveBtn" style="display:none" onclick="removeGsUrl()">Supprimer</button>
+    </details>
+
+    <!-- ═══ SECTION 3 : Synchronisation cloud — Firebase (repliable) ═══ -->
+    <details id="fbDetails" style="margin-bottom:14px;border:1px solid var(--bd);border-radius:9px;padding:10px 12px;background:var(--bg3)">
+      <summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px">
+        <span style="color:var(--teal)">☁️</span> Synchronisation cloud — Firebase
+        <span id="fbStatusBdg" style="font-size:.66rem;background:rgba(148,163,184,.12);color:var(--t3);padding:2px 7px;border-radius:5px;font-weight:600">optionnel · multi-appareils</span>
+      </summary>
+      <div style="margin-top:10px">
+        <!-- not configured -->
+        <div id="syncSetup">
+          <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
+            Sauvegardez votre portefeuille sur tous vos appareils via votre compte Google. Configuration unique (~5 min, gratuit) :
+          </div>
+          <ol style="padding-left:20px;font-size:.74rem;color:var(--t2);line-height:1.8;margin-bottom:10px">
+            <li><a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> → Créer un projet</li>
+            <li><b>Authentication</b> → activer <b>Google</b></li>
+            <li><b>Realtime Database</b> → Créer (mode test)</li>
+            <li>⚙️ Paramètres → app Web → copier <code>firebaseConfig</code></li>
+          </ol>
+          <div class="fg">
+            <textarea class="fi" id="fbInput" rows="6" placeholder='const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "mon-app.firebaseapp.com",
+  databaseURL: "https://mon-app-default-rtdb.firebaseio.com",
+  ...
+};' style="font-family:monospace;font-size:.7rem;resize:vertical"></textarea>
+          </div>
+          <div id="fbSetupMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+          <button class="btn btn-p btn-s" style="width:100%" onclick="saveFbConfig()">💾 Sauvegarder la configuration</button>
+        </div>
+        <!-- configured, signed out -->
+        <div id="syncSignin" style="display:none;text-align:center;padding:10px 0">
+          <div style="font-size:1.7rem">🔑</div>
+          <div style="font-size:.78rem;color:var(--t2);margin:6px 0 14px">Firebase configuré. Connectez-vous pour synchroniser.</div>
+          <button class="btn btn-p" style="padding:8px 18px" onclick="fbSignIn()">Se connecter avec Google</button>
+          <div style="margin-top:10px"><button class="btn btn-g btn-s" onclick="resetFb()">Reconfigurer</button></div>
+        </div>
+        <!-- signed in -->
+        <div id="syncConnected" style="display:none">
+          <div class="card" style="display:flex;align-items:center;gap:10px;background:var(--bg2);border-color:rgba(34,197,94,.25);margin-bottom:10px">
+            <img id="fbAvatar" src="" alt="" style="width:34px;height:34px;border-radius:50%" onerror="this.style.display='none'">
+            <div><div id="fbName" style="font-weight:600;font-size:.85rem">—</div><div style="font-size:.7rem;color:var(--green)">✅ Sync auto active</div></div>
+          </div>
+          <div id="fbLast" style="font-size:.7rem;color:var(--t3);text-align:center;margin-bottom:8px"></div>
+          <div id="fbMsg" class="badge" style="display:none;margin-bottom:8px"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-g btn-s" style="flex:1" onclick="fbSyncNow()">↻ Sauvegarder maintenant</button>
+            <button class="btn btn-d btn-s" onclick="fbSignOut()">Déconnexion</button>
+          </div>
+        </div>
       </div>
-      <div id="gsStatus" style="font-size:.71rem;color:var(--green);margin-top:5px;display:none"></div>
+    </details>
+
+    <!-- ═══ SECTION 4 : Sauvegarde fichier (toujours visible, compact) ═══ -->
+    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+      <span>💾</span> Sauvegarde fichier <span style="font-size:.66rem;color:var(--t3);font-weight:500">— sans compte</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g btn-s" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
+      <label class="btn btn-g btn-s" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
     </div>
   </div>
 </div>
@@ -1331,8 +1347,25 @@ function renderAcct(){
   const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" onerror="this.style.display='none'">`:'';
   c.innerHTML=`${av}<span class="nm">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" style="background:var(--green)"></span>`;
 }
+function renderSrcStatus(){
+  const el=document.getElementById('srcStatus'); if(!el) return;
+  if(gsheetUrl && avKey){
+    el.className='badge b-ok';
+    el.innerHTML='✅ <b>Sources configurées</b> — Google Sheets en priorité, Alpha Vantage en secours.';
+  }else if(gsheetUrl){
+    el.className='badge b-ok';
+    el.innerHTML='✅ <b>Google Sheets configuré</b> — cours illimités. Ajoutez une clé AV pour fallback.';
+  }else if(avKey){
+    el.className='badge b-ok';
+    el.innerHTML='✅ <b>Alpha Vantage configuré</b> — 25 cours/jour avec cache intelligent.';
+  }else{
+    el.className='badge b-err';
+    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Ajoutez une clé Alpha Vantage ci-dessous pour afficher les prix.';
+  }
+}
 function openSync(){
   updateSyncSections();
+  renderSrcStatus();
   // Populate AV key fields
   document.getElementById('avKeyInput').value=avKey||'';
   document.getElementById('avRemoveBtn').style.display=avKey?'':'none';
@@ -1344,6 +1377,9 @@ function openSync(){
   document.getElementById('gsMsg').style.display='none';
   document.getElementById('gsStatus').style.display=gsheetUrl?'':'none';
   if(gsheetUrl) document.getElementById('gsStatus').textContent='✅ Feuille configurée — cours chargés à chaque actualisation';
+  // Auto-expand Firebase section if already configured
+  const fbD=document.getElementById('fbDetails');
+  if(fbD) fbD.open=!!fbCfg;
   document.getElementById('syncModal').classList.add('open');
 }
 function saveAvKey(){
@@ -1352,15 +1388,17 @@ function saveAvKey(){
   if(!k){msgEl.textContent='Entrez votre clé Alpha Vantage.';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
   avKey=k; localStorage.setItem('pf_av',k);
   document.getElementById('avRemoveBtn').style.display='';
-  msgEl.textContent='✅ Clé enregistrée.';msgEl.className='badge b-ok';msgEl.style.display='flex';
-  refreshAVCounter();
+  msgEl.textContent='✅ Clé enregistrée — actualisation en cours…';msgEl.className='badge b-ok';msgEl.style.display='flex';
+  refreshAVCounter(); renderSrcStatus();
   setTimeout(()=>msgEl.style.display='none',3000);
+  if(holdings.length) refresh();
 }
 function removeAvKey(){
   if(!confirm('Supprimer la clé Alpha Vantage ? Les cours ne pourront plus se charger sans Google Sheets.'))return;
   avKey=null; localStorage.removeItem('pf_av');
   document.getElementById('avKeyInput').value='';
   document.getElementById('avRemoveBtn').style.display='none';
+  renderSrcStatus();
   document.getElementById('avKeyMsg').style.display='none';
   document.getElementById('avCallsEl').textContent='';
 }
@@ -1395,7 +1433,7 @@ async function saveGsUrl(){
     document.getElementById('gsStatus').style.display='';
     msgEl.textContent=`✅ Succès — ${n} cours récupérés ! Les prix s'actualisent maintenant depuis votre feuille.`;
     msgEl.className='badge b-ok';
-    Object.assign(prices,data);renderAll();
+    Object.assign(prices,data);renderAll();renderSrcStatus();
   }catch(e){
     msgEl.textContent='❌ '+e.message;msgEl.className='badge b-err';
   }
@@ -1407,6 +1445,7 @@ function removeGsUrl(){
   document.getElementById('gsRemoveBtn').style.display='none';
   document.getElementById('gsMsg').style.display='none';
   document.getElementById('gsStatus').style.display='none';
+  renderSrcStatus();
 }
 function updateSyncSections(){
   const a=document.getElementById('syncSetup'),b=document.getElementById('syncSignin'),c=document.getElementById('syncConnected');
@@ -1415,6 +1454,13 @@ function updateSyncSections(){
   else{a.style.display='none';b.style.display='none';c.style.display='';
     document.getElementById('fbName').textContent=fbUser.displayName||fbUser.email||'—';
     document.getElementById('fbAvatar').src=fbUser.photoURL||'';}
+  // Met à jour le badge sur le résumé Firebase
+  const bdg=document.getElementById('fbStatusBdg');
+  if(bdg){
+    if(fbUser){bdg.textContent='✅ connecté';bdg.style.background='rgba(34,197,94,.16)';bdg.style.color='var(--green)';}
+    else if(fbCfg){bdg.textContent='⚠️ à connecter';bdg.style.background='rgba(234,179,8,.14)';bdg.style.color='var(--yel)';}
+    else{bdg.textContent='optionnel · multi-appareils';bdg.style.background='rgba(148,163,184,.12)';bdg.style.color='var(--t3)';}
+  }
 }
 function saveFbConfig(){
   const raw=document.getElementById('fbInput').value.trim();
