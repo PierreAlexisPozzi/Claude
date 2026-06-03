@@ -118,7 +118,22 @@ details summary{cursor:pointer;font-size:.78rem;color:var(--blue);list-style:non
 details summary::-webkit-details-marker{display:none}
 details summary:before{content:'▸ ';color:var(--t3)}
 details[open] summary:before{content:'▾ '}
-/* Pref cards */
+/* Settings pane */
+.sett-wrap{max-width:660px;margin:0 auto}
+.sett-section{margin-bottom:28px}
+.sett-hdr{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);padding-bottom:9px;border-bottom:1px solid var(--bd);margin-bottom:12px}
+.sett-card{background:var(--bg2);border:1px solid var(--bd);border-radius:11px;padding:16px 18px;margin-bottom:10px}
+.sett-card-ttl{font-size:.88rem;font-weight:700;color:var(--t1);margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sett-desc{font-size:.76rem;color:var(--t3);line-height:1.6;margin-bottom:10px}
+.sett-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.sett-row>div{flex:1;min-width:0}
+.sett-details{border:1px solid var(--bd);border-radius:11px;background:var(--bg2);margin-bottom:10px;overflow:hidden}
+.sett-details>summary{padding:14px 18px;font-size:.88rem;font-weight:700;color:var(--t1);display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none}
+.sett-details>summary::-webkit-details-marker{display:none}
+.sett-details>summary::before{content:'▸';color:var(--t3);font-size:.8rem;flex-shrink:0}
+.sett-details[open]>summary::before{content:'▾'}
+.sett-details>summary:hover{background:var(--bg3)}
+.sett-details .sett-inner{padding:0 18px 16px;border-top:1px solid var(--bd)}
 .pref-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
 .pref-card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:13px 8px;text-align:center;cursor:pointer;transition:.15s}
 .pref-card:hover{border-color:var(--blue);background:var(--bg3)}
@@ -198,7 +213,7 @@ details[open] summary:before{content:'▾ '}
     <span id="updTime" style="font-size:.74rem;color:var(--t3)">—</span>
     <button class="btn btn-g btn-s" onclick="openBulk()">📋 <span class="lbl-hide">Mon portefeuille</span></button>
     <button class="btn btn-g btn-s" onclick="openAdd()">＋ <span class="lbl-hide">Position</span></button>
-    <div class="acct" id="acctChip" onclick="openSync()"><span>☁️</span><span class="dot"></span></div>
+    <div class="acct" id="acctChip" onclick="showTab('settings')" title="Paramètres"><span>⚙️</span><span class="dot" id="srcDot"></span></div>
     <button class="btn btn-p btn-s" id="refBtn" onclick="refresh()">↻</button>
   </div>
 </header>
@@ -214,9 +229,10 @@ details[open] summary:before{content:'▾ '}
 <!-- TABS -->
 <div class="tabs">
   <div class="tab active" data-tab="dash" onclick="showTab('dash')">📈 Tableau de bord</div>
-  <div class="tab" data-tab="port" onclick="showTab('port')">💼 Portefeuille &amp; conseils</div>
+  <div class="tab" data-tab="port" onclick="showTab('port')">💼 Portefeuille</div>
   <div class="tab" data-tab="opp" onclick="showTab('opp')">🎯 Opportunités</div>
-  <div class="tab" data-tab="macro" onclick="showTab('macro')">🌍 Analyse macro</div>
+  <div class="tab" data-tab="macro" onclick="showTab('macro')">🌍 Macro</div>
+  <div class="tab" data-tab="settings" onclick="showTab('settings')" style="margin-left:auto">⚙️ Paramètres</div>
 </div>
 
 <div class="wrap">
@@ -299,6 +315,179 @@ details[open] summary:before{content:'▾ '}
     </div>
   </div>
 
+  <!-- SETTINGS -->
+  <div id="pane-settings" class="pane">
+    <div class="sett-wrap">
+
+      <!-- Bandeau d'état global -->
+      <div id="srcStatus" class="badge" style="margin-bottom:20px"></div>
+
+      <!-- ── SECTION 1 : Source de cours ── -->
+      <div class="sett-section">
+        <div class="sett-hdr">📡 Source de cours</div>
+
+        <!-- Alpha Vantage -->
+        <div class="sett-card" style="border-color:rgba(59,130,246,.3)">
+          <div class="sett-card-ttl">🔑 Alpha Vantage <span class="bdg" style="background:rgba(239,68,68,.14);color:var(--red)">indispensable</span></div>
+          <p class="sett-desc">Clé API gratuite sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> (sans carte bancaire). 25 cours/jour, suffisant grâce au cache local de 60 min pendant les heures de marché.</p>
+          <div class="fg" style="margin-bottom:8px">
+            <input type="text" class="fi" id="avKeyInput" placeholder="Collez votre clé Alpha Vantage ici" autocomplete="off" style="font-family:monospace;font-size:.82rem">
+          </div>
+          <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer la clé</button>
+            <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
+          </div>
+          <div id="avCallsEl" style="font-size:.72rem;color:var(--t3);margin-top:8px"></div>
+        </div>
+
+        <!-- Google Sheets (repliable) -->
+        <details class="sett-details" id="gsDetails">
+          <summary>
+            📊 Google Sheets
+            <span class="bdg" style="background:rgba(34,197,94,.12);color:var(--green);font-size:.65rem">optionnel · illimité</span>
+            <span style="flex:1"></span>
+            <span id="gsStatusChip" style="font-size:.7rem;color:var(--t3)"></span>
+          </summary>
+          <div class="sett-inner" style="padding-top:14px">
+            <p class="sett-desc">Une feuille Google Sheets avec <code>GOOGLEFINANCE()</code> = un seul appel HTTP pour tous vos cours, sans quota. Prioritaire sur Alpha Vantage si configurée.</p>
+            <div class="card" style="margin-bottom:8px;background:var(--bg3);padding:12px 14px">
+              <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">① Créer la feuille</div>
+              <div style="font-size:.72rem;color:var(--t2);margin-bottom:8px">Ouvrez <a href="https://sheets.google.com" target="_blank">Google Sheets</a>, créez une feuille vide, cliquez sur <b>A1</b> et collez le contenu généré ci-dessous.</div>
+              <button class="btn btn-g btn-s" style="width:100%" onclick="generateAndCopySheet()">📋 Générer &amp; copier le contenu</button>
+              <div id="gsGenMsg" style="font-size:.7rem;color:var(--green);margin-top:6px;display:none">✅ Copié ! Collez avec Ctrl+V (⌘V).</div>
+            </div>
+            <div class="card" style="margin-bottom:8px;background:var(--bg3);padding:12px 14px">
+              <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">② Publier la feuille</div>
+              <div style="font-size:.72rem;color:var(--t2)"><b>Fichier → Partager → Publier sur le Web → CSV → Publier</b>. Copiez l'URL obtenue.</div>
+            </div>
+            <div class="card" style="background:var(--bg3);padding:12px 14px">
+              <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:6px">③ Coller l'URL</div>
+              <div class="fg" style="margin-bottom:8px">
+                <input type="text" class="fi" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="font-size:.74rem">
+              </div>
+              <div id="gsMsg" class="badge" style="display:none;margin-bottom:8px"></div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-p btn-s" style="flex:1" onclick="saveGsUrl()">✅ Enregistrer &amp; tester</button>
+                <button class="btn btn-d btn-s" id="gsRemoveBtn" style="display:none" onclick="removeGsUrl()">Supprimer</button>
+              </div>
+              <div id="gsStatus" style="font-size:.7rem;color:var(--green);margin-top:6px;display:none"></div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- ── SECTION 2 : Sauvegarde & synchronisation ── -->
+      <div class="sett-section">
+        <div class="sett-hdr">☁️ Sauvegarde &amp; synchronisation</div>
+
+        <!-- Firebase (repliable) -->
+        <details class="sett-details" id="fbDetails">
+          <summary>
+            ☁️ Firebase — sync multi-appareils
+            <span id="fbStatusBdg" style="font-size:.65rem;background:rgba(148,163,184,.12);color:var(--t3);padding:2px 7px;border-radius:5px;font-weight:600">optionnel</span>
+            <span style="flex:1"></span>
+            <img id="fbAvatarMini" src="" alt="" style="width:22px;height:22px;border-radius:50%;display:none" onerror="this.style.display='none'">
+          </summary>
+          <div class="sett-inner" style="padding-top:14px">
+            <!-- not configured -->
+            <div id="syncSetup">
+              <p class="sett-desc">Synchronisez votre portefeuille sur tous vos appareils via votre compte Google. Configuration unique (~5 min, gratuit) :</p>
+              <ol style="padding-left:20px;font-size:.74rem;color:var(--t2);line-height:1.9;margin-bottom:12px">
+                <li><a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> → Créer un projet</li>
+                <li><b>Authentication</b> → Fournisseurs de connexion → activer <b>Google</b></li>
+                <li><b>Realtime Database</b> → Créer une base de données (mode test)</li>
+                <li>⚙️ Paramètres du projet → Vos applications → app Web → copier <code>firebaseConfig</code></li>
+              </ol>
+              <div class="fg">
+                <textarea class="fi" id="fbInput" rows="6" placeholder='const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "mon-app.firebaseapp.com",
+  databaseURL: "https://mon-app-default-rtdb.firebaseio.com",
+  ...
+};' style="font-family:monospace;font-size:.7rem;resize:vertical"></textarea>
+              </div>
+              <div id="fbSetupMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+              <button class="btn btn-p" style="width:100%" onclick="saveFbConfig()">💾 Sauvegarder la configuration Firebase</button>
+            </div>
+            <!-- configured, signed out -->
+            <div id="syncSignin" style="display:none;text-align:center;padding:8px 0 4px">
+              <div style="font-size:.8rem;color:var(--t2);margin-bottom:14px">Firebase configuré. Connectez-vous pour activer la synchronisation automatique.</div>
+              <button class="btn btn-p" style="padding:9px 22px" onclick="fbSignIn()">🔑 Se connecter avec Google</button>
+              <div style="margin-top:12px"><button class="btn btn-g btn-s" onclick="resetFb()">Reconfigurer</button></div>
+            </div>
+            <!-- signed in -->
+            <div id="syncConnected" style="display:none">
+              <div style="display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:9px;padding:12px;margin-bottom:12px">
+                <img id="fbAvatar" src="" alt="" style="width:38px;height:38px;border-radius:50%;flex-shrink:0" onerror="this.style.display='none'">
+                <div><div id="fbName" style="font-weight:600;font-size:.9rem">—</div><div style="font-size:.72rem;color:var(--green)">✅ Synchronisation automatique active</div></div>
+              </div>
+              <div id="fbLast" style="font-size:.72rem;color:var(--t3);margin-bottom:10px"></div>
+              <div id="fbMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-g" style="flex:1" onclick="fbSyncNow()">↻ Sauvegarder maintenant</button>
+                <button class="btn btn-d btn-s" onclick="fbSignOut()">Déconnexion</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Sauvegarde locale -->
+        <div class="sett-card">
+          <div class="sett-card-ttl">💾 Sauvegarde locale <span style="font-size:.7rem;color:var(--t3);font-weight:400">— sans compte</span></div>
+          <p class="sett-desc">Exportez votre portefeuille en JSON pour le sauvegarder ou le transférer. Importez pour restaurer.</p>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-g" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
+            <label class="btn btn-g" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 3 : Données locales ── -->
+      <div class="sett-section">
+        <div class="sett-hdr">🗑 Données locales</div>
+        <div class="sett-card">
+          <div class="sett-row" style="margin-bottom:14px">
+            <div>
+              <div class="sett-card-ttl">Cache des cours</div>
+              <p class="sett-desc" style="margin-bottom:0">Vider force un rechargement depuis Alpha Vantage (consomme du quota journalier).</p>
+            </div>
+            <button class="btn btn-g btn-s" onclick="clearPriceCache()" style="flex-shrink:0">Vider le cache</button>
+          </div>
+          <hr class="div" style="margin:0 0 14px">
+          <div class="sett-row">
+            <div>
+              <div class="sett-card-ttl" style="color:var(--red)">Réinitialiser le portefeuille</div>
+              <p class="sett-desc" style="margin-bottom:0">Supprime toutes les positions enregistrées localement. Irréversible.</p>
+            </div>
+            <button class="btn btn-d btn-s" onclick="resetHoldings()" style="flex-shrink:0">Réinitialiser</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 4 : À propos ── -->
+      <div class="sett-section">
+        <div class="sett-hdr">ℹ️ À propos</div>
+        <div class="sett-card">
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:8px">📊 PEA Tracker — Boursobank</div>
+          <p class="sett-desc" style="margin-bottom:12px">Application de suivi de portefeuille PEA en un seul fichier HTML — aucune installation, aucun serveur. Orientée transition énergétique avec analyse macro intégrée.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.74rem;color:var(--t2)">
+            <div>📡 <b>Cours</b> Alpha Vantage / Google Sheets</div>
+            <div>🔍 <b>Recherche</b> Twelve Data (sans clé)</div>
+            <div>☁️ <b>Sync</b> Firebase Realtime Database</div>
+            <div>💹 <b>Base</b> 81 titres PEA + CAC 40</div>
+            <div>🎯 <b>Opportunités</b> 12 valeurs analysées</div>
+            <div>📅 <b>Référence macro</b> juin 2026</div>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd);font-size:.72rem;color:var(--t3)">
+            ⚠️ Application indicative uniquement. Les conseils affichés ne constituent pas un conseil en investissement au sens réglementaire. Vérifiez toujours les informations auprès de sources officielles avant toute décision.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <!-- DROPDOWN (shared) -->
@@ -370,134 +559,6 @@ details[open] summary:before{content:'▾ '}
   </div>
 </div>
 
-<!-- MODAL SYNC -->
-<div id="syncModal" class="mover" onclick="if(event.target===this)closeSync()">
-  <div class="modal">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div class="mtl" style="margin:0">⚙️ Paramètres &amp; sauvegarde</div>
-      <button class="btn btn-g btn-s" onclick="closeSync()">✕</button>
-    </div>
-
-    <!-- État global des sources -->
-    <div id="srcStatus" class="badge" style="display:flex;margin-bottom:12px"></div>
-
-    <!-- ═══ SECTION 1 : Source de cours principale (Alpha Vantage) ═══ -->
-    <div style="font-size:.82rem;font-weight:700;color:var(--t1);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-      <span style="color:var(--blue)">🔑</span> Source de cours — Alpha Vantage
-      <span style="font-size:.66rem;background:rgba(239,68,68,.14);color:var(--red);padding:2px 7px;border-radius:5px;font-weight:600">indispensable</span>
-    </div>
-    <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
-      Récupérez une clé gratuite (sans carte) sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a>. Quota : 25 cours/jour, suffisant grâce au cache local intelligent.
-    </div>
-    <div class="card" style="background:var(--bg3);margin-bottom:14px;border-color:rgba(59,130,246,.3)">
-      <div class="fg" style="margin-bottom:8px">
-        <input type="text" class="fi" id="avKeyInput" placeholder="Collez votre clé Alpha Vantage ici" autocomplete="off" style="font-family:monospace;font-size:.78rem">
-      </div>
-      <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer la clé</button>
-        <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
-      </div>
-      <div id="avCallsEl" style="font-size:.71rem;color:var(--t3);margin-top:6px"></div>
-    </div>
-
-    <!-- ═══ SECTION 2 : Source alternative — Google Sheets (repliable) ═══ -->
-    <details style="margin-bottom:14px;border:1px solid var(--bd);border-radius:9px;padding:10px 12px;background:var(--bg3)">
-      <summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px">
-        <span style="color:var(--green)">📊</span> Source alternative — Google Sheets
-        <span style="font-size:.66rem;background:rgba(148,163,184,.12);color:var(--t3);padding:2px 7px;border-radius:5px;font-weight:600">optionnel · illimité</span>
-      </summary>
-      <div style="margin-top:10px">
-        <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
-          Une feuille Google Sheets avec <code>GOOGLEFINANCE()</code> = un seul appel HTTP pour tous vos cours, sans limite et sans appel à Alpha Vantage. Configuration en 3 étapes :
-        </div>
-        <div class="card" style="margin-bottom:8px;background:var(--bg2)">
-          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">① Créer la feuille</div>
-          <div style="font-size:.72rem;color:var(--t2);margin-bottom:8px">Ouvrez <a href="https://sheets.google.com" target="_blank">Google Sheets</a>, créez une feuille vide, cliquez sur <b>A1</b>, puis collez le contenu généré ci-dessous.</div>
-          <button class="btn btn-g btn-s" style="width:100%" onclick="generateAndCopySheet()">📋 Générer &amp; copier le contenu</button>
-          <div id="gsGenMsg" style="font-size:.7rem;color:var(--green);margin-top:5px;display:none">✅ Copié ! Collez avec Ctrl+V (⌘V).</div>
-        </div>
-        <div class="card" style="margin-bottom:8px;background:var(--bg2)">
-          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">② Publier la feuille</div>
-          <div style="font-size:.72rem;color:var(--t2)"><b>Fichier → Partager → Publier sur le Web → CSV → Publier</b>. Copiez l'URL.</div>
-        </div>
-        <div class="card" style="background:var(--bg2)">
-          <div style="font-size:.74rem;color:var(--blue);font-weight:700;margin-bottom:5px">③ Coller l'URL</div>
-          <div class="fg" style="margin-bottom:8px">
-            <input type="text" class="fi" id="gsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" style="font-size:.72rem">
-          </div>
-          <div id="gsMsg" class="badge" style="display:none;margin-bottom:8px"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-p btn-s" style="flex:1" onclick="saveGsUrl()">✅ Enregistrer &amp; tester</button>
-            <button class="btn btn-d btn-s" id="gsRemoveBtn" style="display:none" onclick="removeGsUrl()">Supprimer</button>
-          </div>
-          <div id="gsStatus" style="font-size:.7rem;color:var(--green);margin-top:5px;display:none"></div>
-        </div>
-      </div>
-    </details>
-
-    <!-- ═══ SECTION 3 : Synchronisation cloud — Firebase (repliable) ═══ -->
-    <details id="fbDetails" style="margin-bottom:14px;border:1px solid var(--bd);border-radius:9px;padding:10px 12px;background:var(--bg3)">
-      <summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px">
-        <span style="color:var(--teal)">☁️</span> Synchronisation cloud — Firebase
-        <span id="fbStatusBdg" style="font-size:.66rem;background:rgba(148,163,184,.12);color:var(--t3);padding:2px 7px;border-radius:5px;font-weight:600">optionnel · multi-appareils</span>
-      </summary>
-      <div style="margin-top:10px">
-        <!-- not configured -->
-        <div id="syncSetup">
-          <div style="font-size:.74rem;color:var(--t3);line-height:1.6;margin-bottom:10px">
-            Sauvegardez votre portefeuille sur tous vos appareils via votre compte Google. Configuration unique (~5 min, gratuit) :
-          </div>
-          <ol style="padding-left:20px;font-size:.74rem;color:var(--t2);line-height:1.8;margin-bottom:10px">
-            <li><a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> → Créer un projet</li>
-            <li><b>Authentication</b> → activer <b>Google</b></li>
-            <li><b>Realtime Database</b> → Créer (mode test)</li>
-            <li>⚙️ Paramètres → app Web → copier <code>firebaseConfig</code></li>
-          </ol>
-          <div class="fg">
-            <textarea class="fi" id="fbInput" rows="6" placeholder='const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "mon-app.firebaseapp.com",
-  databaseURL: "https://mon-app-default-rtdb.firebaseio.com",
-  ...
-};' style="font-family:monospace;font-size:.7rem;resize:vertical"></textarea>
-          </div>
-          <div id="fbSetupMsg" class="badge" style="display:none;margin-bottom:10px"></div>
-          <button class="btn btn-p btn-s" style="width:100%" onclick="saveFbConfig()">💾 Sauvegarder la configuration</button>
-        </div>
-        <!-- configured, signed out -->
-        <div id="syncSignin" style="display:none;text-align:center;padding:10px 0">
-          <div style="font-size:1.7rem">🔑</div>
-          <div style="font-size:.78rem;color:var(--t2);margin:6px 0 14px">Firebase configuré. Connectez-vous pour synchroniser.</div>
-          <button class="btn btn-p" style="padding:8px 18px" onclick="fbSignIn()">Se connecter avec Google</button>
-          <div style="margin-top:10px"><button class="btn btn-g btn-s" onclick="resetFb()">Reconfigurer</button></div>
-        </div>
-        <!-- signed in -->
-        <div id="syncConnected" style="display:none">
-          <div class="card" style="display:flex;align-items:center;gap:10px;background:var(--bg2);border-color:rgba(34,197,94,.25);margin-bottom:10px">
-            <img id="fbAvatar" src="" alt="" style="width:34px;height:34px;border-radius:50%" onerror="this.style.display='none'">
-            <div><div id="fbName" style="font-weight:600;font-size:.85rem">—</div><div style="font-size:.7rem;color:var(--green)">✅ Sync auto active</div></div>
-          </div>
-          <div id="fbLast" style="font-size:.7rem;color:var(--t3);text-align:center;margin-bottom:8px"></div>
-          <div id="fbMsg" class="badge" style="display:none;margin-bottom:8px"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-g btn-s" style="flex:1" onclick="fbSyncNow()">↻ Sauvegarder maintenant</button>
-            <button class="btn btn-d btn-s" onclick="fbSignOut()">Déconnexion</button>
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <!-- ═══ SECTION 4 : Sauvegarde fichier (toujours visible, compact) ═══ -->
-    <div style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-      <span>💾</span> Sauvegarde fichier <span style="font-size:.66rem;color:var(--t3);font-weight:500">— sans compte</span>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-g btn-s" style="flex:1" onclick="exportJSON()">⬇️ Exporter .json</button>
-      <label class="btn btn-g btn-s" style="flex:1;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">⬆️ Importer .json<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ════════════ ÉTAT ════════════ */
@@ -1342,45 +1403,69 @@ async function fbSignIn(){
 async function fbSignOut(){if(!confirm('Se déconnecter ? Données locales conservées.'))return;await firebase.auth().signOut();}
 function renderAcct(){
   const c=document.getElementById('acctChip');
-  if(!fbCfg){c.innerHTML='<span>☁️</span><span class="lbl-hide" style="font-size:.74rem">Connexion</span>';return;}
-  if(!fbUser){c.innerHTML='<span>🔑</span><span class="dot" style="background:var(--t3)"></span>';return;}
-  const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" onerror="this.style.display='none'">`:'';
-  c.innerHTML=`${av}<span class="nm">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" style="background:var(--green)"></span>`;
+  if(!c) return;
+  const dot=document.getElementById('srcDot');
+  if(fbUser){
+    const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:'';
+    c.innerHTML=`${av}<span class="nm" style="font-size:.74rem">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" id="srcDot" style="background:var(--green)"></span>`;
+  }else{
+    c.innerHTML=`<span>⚙️</span><span class="dot" id="srcDot" style="background:${avKey||gsheetUrl?'var(--green)':'var(--red)'}"></span>`;
+  }
+  // keep srcDot in sync
+  const d=document.getElementById('srcDot');
+  if(d) d.style.background=avKey||gsheetUrl?'var(--green)':'var(--red)';
 }
 function renderSrcStatus(){
   const el=document.getElementById('srcStatus'); if(!el) return;
+  const dot=document.getElementById('srcDot');
   if(gsheetUrl && avKey){
     el.className='badge b-ok';
     el.innerHTML='✅ <b>Sources configurées</b> — Google Sheets en priorité, Alpha Vantage en secours.';
+    if(dot) dot.style.background='var(--green)';
   }else if(gsheetUrl){
     el.className='badge b-ok';
     el.innerHTML='✅ <b>Google Sheets configuré</b> — cours illimités. Ajoutez une clé AV pour fallback.';
+    if(dot) dot.style.background='var(--green)';
   }else if(avKey){
     el.className='badge b-ok';
     el.innerHTML='✅ <b>Alpha Vantage configuré</b> — 25 cours/jour avec cache intelligent.';
+    if(dot) dot.style.background='var(--green)';
   }else{
     el.className='badge b-err';
-    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Ajoutez une clé Alpha Vantage ci-dessous pour afficher les prix.';
+    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Rendez-vous dans l\'onglet ⚙️ Paramètres pour ajouter une clé Alpha Vantage.';
+    if(dot) dot.style.background='var(--red)';
   }
+  // Google Sheets chip
+  const gsChip=document.getElementById('gsStatusChip');
+  if(gsChip) gsChip.textContent=gsheetUrl?'✅ configuré':'';
 }
-function openSync(){
+function openSync(){ showTab('settings'); }
+function populateSettings(){
   updateSyncSections();
   renderSrcStatus();
-  // Populate AV key fields
   document.getElementById('avKeyInput').value=avKey||'';
   document.getElementById('avRemoveBtn').style.display=avKey?'':'none';
   document.getElementById('avKeyMsg').style.display='none';
   refreshAVCounter();
-  // Populate GSheet fields
   document.getElementById('gsUrlInput').value=gsheetUrl||'';
   document.getElementById('gsRemoveBtn').style.display=gsheetUrl?'':'none';
   document.getElementById('gsMsg').style.display='none';
   document.getElementById('gsStatus').style.display=gsheetUrl?'':'none';
   if(gsheetUrl) document.getElementById('gsStatus').textContent='✅ Feuille configurée — cours chargés à chaque actualisation';
-  // Auto-expand Firebase section if already configured
   const fbD=document.getElementById('fbDetails');
   if(fbD) fbD.open=!!fbCfg;
-  document.getElementById('syncModal').classList.add('open');
+}
+function clearPriceCache(){
+  if(!confirm('Vider le cache des cours ? Un rechargement complet sera effectué (consomme du quota Alpha Vantage).'))return;
+  priceCache={};localStorage.removeItem('pf_cache');
+  const el=document.getElementById('avCallsEl'); if(el) el.textContent='';
+  refresh();
+}
+function resetHoldings(){
+  if(!confirm('Supprimer toutes les positions ? Cette action est irréversible.'))return;
+  holdings=[];prices={};priceCache={};
+  localStorage.removeItem('pf_h');localStorage.removeItem('pf_cache');
+  saveLocal();renderAll();showTab('dash');
 }
 function saveAvKey(){
   const k=document.getElementById('avKeyInput').value.trim();
@@ -1402,7 +1487,7 @@ function removeAvKey(){
   document.getElementById('avKeyMsg').style.display='none';
   document.getElementById('avCallsEl').textContent='';
 }
-function closeSync(){document.getElementById('syncModal').classList.remove('open');}
+function closeSync(){ showTab('dash'); }
 
 /* ── Google Sheets : génération, sauvegarde, suppression ── */
 function generateAndCopySheet(){
@@ -1451,15 +1536,18 @@ function updateSyncSections(){
   const a=document.getElementById('syncSetup'),b=document.getElementById('syncSignin'),c=document.getElementById('syncConnected');
   if(!fbCfg){a.style.display='';b.style.display='none';c.style.display='none';}
   else if(!fbUser){a.style.display='none';b.style.display='';c.style.display='none';}
-  else{a.style.display='none';b.style.display='none';c.style.display='';
+  else{
+    a.style.display='none';b.style.display='none';c.style.display='';
     document.getElementById('fbName').textContent=fbUser.displayName||fbUser.email||'—';
-    document.getElementById('fbAvatar').src=fbUser.photoURL||'';}
-  // Met à jour le badge sur le résumé Firebase
+    const av=document.getElementById('fbAvatar'); if(av)av.src=fbUser.photoURL||'';
+    const mini=document.getElementById('fbAvatarMini');
+    if(mini){mini.src=fbUser.photoURL||'';mini.style.display=fbUser.photoURL?'':'none';}
+  }
   const bdg=document.getElementById('fbStatusBdg');
   if(bdg){
     if(fbUser){bdg.textContent='✅ connecté';bdg.style.background='rgba(34,197,94,.16)';bdg.style.color='var(--green)';}
-    else if(fbCfg){bdg.textContent='⚠️ à connecter';bdg.style.background='rgba(234,179,8,.14)';bdg.style.color='var(--yel)';}
-    else{bdg.textContent='optionnel · multi-appareils';bdg.style.background='rgba(148,163,184,.12)';bdg.style.color='var(--t3)';}
+    else if(fbCfg){bdg.textContent='⚠️ non connecté';bdg.style.background='rgba(234,179,8,.14)';bdg.style.color='var(--yel)';}
+    else{bdg.textContent='optionnel';bdg.style.background='rgba(148,163,184,.12)';bdg.style.color='var(--t3)';}
   }
 }
 function saveFbConfig(){
@@ -1471,7 +1559,7 @@ function saveFbConfig(){
   fbCfg=cfg; localStorage.setItem('pf_fb',JSON.stringify(cfg));
   showFbSetup('✅ Configuration enregistrée — initialisation…','b-ok');
   try{initFb(cfg);}catch(e){showFbSetup('Erreur init Firebase : '+e.message,'b-err');return;}
-  setTimeout(()=>{renderAcct();updateSyncSections();},500);
+  setTimeout(()=>{renderAcct();updateSyncSections();renderSrcStatus();},500);
 }
 function resetFb(){if(!confirm('Supprimer la configuration Firebase ?'))return;fbCfg=null;fbUser=null;localStorage.removeItem('pf_fb');try{firebase.auth().signOut();}catch(e){}renderAcct();updateSyncSections();}
 async function fbSyncNow(){showFbMsg('Sauvegarde…','b-load');await saveFb();showFbMsg('✅ Sauvegardé.','b-ok');}
@@ -1488,7 +1576,7 @@ function importJSON(input){
   rd.onload=e=>{try{const d=JSON.parse(e.target.result);if(!Array.isArray(d.holdings))throw 0;
     if(!confirm('Importer '+d.holdings.length+' position(s) ? Remplace le portefeuille actuel.'))return;
     holdings=d.holdings; if('pref'in d){prefSector=d.pref;prefSector?localStorage.setItem('pf_pref',prefSector):localStorage.removeItem('pf_pref');}
-    prices={};saveLocal();closeSync();refresh();}catch(_){alert('Fichier invalide.');}};
+    prices={};saveLocal();showTab('dash');refresh();}catch(_){alert('Fichier invalide.');}};
   rd.readAsText(f);
 }
 
@@ -1499,6 +1587,7 @@ function showTab(t){
   document.getElementById('pane-'+t).classList.add('active');
   if(t==='opp'){initPref();renderOpps();}
   if(t==='dash')renderDash();
+  if(t==='settings')populateSettings();
 }
 function setNetDot(s){const d=document.getElementById('netDot');const m={ok:'var(--green)',load:'var(--blue)',err:'var(--red)',idle:'var(--t3)'};d.style.background=m[s]||m.idle;}
 let refreshTimer=null;
@@ -1522,6 +1611,7 @@ async function refresh(){
 /* ════════════ INIT ════════════ */
 document.addEventListener('DOMContentLoaded',()=>{
   renderAcct();
+  renderSrcStatus();
   if(fbCfg){try{initFb(fbCfg);}catch(e){console.warn(e);} }
   renderAll(); initPref();
   refresh();
