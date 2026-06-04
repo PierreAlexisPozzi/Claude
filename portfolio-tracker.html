@@ -166,6 +166,7 @@ details[open] summary:before{content:'▾ '}
 .badge{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:7px;font-size:.8rem}
 .b-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
 .b-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red)}
+.b-warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#f59e0b}
 .b-load{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
 /* Search dropdown */
 #dd{position:fixed;z-index:9999;background:var(--bg2);border:1px solid var(--bd);border-radius:9px;box-shadow:0 10px 36px rgba(0,0,0,.6);min-width:300px;max-width:440px;max-height:300px;overflow-y:auto;display:none}
@@ -325,6 +326,21 @@ details[open] summary:before{content:'▾ '}
       <!-- ── SECTION 1 : Source de cours ── -->
       <div class="sett-section">
         <div class="sett-hdr">📡 Source de cours</div>
+
+        <!-- Alpha Vantage -->
+        <div class="sett-card" style="border-color:rgba(59,130,246,.3)">
+          <div class="sett-card-ttl">🔑 Alpha Vantage <span class="bdg" style="background:rgba(59,130,246,.14);color:var(--blue)">recommandé</span></div>
+          <p class="sett-desc">Source principale. Clé gratuite sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> (sans CB). 25 cours/jour — le cache intelligent (60 min marché, 24 h fermé) suffit pour un portefeuille PEA normal. <b>Sans clé</b>, Yahoo Finance prend le relais automatiquement.</p>
+          <div class="fg" style="margin-bottom:8px">
+            <input type="text" class="fi" id="avKeyInput" placeholder="Collez votre clé Alpha Vantage ici" autocomplete="off" style="font-family:monospace;font-size:.82rem">
+          </div>
+          <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer</button>
+            <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
+          </div>
+          <div id="avCallsEl" style="font-size:.72rem;color:var(--t3);margin-top:8px"></div>
+        </div>
 
         <!-- Polygon.io -->
         <div class="sett-card" style="border-color:rgba(59,130,246,.3)">
@@ -568,7 +584,9 @@ let editId = null;
 let prefSector = localStorage.getItem('pf_pref') || null;
 let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
 let fbUser = null, fbApp = null, fbTimer = null;
-let pgKey = localStorage.getItem('pf_pg') || null;           // clé Polygon.io
+let pgKey = localStorage.getItem('pf_pg') || null;           // clé Polygon.io (optionnel, US)
+let avKey = localStorage.getItem('pf_av') || null;           // clé Alpha Vantage (source principale)
+let avLimited = false;                                        // quota 25/jour épuisé ce session
 let gsheetUrl = localStorage.getItem('pf_gs') || null;       // URL Google Sheets CSV
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
@@ -736,9 +754,10 @@ const OPPS = [
 ];
 
 /* ════════════ SOURCES DE DONNÉES ═══════════════════════════════════════
-   Source principale : Polygon.io (snapshot temps réel ou cours veille)
-   Source secondaire : Google Sheets GOOGLEFINANCE (URL publiée)
-   Recherche         : Polygon.io SYMBOL_SEARCH + Twelve Data fallback
+   Source principale : Alpha Vantage GLOBAL_QUOTE (clé API, 25 req/jour)
+   Fallback auto     : Yahoo Finance v8 (sans clé, quand quota AV épuisé)
+   Source secondaire : Google Sheets GOOGLEFINANCE (URL publiée, illimité)
+   Recherche         : Alpha Vantage SYMBOL_SEARCH + Twelve Data fallback
    Cache local       : 60 min (heures de marché) · 24 h (hors marché)
 ══════════════════════════════════════════════════════════════════════════ */
 
@@ -760,6 +779,59 @@ function fromPGSym(pgSym){
   if(m){const sfx=PG_TO_Y[m[1]];if(sfx) return m[2]+sfx;}
   return pgSym;
 }
+
+/* ── Alpha Vantage : conversion Yahoo → AV + compteur d'appels ── */
+const AV_SFX = {
+  '.PA':'.PAR','.AS':'.AMS','.BR':'.BRU','.MI':'.MIL',
+  '.MC':'.MCE','.CO':'.CPH','.LS':'.LIS','.DE':'.DEX',
+  '.L':'.LON','.ST':'.STO','.HE':'.HEL',
+};
+function toAVSym(sym){
+  for(const [y,a] of Object.entries(AV_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+a;
+  return sym;
+}
+function avCalls(){
+  const today=new Date().toISOString().slice(0,10);
+  let s=JSON.parse(localStorage.getItem('pf_av_calls')||'null')||{date:'',n:0};
+  if(s.date!==today) s={date:today,n:0};
+  return s;
+}
+function trackAVCall(){
+  const s=avCalls(); s.n++;
+  localStorage.setItem('pf_av_calls',JSON.stringify(s));
+  const el=document.getElementById('avCallsEl');
+  if(el) el.textContent=`${s.n}/25 appels aujourd'hui`;
+}
+function refreshAVCounter(){
+  const s=avCalls();
+  const el=document.getElementById('avCallsEl');
+  if(el) el.textContent=s.n>0?`${s.n}/25 appels aujourd'hui`:'';
+}
+
+/* ── Alpha Vantage : GLOBAL_QUOTE ── */
+async function fetchOneAV(sym){
+  if(!avKey) throw new Error('nokey');
+  if(avCalls().n>=25) throw new Error('daylimit');
+  const avSym=toAVSym(sym);
+  const url=`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(avSym)}&apikey=${encodeURIComponent(avKey)}`;
+  const r=await fetch(url,{signal:AbortSignal.timeout(20000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  trackAVCall();
+  if(d.Note)        throw new Error('ratelimit');
+  if(d.Information) throw new Error('daylimit');
+  const q=d['Global Quote'];
+  if(!q||!q['05. price']) throw new Error(`"${avSym}" introuvable`);
+  const price=parseFloat(q['05. price']);
+  const prev=parseFloat(q['08. previous close']);
+  const change=parseFloat(q['09. change']);
+  const pct=parseFloat((q['10. change percent']||'').replace('%',''));
+  return{price,prev:isNaN(prev)?price:prev,
+    change:isNaN(change)?0:change,
+    pct:isNaN(pct)?0:pct,
+    currency:'EUR',name:null,closes:[],whi:null,wlo:null};
+}
+
 
 /* ── Cache prix (localStorage) ── */
 function loadCache(){try{return JSON.parse(localStorage.getItem('pf_cache')||'{}')}catch{return {}}}
@@ -824,9 +896,9 @@ async function fetchOneYF(sym){
   return{price,prev,change:price-prev,pct:prev?(price-prev)/prev*100:0,
     currency:meta.currency||'EUR',name:meta.shortName||null,closes:[],whi:null,wlo:null};
 }
-/* ── fetchOneWithCache : cache → Yahoo Finance (EU+US) → Polygon (US fallback) ── */
+/* ── fetchOneWithCache : cache → AV → YF fallback → Polygon (US) ── */
 async function fetchOneWithCache(sym){
-  // Normalise via PEA_DB si le sym est un ticker nu sans suffixe (ex: ALLDL → ALLDL.PA)
+  // Normalise via PEA_DB si ticker nu (ex: ALLDL → ALLDL.PA)
   let fetchSym=sym;
   if(!sym.includes('.')){
     const dbEntry=PEA_DB.find(d=>d.sym.split('.')[0]===sym.toUpperCase());
@@ -835,14 +907,23 @@ async function fetchOneWithCache(sym){
   if(cacheOk(priceCache[fetchSym])){prices[sym]=priceCache[fetchSym].data;return;}
   try{
     let data;
-    const isUS=!fetchSym.includes('.');
-    if(isUS&&pgKey){
-      // Actions US : Polygon (temps réel) avec fallback Yahoo Finance
-      try{data=await fetchOnePG(fetchSym);}
-      catch(e){data=await fetchOneYF(fetchSym);}
+    if(avKey&&!avLimited){
+      // Alpha Vantage (source principale)
+      try{
+        data=await fetchOneAV(fetchSym);
+      }catch(e){
+        if(e.message==='daylimit'||e.message==='ratelimit') avLimited=true;
+        // quota épuisé ou rate-limit → Yahoo Finance
+        data=await fetchOneYF(fetchSym);
+      }
     }else{
-      // Actions/ETF EU ou pas de clé Polygon : Yahoo Finance directement
-      data=await fetchOneYF(fetchSym);
+      // Pas de clé AV ou quota épuisé → Yahoo Finance
+      try{data=await fetchOneYF(fetchSym);}
+      catch(e){
+        // Dernier recours US : Polygon
+        if(!fetchSym.includes('.')&&pgKey) data=await fetchOnePG(fetchSym);
+        else throw e;
+      }
     }
     prices[sym]=data;
     priceCache[fetchSym]={data,ts:Date.now()};
@@ -925,7 +1006,7 @@ async function fetchPrices(symbols,onProg){
       for(const s of missing){
         await fetchOneWithCache(s); done++;
         onProg&&onProg(done,symbols.length);
-        if(done<symbols.length) await sleep(800); // courtoisie Yahoo Finance
+        if(done<symbols.length) await sleep(avKey&&!avLimited?12500:800); // 5 req/min AV, 0.8s si YF
       }
       saveCache(); return;
     }catch(e){console.warn('Google Sheets:',e.message);}
@@ -936,7 +1017,7 @@ async function fetchPrices(symbols,onProg){
     const wasInCache=cacheOk(priceCache[s]);
     await fetchOneWithCache(s);
     done++; onProg&&onProg(done,symbols.length);
-    if(!wasInCache && done<symbols.length) await sleep(800); // courtoisie Yahoo Finance
+    if(!wasInCache && done<symbols.length) await sleep(avKey&&!avLimited?12500:800); // 5 req/min AV, 0.8s si YF
   }
   saveCache();
 }
@@ -1464,20 +1545,21 @@ function renderAcct(){
 function renderSrcStatus(){
   const el=document.getElementById('srcStatus'); if(!el) return;
   const dot=document.getElementById('srcDot');
-  if(gsheetUrl){
+  const calls=avCalls();
+  if(gsheetUrl&&avKey){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Google Sheets + Yahoo Finance</b> — cours illimités. Polygon.io actif pour les actions US'+(pgKey?' ✓':' (optionnel)')+'.';
-    if(dot) dot.style.background='var(--green)';
-  }else if(pgKey){
+    el.innerHTML=`✅ <b>Alpha Vantage + Google Sheets</b> — ${calls.n}/25 appels AV aujourd'hui. Sheets en priorité, AV en secours.`;
+  }else if(gsheetUrl){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Yahoo Finance (EU/US) + Polygon.io (US)</b> — cours chargés automatiquement.';
-    if(dot) dot.style.background='var(--green)';
+    el.innerHTML='✅ <b>Google Sheets</b> — cours illimités. Ajoutez une clé Alpha Vantage pour le fallback.';
+  }else if(avKey){
+    el.className='badge b-ok';
+    el.innerHTML=`✅ <b>Alpha Vantage</b> — ${calls.n}/25 appels aujourd'hui. Yahoo Finance en secours automatique si quota épuisé.`;
   }else{
-    el.className='badge b-ok';
-    el.innerHTML='✅ <b>Yahoo Finance actif</b> — cours EU &amp; US sans clé. Ajoutez Polygon.io pour les actions US temps réel.';
-    if(dot) dot.style.background='var(--red)';
+    el.className='badge b-warn';
+    el.innerHTML='⚠️ <b>Yahoo Finance (mode dégradé)</b> — Ajoutez une clé Alpha Vantage gratuite pour des cours plus fiables.';
   }
-  // Google Sheets chip
+  if(dot) dot.style.background=avKey||gsheetUrl?'var(--green)':'var(--orange, #f59e0b)';
   const gsChip=document.getElementById('gsStatusChip');
   if(gsChip) gsChip.textContent=gsheetUrl?'✅ configuré':'';
 }
@@ -1485,6 +1567,10 @@ function openSync(){ showTab('settings'); }
 function populateSettings(){
   updateSyncSections();
   renderSrcStatus();
+  document.getElementById('avKeyInput').value=avKey||'';
+  document.getElementById('avRemoveBtn').style.display=avKey?'':'none';
+  document.getElementById('avKeyMsg').style.display='none';
+  refreshAVCounter();
   document.getElementById('pgKeyInput').value=pgKey||'';
   document.getElementById('pgRemoveBtn').style.display=pgKey?'':'none';
   document.getElementById('pgKeyMsg').style.display='none';
@@ -1506,6 +1592,25 @@ function resetHoldings(){
   holdings=[];prices={};priceCache={};
   localStorage.removeItem('pf_h');localStorage.removeItem('pf_cache');
   saveLocal();renderAll();showTab('dash');
+}
+function saveAvKey(){
+  const k=document.getElementById('avKeyInput').value.trim();
+  const msgEl=document.getElementById('avKeyMsg');
+  if(!k){msgEl.textContent='Entrez votre clé Alpha Vantage.';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
+  avKey=k; avLimited=false; localStorage.setItem('pf_av',k);
+  document.getElementById('avRemoveBtn').style.display='';
+  msgEl.textContent='✅ Clé enregistrée — actualisation en cours…';msgEl.className='badge b-ok';msgEl.style.display='flex';
+  refreshAVCounter(); renderSrcStatus();
+  setTimeout(()=>msgEl.style.display='none',3000);
+  if(holdings.length) refresh();
+}
+function removeAvKey(){
+  if(!confirm('Supprimer la clé Alpha Vantage ? Yahoo Finance prendra le relais automatiquement.'))return;
+  avKey=null; localStorage.removeItem('pf_av');
+  document.getElementById('avKeyInput').value='';
+  document.getElementById('avRemoveBtn').style.display='none';
+  document.getElementById('avCallsEl').textContent='';
+  renderSrcStatus();
 }
 function savePgKey(){
   const k=document.getElementById('pgKeyInput').value.trim();
