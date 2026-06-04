@@ -326,19 +326,18 @@ details[open] summary:before{content:'▾ '}
       <div class="sett-section">
         <div class="sett-hdr">📡 Source de cours</div>
 
-        <!-- Alpha Vantage -->
+        <!-- Polygon.io -->
         <div class="sett-card" style="border-color:rgba(59,130,246,.3)">
-          <div class="sett-card-ttl">🔑 Alpha Vantage <span class="bdg" style="background:rgba(239,68,68,.14);color:var(--red)">indispensable</span></div>
-          <p class="sett-desc">Clé API gratuite sur <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a> (sans carte bancaire). 25 cours/jour, suffisant grâce au cache local de 60 min pendant les heures de marché.</p>
+          <div class="sett-card-ttl">🔑 Polygon.io <span class="bdg" style="background:rgba(239,68,68,.14);color:var(--red)">indispensable</span></div>
+          <p class="sett-desc">Cours boursiers temps réel. Collez votre clé API Polygon.io ci-dessous. Les marchés européens (Euronext, etc.) requièrent un plan Starter ou supérieur ; le plan gratuit couvre les actions US.</p>
           <div class="fg" style="margin-bottom:8px">
-            <input type="text" class="fi" id="avKeyInput" placeholder="Collez votre clé Alpha Vantage ici" autocomplete="off" style="font-family:monospace;font-size:.82rem">
+            <input type="text" class="fi" id="pgKeyInput" placeholder="Collez votre clé Polygon.io ici" autocomplete="off" style="font-family:monospace;font-size:.82rem">
           </div>
-          <div id="avKeyMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+          <div id="pgKeyMsg" class="badge" style="display:none;margin-bottom:10px"></div>
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-p" style="flex:1" onclick="saveAvKey()">💾 Enregistrer la clé</button>
-            <button class="btn btn-d btn-s" id="avRemoveBtn" style="display:none" onclick="removeAvKey()">Supprimer</button>
+            <button class="btn btn-p" style="flex:1" onclick="savePgKey()">💾 Enregistrer la clé</button>
+            <button class="btn btn-d btn-s" id="pgRemoveBtn" style="display:none" onclick="removePgKey()">Supprimer</button>
           </div>
-          <div id="avCallsEl" style="font-size:.72rem;color:var(--t3);margin-top:8px"></div>
         </div>
 
         <!-- Google Sheets (repliable) -->
@@ -569,7 +568,7 @@ let editId = null;
 let prefSector = localStorage.getItem('pf_pref') || null;
 let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
 let fbUser = null, fbApp = null, fbTimer = null;
-let avKey = localStorage.getItem('pf_av') || null;           // clé Alpha Vantage
+let pgKey = localStorage.getItem('pf_pg') || null;           // clé Polygon.io
 let gsheetUrl = localStorage.getItem('pf_gs') || null;       // URL Google Sheets CSV
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
@@ -737,41 +736,29 @@ const OPPS = [
 ];
 
 /* ════════════ SOURCES DE DONNÉES ═══════════════════════════════════════
-   Source principale : Alpha Vantage GLOBAL_QUOTE (clé API gratuite)
+   Source principale : Polygon.io (snapshot temps réel ou cours veille)
    Source secondaire : Google Sheets GOOGLEFINANCE (URL publiée)
-   Recherche         : Alpha Vantage SYMBOL_SEARCH + Twelve Data fallback
-   Limite free tier  : 25 appels/jour · 5 appels/minute
+   Recherche         : Polygon.io SYMBOL_SEARCH + Twelve Data fallback
    Cache local       : 60 min (heures de marché) · 24 h (hors marché)
 ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Conversion mnémonique (format Boursobank) → symbole Alpha Vantage ── */
-const AV_SFX = {
-  '.PA':'.PAR', '.AS':'.AMS', '.BR':'.BRU', '.MI':'.MIL',
-  '.MC':'.MCE', '.CO':'.CPH', '.LS':'.LIS', '.DE':'.DEX',
-  '.L': '.LON', '.ST':'.STO', '.HE':'.HEL',
+/* ── Conversion Yahoo/Boursobank → Polygon.io (MIC:TICKER) et retour ── */
+const PG_MIC = {
+  '.PA':'XPAR','.AS':'XAMS','.BR':'XBRU','.MI':'XMIL',
+  '.MC':'XMAD','.CO':'XCSE','.LS':'XLIS','.DE':'XETR',
+  '.L':'XLON','.ST':'XSTO','.HE':'XHEL',
 };
-function toAVSym(sym){
-  for(const [y,a] of Object.entries(AV_SFX)) if(sym.endsWith(y)) return sym.slice(0,-y.length)+a;
-  return sym;  // actions US : ticker nu
+const PG_TO_Y = Object.fromEntries(Object.entries(PG_MIC).map(([y,m])=>[m,y]));
+function toPGSym(sym){
+  for(const [sfx,mic] of Object.entries(PG_MIC)){
+    if(sym.endsWith(sfx)) return mic+':'+sym.slice(0,-sfx.length);
+  }
+  return sym; // actions US : ticker nu
 }
-
-/* ── Compteur d'appels journaliers ── */
-function avCalls(){
-  const today=new Date().toISOString().slice(0,10);
-  let s=JSON.parse(localStorage.getItem('pf_av_calls')||'null')||{date:'',n:0};
-  if(s.date!==today) s={date:today,n:0};
-  return s;
-}
-function trackAVCall(){
-  const s=avCalls(); s.n++;
-  localStorage.setItem('pf_av_calls',JSON.stringify(s));
-  const el=document.getElementById('avCallsEl');
-  if(el) el.textContent=`${s.n}/25 appels utilisés aujourd'hui`;
-}
-function refreshAVCounter(){
-  const s=avCalls();
-  const el=document.getElementById('avCallsEl');
-  if(el) el.textContent=s.n>0?`${s.n}/25 appels utilisés aujourd'hui`:'';
+function fromPGSym(pgSym){
+  const m=pgSym.match(/^([A-Z]+):(.+)$/);
+  if(m){const sfx=PG_TO_Y[m[1]];if(sfx) return m[2]+sfx;}
+  return pgSym;
 }
 
 /* ── Cache prix (localStorage) ── */
@@ -784,27 +771,44 @@ function cacheOk(e){
 }
 let priceCache=loadCache();
 
-/* ── Alpha Vantage : GLOBAL_QUOTE (un cours en temps réel) ── */
-async function fetchOneAV(sym){
-  if(!avKey) throw new Error('nokey');
-  const avSym=toAVSym(sym);
-  const url=`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(avSym)}&apikey=${encodeURIComponent(avKey)}`;
-  const r=await fetch(url,{signal:AbortSignal.timeout(20000)});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  const d=await r.json();
-  trackAVCall();
-  if(d.Note)       throw new Error('ratelimit');   // 5 req/min dépassé
-  if(d.Information) throw new Error('daylimit');   // 25 req/jour dépassé
-  const q=d['Global Quote'];
-  if(!q||!q['05. price']) throw new Error(`Symbole "${avSym}" introuvable`);
-  const price=parseFloat(q['05. price']);
-  const prev=parseFloat(q['08. previous close']);
-  const change=parseFloat(q['09. change']);
-  const pct=parseFloat((q['10. change percent']||'').replace('%',''));
-  return{price,prev:isNaN(prev)?price:prev,
-    change:isNaN(change)?0:change,
-    pct:isNaN(pct)?0:pct,
-    currency:'EUR',name:null,closes:[],whi:null,wlo:null};
+/* ── Polygon.io : snapshot temps réel (+ fallback cours veille) ── */
+async function fetchOnePG(sym){
+  if(!pgKey) throw new Error('nokey');
+  const pgSym=toPGSym(sym);
+  const locale=pgSym.includes(':')?'global':'us';
+
+  // Snapshot : prix temps réel + variation (Starter+ pour marchés globaux)
+  const r=await fetch(
+    `https://api.polygon.io/v2/snapshot/locale/${locale}/markets/stocks/tickers/${encodeURIComponent(pgSym)}?apiKey=${pgKey}`,
+    {signal:AbortSignal.timeout(20000)}
+  );
+  if(r.ok){
+    const d=await r.json();
+    const t=d.ticker;
+    if(t){
+      const price=t.day?.c||t.lastTrade?.p||t.prevDay?.c;
+      if(price){
+        const prev=t.prevDay?.c||price;
+        return{price,prev,
+          change:typeof t.todaysChange==='number'?t.todaysChange:price-prev,
+          pct:typeof t.todaysChangePerc==='number'?t.todaysChangePerc:(prev?(price-prev)/prev*100:0),
+          currency:'EUR',name:null,closes:[],whi:null,wlo:null};
+      }
+    }
+    throw new Error(`Symbole "${pgSym}" introuvable`);
+  }
+
+  // 403 = plan insuffisant pour ce marché → fallback cours veille (prev)
+  if(r.status!==403) throw new Error('HTTP '+r.status);
+  const r2=await fetch(
+    `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(pgSym)}/prev?adjusted=true&apiKey=${pgKey}`,
+    {signal:AbortSignal.timeout(20000)}
+  );
+  if(!r2.ok) throw new Error(r2.status===403?`"${pgSym}" non disponible sur votre plan Polygon`:`HTTP ${r2.status}`);
+  const d2=await r2.json();
+  if(d2.status==='ERROR'||!d2.results?.length) throw new Error(`Symbole "${pgSym}" introuvable`);
+  const res=d2.results[0];
+  return{price:res.c,prev:res.c,change:0,pct:0,currency:'EUR',name:null,closes:[],whi:null,wlo:null};
 }
 
 /* ── fetchOneWithCache : cache d'abord, AV sinon ── */
@@ -816,16 +820,13 @@ async function fetchOneWithCache(sym){
     if(dbEntry) fetchSym=dbEntry.sym;
   }
   if(cacheOk(priceCache[fetchSym])){prices[sym]=priceCache[fetchSym].data;return;}
-  if(!avKey){prices[sym]={error:true,nokey:true};return;}
+  if(!pgKey){prices[sym]={error:true,nokey:true};return;}
   try{
-    const data=await fetchOneAV(fetchSym);
+    const data=await fetchOnePG(fetchSym);
     prices[sym]=data;
     priceCache[fetchSym]={data,ts:Date.now()};
   }catch(e){
-    const msg=e.message;
-    if(msg==='ratelimit'||msg==='daylimit'){
-      prices[sym]=priceCache[fetchSym]?.data?{...priceCache[fetchSym].data,stale:true}:{error:true,limitMsg:msg};
-    }else if(priceCache[fetchSym]?.data){
+    if(priceCache[fetchSym]?.data){
       prices[sym]={...priceCache[fetchSym].data,stale:true};
     }else{
       prices[sym]={error:true};
@@ -908,7 +909,7 @@ async function fetchPrices(symbols,onProg){
       saveCache(); return;
     }catch(e){console.warn('Google Sheets:',e.message);}
   }
-  // Source B : Alpha Vantage GLOBAL_QUOTE avec cache et throttle
+  // Source B : Polygon.io avec cache et throttle
   let done=0;
   for(const s of symbols){
     const wasInCache=cacheOk(priceCache[s]);
@@ -919,22 +920,24 @@ async function fetchPrices(symbols,onProg){
   saveCache();
 }
 
-/* ── searchOnline : Alpha Vantage SYMBOL_SEARCH + Twelve Data fallback ── */
+/* ── searchOnline : Polygon.io SYMBOL_SEARCH + Twelve Data fallback ── */
 async function searchOnline(q){
-  // Alpha Vantage SYMBOL_SEARCH (utilise 1 appel AV si clé présente)
-  if(avKey){
+  // Polygon.io /v3/reference/tickers (résultats multi-marchés)
+  if(pgKey){
     try{
-      const url=`https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(q)}&apikey=${encodeURIComponent(avKey)}`;
+      const url=`https://api.polygon.io/v3/reference/tickers?search=${encodeURIComponent(q)}&active=true&limit=10&apiKey=${pgKey}`;
       const r=await fetch(url,{signal:AbortSignal.timeout(10000)});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const d=await r.json(); trackAVCall();
-      if(d.Note||d.Information) throw new Error('limite AV');
-      const matches=(d.bestMatches||[]).filter(x=>['Equity','ETF'].includes(x['3. type']));
-      if(matches.length) return matches.slice(0,8).map(x=>({
-        symbol:x['1. symbol'],longname:x['2. name'],
-        quoteType:x['3. type']==='ETF'?'ETF':'EQUITY',
-        exchDisp:x['4. region']||'',currency:x['8. currency']||'EUR'
-      }));
+      if(r.ok){
+        const d=await r.json();
+        const matches=(d.results||[]).filter(x=>['CS','ETF'].includes(x.type));
+        if(matches.length) return matches.slice(0,8).map(x=>({
+          symbol:fromPGSym(x.ticker),  // convertit XPAR:ALLDL → ALLDL.PA
+          longname:x.name,
+          quoteType:x.type==='ETF'?'ETF':'EQUITY',
+          exchDisp:x.primary_exchange||x.locale||'',
+          currency:x.currency_name||'EUR'
+        }));
+      }
     }catch(e){}
   }
   // Twelve Data SYMBOL_SEARCH (sans clé, CORS direct)
@@ -1431,30 +1434,30 @@ function renderAcct(){
     const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:'';
     c.innerHTML=`${av}<span class="nm" style="font-size:.74rem">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" id="srcDot" style="background:var(--green)"></span>`;
   }else{
-    c.innerHTML=`<span>⚙️</span><span class="dot" id="srcDot" style="background:${avKey||gsheetUrl?'var(--green)':'var(--red)'}"></span>`;
+    c.innerHTML=`<span>⚙️</span><span class="dot" id="srcDot" style="background:${pgKey||gsheetUrl?'var(--green)':'var(--red)'}"></span>`;
   }
   // keep srcDot in sync
   const d=document.getElementById('srcDot');
-  if(d) d.style.background=avKey||gsheetUrl?'var(--green)':'var(--red)';
+  if(d) d.style.background=pgKey||gsheetUrl?'var(--green)':'var(--red)';
 }
 function renderSrcStatus(){
   const el=document.getElementById('srcStatus'); if(!el) return;
   const dot=document.getElementById('srcDot');
-  if(gsheetUrl && avKey){
+  if(gsheetUrl && pgKey){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Sources configurées</b> — Google Sheets en priorité, Alpha Vantage en secours.';
+    el.innerHTML='✅ <b>Sources configurées</b> — Google Sheets en priorité, Polygon.io en secours.';
     if(dot) dot.style.background='var(--green)';
   }else if(gsheetUrl){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Google Sheets configuré</b> — cours illimités. Ajoutez une clé AV pour fallback.';
+    el.innerHTML='✅ <b>Google Sheets configuré</b> — cours illimités. Ajoutez une clé Polygon.io pour fallback.';
     if(dot) dot.style.background='var(--green)';
-  }else if(avKey){
+  }else if(pgKey){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Alpha Vantage configuré</b> — 25 cours/jour avec cache intelligent.';
+    el.innerHTML='✅ <b>Polygon.io configuré</b> — cours temps réel avec cache intelligent.';
     if(dot) dot.style.background='var(--green)';
   }else{
     el.className='badge b-err';
-    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Rendez-vous dans l\'onglet ⚙️ Paramètres pour ajouter une clé Alpha Vantage.';
+    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Rendez-vous dans l\'onglet ⚙️ Paramètres pour ajouter une clé Polygon.io.';
     if(dot) dot.style.background='var(--red)';
   }
   // Google Sheets chip
@@ -1465,10 +1468,9 @@ function openSync(){ showTab('settings'); }
 function populateSettings(){
   updateSyncSections();
   renderSrcStatus();
-  document.getElementById('avKeyInput').value=avKey||'';
-  document.getElementById('avRemoveBtn').style.display=avKey?'':'none';
-  document.getElementById('avKeyMsg').style.display='none';
-  refreshAVCounter();
+  document.getElementById('pgKeyInput').value=pgKey||'';
+  document.getElementById('pgRemoveBtn').style.display=pgKey?'':'none';
+  document.getElementById('pgKeyMsg').style.display='none';
   document.getElementById('gsUrlInput').value=gsheetUrl||'';
   document.getElementById('gsRemoveBtn').style.display=gsheetUrl?'':'none';
   document.getElementById('gsMsg').style.display='none';
@@ -1478,9 +1480,8 @@ function populateSettings(){
   if(fbD) fbD.open=!!fbCfg;
 }
 function clearPriceCache(){
-  if(!confirm('Vider le cache des cours ? Un rechargement complet sera effectué (consomme du quota Alpha Vantage).'))return;
+  if(!confirm('Vider le cache des cours ? Un rechargement complet sera effectué.'))return;
   priceCache={};localStorage.removeItem('pf_cache');
-  const el=document.getElementById('avCallsEl'); if(el) el.textContent='';
   refresh();
 }
 function resetHoldings(){
@@ -1489,25 +1490,24 @@ function resetHoldings(){
   localStorage.removeItem('pf_h');localStorage.removeItem('pf_cache');
   saveLocal();renderAll();showTab('dash');
 }
-function saveAvKey(){
-  const k=document.getElementById('avKeyInput').value.trim();
-  const msgEl=document.getElementById('avKeyMsg');
-  if(!k){msgEl.textContent='Entrez votre clé Alpha Vantage.';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
-  avKey=k; localStorage.setItem('pf_av',k);
-  document.getElementById('avRemoveBtn').style.display='';
+function savePgKey(){
+  const k=document.getElementById('pgKeyInput').value.trim();
+  const msgEl=document.getElementById('pgKeyMsg');
+  if(!k){msgEl.textContent='Entrez votre clé Polygon.io.';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
+  pgKey=k; localStorage.setItem('pf_pg',k);
+  document.getElementById('pgRemoveBtn').style.display='';
   msgEl.textContent='✅ Clé enregistrée — actualisation en cours…';msgEl.className='badge b-ok';msgEl.style.display='flex';
-  refreshAVCounter(); renderSrcStatus();
+  renderSrcStatus();
   setTimeout(()=>msgEl.style.display='none',3000);
   if(holdings.length) refresh();
 }
-function removeAvKey(){
-  if(!confirm('Supprimer la clé Alpha Vantage ? Les cours ne pourront plus se charger sans Google Sheets.'))return;
-  avKey=null; localStorage.removeItem('pf_av');
-  document.getElementById('avKeyInput').value='';
-  document.getElementById('avRemoveBtn').style.display='none';
+function removePgKey(){
+  if(!confirm('Supprimer la clé Polygon.io ? Les cours ne pourront plus se charger sans Google Sheets.'))return;
+  pgKey=null; localStorage.removeItem('pf_pg');
+  document.getElementById('pgKeyInput').value='';
+  document.getElementById('pgRemoveBtn').style.display='none';
   renderSrcStatus();
-  document.getElementById('avKeyMsg').style.display='none';
-  document.getElementById('avCallsEl').textContent='';
+  document.getElementById('pgKeyMsg').style.display='none';
 }
 function closeSync(){ showTab('dash'); }
 
