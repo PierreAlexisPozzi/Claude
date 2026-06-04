@@ -328,8 +328,8 @@ details[open] summary:before{content:'▾ '}
 
         <!-- Polygon.io -->
         <div class="sett-card" style="border-color:rgba(59,130,246,.3)">
-          <div class="sett-card-ttl">🔑 Polygon.io <span class="bdg" style="background:rgba(239,68,68,.14);color:var(--red)">indispensable</span></div>
-          <p class="sett-desc">Cours boursiers temps réel. Collez votre clé API Polygon.io ci-dessous. Les marchés européens (Euronext, etc.) requièrent un plan Starter ou supérieur ; le plan gratuit couvre les actions US.</p>
+          <div class="sett-card-ttl">🔑 Polygon.io <span class="bdg" style="background:rgba(59,130,246,.14);color:var(--blue)">optionnel — actions US</span></div>
+          <p class="sett-desc">Améliore la précision des cours US en temps réel. Les actions et ETF PEA (Euronext Paris, Amsterdam…) sont chargés automatiquement via <b>Yahoo Finance</b> sans aucune clé. Polygon n'est utile que si vous détenez des actions cotées aux USA.</p>
           <div class="fg" style="margin-bottom:8px">
             <input type="text" class="fi" id="pgKeyInput" placeholder="Collez votre clé Polygon.io ici" autocomplete="off" style="font-family:monospace;font-size:.82rem">
           </div>
@@ -811,7 +811,20 @@ async function fetchOnePG(sym){
   return{price:res.c,prev:res.c,change:0,pct:0,currency:'EUR',name:null,closes:[],whi:null,wlo:null};
 }
 
-/* ── fetchOneWithCache : cache d'abord, AV sinon ── */
+/* ── Yahoo Finance v8 : cours temps réel EU + US (sans clé API) ── */
+async function fetchOneYF(sym){
+  const url=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d&includePrePost=false`;
+  const r=await fetch(url,{signal:AbortSignal.timeout(15000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  const meta=d?.chart?.result?.[0]?.meta;
+  if(!meta?.regularMarketPrice) throw new Error(`"${sym}" introuvable`);
+  const price=meta.regularMarketPrice;
+  const prev=meta.previousClose||meta.chartPreviousClose||price;
+  return{price,prev,change:price-prev,pct:prev?(price-prev)/prev*100:0,
+    currency:meta.currency||'EUR',name:meta.shortName||null,closes:[],whi:null,wlo:null};
+}
+/* ── fetchOneWithCache : cache → Yahoo Finance (EU+US) → Polygon (US fallback) ── */
 async function fetchOneWithCache(sym){
   // Normalise via PEA_DB si le sym est un ticker nu sans suffixe (ex: ALLDL → ALLDL.PA)
   let fetchSym=sym;
@@ -820,9 +833,17 @@ async function fetchOneWithCache(sym){
     if(dbEntry) fetchSym=dbEntry.sym;
   }
   if(cacheOk(priceCache[fetchSym])){prices[sym]=priceCache[fetchSym].data;return;}
-  if(!pgKey){prices[sym]={error:true,nokey:true};return;}
   try{
-    const data=await fetchOnePG(fetchSym);
+    let data;
+    const isUS=!fetchSym.includes('.');
+    if(isUS&&pgKey){
+      // Actions US : Polygon (temps réel) avec fallback Yahoo Finance
+      try{data=await fetchOnePG(fetchSym);}
+      catch(e){data=await fetchOneYF(fetchSym);}
+    }else{
+      // Actions/ETF EU ou pas de clé Polygon : Yahoo Finance directement
+      data=await fetchOneYF(fetchSym);
+    }
     prices[sym]=data;
     priceCache[fetchSym]={data,ts:Date.now()};
   }catch(e){
@@ -904,7 +925,7 @@ async function fetchPrices(symbols,onProg){
       for(const s of missing){
         await fetchOneWithCache(s); done++;
         onProg&&onProg(done,symbols.length);
-        if(done<symbols.length) await sleep(12500); // 5 req/min AV
+        if(done<symbols.length) await sleep(800); // courtoisie Yahoo Finance
       }
       saveCache(); return;
     }catch(e){console.warn('Google Sheets:',e.message);}
@@ -915,7 +936,7 @@ async function fetchPrices(symbols,onProg){
     const wasInCache=cacheOk(priceCache[s]);
     await fetchOneWithCache(s);
     done++; onProg&&onProg(done,symbols.length);
-    if(!wasInCache && done<symbols.length) await sleep(12500); // 5 req/min
+    if(!wasInCache && done<symbols.length) await sleep(800); // courtoisie Yahoo Finance
   }
   saveCache();
 }
@@ -1434,30 +1455,26 @@ function renderAcct(){
     const av=fbUser.photoURL?`<img src="${fbUser.photoURL}" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:'';
     c.innerHTML=`${av}<span class="nm" style="font-size:.74rem">${(fbUser.displayName||fbUser.email||'').split(' ')[0]}</span><span class="dot" id="srcDot" style="background:var(--green)"></span>`;
   }else{
-    c.innerHTML=`<span>⚙️</span><span class="dot" id="srcDot" style="background:${pgKey||gsheetUrl?'var(--green)':'var(--red)'}"></span>`;
+    c.innerHTML=`<span>⚙️</span><span class="dot" id="srcDot" style="background:var(--green)"></span>`;
   }
   // keep srcDot in sync
   const d=document.getElementById('srcDot');
-  if(d) d.style.background=pgKey||gsheetUrl?'var(--green)':'var(--red)';
+  if(d) d.style.background='var(--green)';
 }
 function renderSrcStatus(){
   const el=document.getElementById('srcStatus'); if(!el) return;
   const dot=document.getElementById('srcDot');
-  if(gsheetUrl && pgKey){
+  if(gsheetUrl){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Sources configurées</b> — Google Sheets en priorité, Polygon.io en secours.';
-    if(dot) dot.style.background='var(--green)';
-  }else if(gsheetUrl){
-    el.className='badge b-ok';
-    el.innerHTML='✅ <b>Google Sheets configuré</b> — cours illimités. Ajoutez une clé Polygon.io pour fallback.';
+    el.innerHTML='✅ <b>Google Sheets + Yahoo Finance</b> — cours illimités. Polygon.io actif pour les actions US'+(pgKey?' ✓':' (optionnel)')+'.';
     if(dot) dot.style.background='var(--green)';
   }else if(pgKey){
     el.className='badge b-ok';
-    el.innerHTML='✅ <b>Polygon.io configuré</b> — cours temps réel avec cache intelligent.';
+    el.innerHTML='✅ <b>Yahoo Finance (EU/US) + Polygon.io (US)</b> — cours chargés automatiquement.';
     if(dot) dot.style.background='var(--green)';
   }else{
-    el.className='badge b-err';
-    el.innerHTML='⚠️ <b>Aucune source de cours configurée.</b> Rendez-vous dans l\'onglet ⚙️ Paramètres pour ajouter une clé Polygon.io.';
+    el.className='badge b-ok';
+    el.innerHTML='✅ <b>Yahoo Finance actif</b> — cours EU &amp; US sans clé. Ajoutez Polygon.io pour les actions US temps réel.';
     if(dot) dot.style.background='var(--red)';
   }
   // Google Sheets chip
