@@ -73,11 +73,23 @@ tr:hover td{background:var(--bg3)}
 .bdg-e{background:rgba(168,85,247,.12);color:var(--pur)}
 .bdg-pea{background:rgba(34,197,94,.12);color:var(--green)}
 .bdg-npea{background:rgba(148,163,184,.1);color:var(--t3)}
-.advice{font-size:.7rem;padding:2px 8px;border-radius:5px;font-weight:600}
+.advice{font-size:.7rem;padding:2px 8px;border-radius:5px;font-weight:600;cursor:help}
 .adv-buy{background:rgba(34,197,94,.14);color:var(--green)}
 .adv-hold{background:rgba(59,130,246,.12);color:var(--blue)}
 .adv-watch{background:rgba(234,179,8,.14);color:var(--yel)}
 .adv-trim{background:rgba(249,115,22,.14);color:var(--org)}
+/* Tooltip conseil */
+.adv-wrap{position:relative;display:inline-block}
+.adv-tip{
+  display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--bg3);border:1px solid var(--bd);border-radius:10px;
+  padding:11px 14px;font-size:.76rem;color:var(--t2);line-height:1.6;
+  width:240px;z-index:500;white-space:normal;text-align:left;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);pointer-events:none;
+}
+.adv-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:var(--bd)}
+.adv-wrap:hover .adv-tip,.adv-wrap.open .adv-tip{display:block}
 .ico-btn{background:none;border:none;cursor:pointer;font-size:.95rem;padding:3px 6px;color:var(--t3)}
 .ico-btn:hover{color:var(--t1)}
 /* Empty */
@@ -1198,17 +1210,45 @@ function totals(){
   return {val,cost,day,priced,pea};
 }
 function advice(h){
-  const s=stat(h); if(s.price==null) return {t:'—',c:''};
-  const p=s.p; const pct=s.plPct;
-  // proximité 52 semaines
-  let near='';
-  if(p.whi&&p.wlo){const range=p.whi-p.wlo;const pos=range>0?(s.price-p.wlo)/range:0.5;
-    if(pos>0.9)near='high';else if(pos<0.15)near='low';}
-  if(pct<=-20) return {t:'Surveiller',c:'adv-watch'};       // forte MV → réévaluer la thèse
-  if(near==='low'&&pct<0) return {t:'Renforcer',c:'adv-buy'};// bas de range + MV → opportunité
-  if(near==='high'&&pct>30) return {t:'Alléger',c:'adv-trim'};// haut de range + forte PV → prendre profit
-  if(pct>=15) return {t:'Conserver',c:'adv-hold'};
-  return {t:'Conserver',c:'adv-hold'};
+  const s=stat(h); if(s.price==null) return {t:'—',c:'',msg:''};
+  const p=s.p; const plPct=s.plPct;
+  const f=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2});
+  const plStr=(plPct>=0?'+':'')+plPct.toFixed(1)+'%';
+  const pruFmt=f(h.buy), curFmt=f(s.price);
+
+  // Proximité range 52 semaines
+  let near='', rangeInfo='';
+  if(p.whi&&p.wlo){
+    const range=p.whi-p.wlo, pos=range>0?(s.price-p.wlo)/range:0.5;
+    const pct52=Math.round(pos*100);
+    if(pos>0.9){near='high';rangeInfo=`Cours à <b>${pct52}%</b> du range annuel (proche du plus-haut 52 sem. ${f(p.whi)}).`;}
+    else if(pos<0.15){near='low';rangeInfo=`Cours à <b>${pct52}%</b> du range annuel (proche du plus-bas 52 sem. ${f(p.wlo)}).`;}
+    else{rangeInfo=`Position dans le range 52 sem. : <b>${pct52}%</b> (bas ${f(p.wlo)} — haut ${f(p.whi)}).`;}
+  }else{
+    rangeInfo='<span style="opacity:.6">Range 52 sem. non disponible (données AV limitées).</span>';
+  }
+
+  if(plPct<=-20) return {t:'Surveiller',c:'adv-watch',msg:
+    `⚠️ Moins-value de <b>${plStr}</b><br>PRU ${pruFmt} → cours ${curFmt}<br><br>`+
+    `Seuil d'alerte −20% atteint. Réévaluez la thèse avant tout renforcement.<br><br>${rangeInfo}`};
+
+  if(near==='low'&&plPct<0) return {t:'Renforcer',c:'adv-buy',msg:
+    `📉 Moins-value de <b>${plStr}</b> et cours proche du plus-bas annuel.<br>`+
+    `PRU ${pruFmt} → cours ${curFmt}<br><br>${rangeInfo}<br><br>`+
+    `Signal d'opportunité si la thèse reste valide.`};
+
+  if(near==='high'&&plPct>30) return {t:'Alléger',c:'adv-trim',msg:
+    `📈 Plus-value de <b>${plStr}</b> et cours proche du plus-haut annuel.<br>`+
+    `PRU ${pruFmt} → cours ${curFmt}<br><br>${rangeInfo}<br><br>`+
+    `Envisagez de prendre une partie des bénéfices.`};
+
+  if(plPct>=15) return {t:'Conserver',c:'adv-hold',msg:
+    `✅ Bonne performance : <b>${plStr}</b><br>PRU ${pruFmt} → cours ${curFmt}<br><br>`+
+    `Aucun signal de vente ou de renforcement.<br><br>${rangeInfo}`};
+
+  return {t:'Conserver',c:'adv-hold',msg:
+    `↔️ Position neutre : <b>${plStr}</b><br>PRU ${pruFmt} → cours ${curFmt}<br><br>`+
+    `Pas encore de signal directionnel fort. Continuez à surveiller.<br><br>${rangeInfo}`};
 }
 
 /* ════════════ FORMAT ════════════ */
@@ -1265,7 +1305,7 @@ function renderPort(){
       <td class="${cls(s.dayPct)}">${pct(s.dayPct)}</td>
       <td>${eur(s.value)}</td>
       <td class="${cls(s.pl)}">${eur(s.pl)}<div style="font-size:.72rem">${pct(s.plPct)}</div></td>
-      <td><span class="advice ${a.c}">${a.t}</span></td>
+      <td><div class="adv-wrap" onclick="this.classList.toggle('open')"><span class="advice ${a.c}">${a.t}</span>${a.msg?`<div class="adv-tip">${a.msg}</div>`:''}</div></td>
       <td style="white-space:nowrap">
         <button class="ico-btn" onclick="editH(${h.id})" title="Modifier">✏️</button>
         <button class="ico-btn" onclick="delH(${h.id})" title="Supprimer">🗑</button></td>`;
@@ -1759,6 +1799,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(fbCfg){try{initFb(fbCfg);}catch(e){console.warn(e);} }
   renderAll(); initPref();
   refresh();
+  // Ferme les tooltips de conseil au clic en dehors
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.adv-wrap'))
+      document.querySelectorAll('.adv-wrap.open').forEach(el=>el.classList.remove('open'));
+  });
 });
 </script>
 </body>
