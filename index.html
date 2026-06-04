@@ -663,6 +663,14 @@ const PEA_DB = [
   {isin:'FR0011981968',name:'Solutions 30',sym:'S30.PA',type:'Action',sector:'IT Services',pea:true},
   {isin:'FR0000075343',name:'Guerbet',sym:'GBT.PA',type:'Action',sector:'Pharma',pea:true},
   {isin:'FR0000125585',name:'Vallourec',sym:'VK.PA',type:'Action',sector:'Tubes acier',pea:true},
+  {isin:'FR0010259150',name:'Groupe LDLC S.A.',sym:'ALLDL.PA',type:'Action',sector:'Informatique retail',pea:true},
+  {isin:'FR0004187367',name:'Fnac Darty',sym:'FNAC.PA',type:'Action',sector:'Distribution tech',pea:true},
+  {isin:'FR0014000MR3',name:'Deezer',sym:'DEEZR.PA',type:'Action',sector:'Streaming musical',pea:true},
+  {isin:'FR0010386334',name:'Freelance.com',sym:'FREE.PA',type:'Action',sector:'Portage salarial',pea:true},
+  {isin:'FR0000064156',name:'Casino Guichard-Perrachon',sym:'CO.PA',type:'Action',sector:'Distribution',pea:true},
+  {isin:'FR0013344173',name:'OVH Groupe',sym:'OVH.PA',type:'Action',sector:'Cloud/Hébergement',pea:true},
+  {isin:'FR0004165801',name:'Sword Group',sym:'SWORD.PA',type:'Action',sector:'IT Services',pea:true},
+  {isin:'FR0013280286',name:'Verimatrix',sym:'VMX.PA',type:'Action',sector:'Cybersécurité',pea:true},
 ];
 const DB_BY_ISIN = Object.fromEntries(PEA_DB.map(d=>[d.isin,d]));
 
@@ -801,18 +809,24 @@ async function fetchOneAV(sym){
 
 /* ── fetchOneWithCache : cache d'abord, AV sinon ── */
 async function fetchOneWithCache(sym){
-  if(cacheOk(priceCache[sym])){prices[sym]=priceCache[sym].data;return;}
+  // Normalise via PEA_DB si le sym est un ticker nu sans suffixe (ex: ALLDL → ALLDL.PA)
+  let fetchSym=sym;
+  if(!sym.includes('.')){
+    const dbEntry=PEA_DB.find(d=>d.sym.split('.')[0]===sym.toUpperCase());
+    if(dbEntry) fetchSym=dbEntry.sym;
+  }
+  if(cacheOk(priceCache[fetchSym])){prices[sym]=priceCache[fetchSym].data;return;}
   if(!avKey){prices[sym]={error:true,nokey:true};return;}
   try{
-    const data=await fetchOneAV(sym);
+    const data=await fetchOneAV(fetchSym);
     prices[sym]=data;
-    priceCache[sym]={data,ts:Date.now()};
+    priceCache[fetchSym]={data,ts:Date.now()};
   }catch(e){
     const msg=e.message;
     if(msg==='ratelimit'||msg==='daylimit'){
-      prices[sym]=priceCache[sym]?.data?{...priceCache[sym].data,stale:true}:{error:true,limitMsg:msg};
-    }else if(priceCache[sym]?.data){
-      prices[sym]={...priceCache[sym].data,stale:true};
+      prices[sym]=priceCache[fetchSym]?.data?{...priceCache[fetchSym].data,stale:true}:{error:true,limitMsg:msg};
+    }else if(priceCache[fetchSym]?.data){
+      prices[sym]={...priceCache[fetchSym].data,stale:true};
     }else{
       prices[sym]={error:true};
     }
@@ -929,8 +943,16 @@ async function searchOnline(q){
     if(!r.ok) throw new Error('HTTP '+r.status);
     const d=await r.json();
     const items=(d.data||[]).filter(x=>['Common Stock','ETF'].includes(x.instrument_type));
-    if(items.length) return items.map(x=>({symbol:x.symbol,longname:x.instrument_name,
-      quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange}));
+    if(items.length) return items.map(x=>{
+      // Normalise le symbole Twelve Data en ajoutant le suffixe Yahoo Finance selon le MIC code
+      const TD_MIC={'XPAR':'PA','XAMS':'AS','XBRU':'BR','XMIL':'MI','XMAD':'MC',
+        'XCSE':'CO','XLIS':'LS','XETR':'DE','XFRA':'DE','XLON':'L','XSTO':'ST','XHEL':'HE'};
+      let sym=x.symbol;
+      const sfx=TD_MIC[x.mic_code]||TD_MIC[(x.exchange||'').toUpperCase()];
+      if(sfx&&!sym.includes('.')) sym=sym+'.'+sfx;
+      return{symbol:sym,longname:x.instrument_name,
+        quoteType:x.instrument_type==='ETF'?'ETF':'EQUITY',exchDisp:x.exchange};
+    });
   }catch(e){}
   throw new Error('recherche indisponible');
 }
