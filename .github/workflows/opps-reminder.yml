@@ -1,0 +1,47 @@
+name: Rappel mise à jour OPPS
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'   # Lundi 10h UTC
+    - cron: '0 10 * * 4'   # Jeudi 10h UTC
+  workflow_dispatch:         # Déclenchement manuel possible
+
+jobs:
+  rappel:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Créer l'issue de rappel
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            const dayName = now.toLocaleDateString('fr-FR', {weekday:'long', timeZone:'Europe/Paris'});
+            const dateStr = now.toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric', timeZone:'Europe/Paris'});
+
+            const opps = [
+              'Acciona Energías Renovables (ANE.MC)',
+              'Voltalia (VLTSA.PA)',
+              'Waga Energy (WAGA.PA)',
+              'Neoen (NEOEN.PA)',
+              'Umicore (UMI.BR)',
+              'McPhy Energy (MCPHY.PA)',
+              'Mersen (MRN.PA)',
+              'Imerys (NK.PA)',
+              'GTT (GTT.PA)',
+              'Alfen (ALFEN.AS)',
+              'Nexans (NEX.PA)',
+              'Roper Technologies (ROP)',
+            ];
+
+            const checklist = opps.map(o => `- [ ] ${o}`).join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Révision OPPS — ${dayName} ${dateStr}`,
+              body: `## Révision bi-hebdomadaire des opportunités PEA\n\n### Checklist des 12 valeurs à analyser\n\n${checklist}\n\n### Actions à réaliser\n\n- [ ] Vérifier les cours actuels vs objectifs et stops\n- [ ] Rechercher les nouvelles significatives de la semaine\n- [ ] Mettre à jour les analyses dans \`portfolio-tracker.html\` (tableau \`OPPS[]\")\n- [ ] Actualiser la date de référence macro (ligne \`📅 Référence macro\`)\n- [ ] Commit + push vers \`gh-pages\`\n\n### Rappel des seuils\n\n| Signal | Condition |\n|--------|----------|\n| ≤ stop | Prix ≤ prix stop → réviser la thèse |\n| ≥ objectif | Prix ≥ objectif → envisager prise de profit |\n| Renforcer | Prix < −10% depuis analyse + thèse intacte |\n\n---\n*Rappel automatique — fermer l'issue une fois la révision effectuée.*`,
+              labels: [],
+            });
+            core.info(`Issue de rappel créée pour le ${dateStr}`);
