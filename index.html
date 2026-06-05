@@ -78,6 +78,17 @@ tr:hover td{background:var(--bg3)}
 .adv-hold{background:rgba(59,130,246,.12);color:var(--blue)}
 .adv-watch{background:rgba(234,179,8,.14);color:var(--yel)}
 .adv-trim{background:rgba(249,115,22,.14);color:var(--org)}
+/* News */
+.news-card{display:flex;gap:12px;background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:13px 15px;margin-bottom:9px;text-decoration:none;cursor:pointer;transition:background .15s}
+.news-card:hover{background:var(--bg3)}
+.news-thumb{width:80px;height:56px;object-fit:cover;border-radius:7px;flex-shrink:0;background:var(--bg3)}
+.news-meta{font-size:.7rem;color:var(--t3);display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.news-sym{font-size:.68rem;padding:1px 7px;border-radius:4px;background:rgba(59,130,246,.14);color:var(--blue);font-weight:700;flex-shrink:0}
+.news-title{font-size:.84rem;font-weight:600;color:var(--t1);line-height:1.42}
+.news-sent{font-size:.68rem;padding:1px 7px;border-radius:4px;font-weight:600}
+.news-pos{background:rgba(34,197,94,.14);color:var(--green)}
+.news-neg{background:rgba(239,68,68,.14);color:var(--red)}
+.news-neu{background:rgba(148,163,184,.1);color:var(--t3)}
 /* Tooltip conseil */
 .adv-wrap{position:relative;display:inline-block}
 .adv-tip{
@@ -244,6 +255,7 @@ details[open] summary:before{content:'▾ '}
   <div class="tab active" data-tab="dash" onclick="showTab('dash')">📈 Tableau de bord</div>
   <div class="tab" data-tab="port" onclick="showTab('port')">💼 Portefeuille</div>
   <div class="tab" data-tab="opp" onclick="showTab('opp')">🎯 Opportunités</div>
+  <div class="tab" data-tab="news" onclick="showTab('news')">📰 Actualités</div>
   <div class="tab" data-tab="macro" onclick="showTab('macro')">🌍 Macro</div>
   <div class="tab" data-tab="settings" onclick="showTab('settings')" style="margin-left:auto">⚙️ Paramètres</div>
 </div>
@@ -516,6 +528,24 @@ details[open] summary:before{content:'▾ '}
   </div>
 
 </div>
+
+  <!-- ACTUALITÉS -->
+  <div id="pane-news" class="pane">
+    <div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-weight:700;font-size:.95rem">📰 Actualités de vos positions</div>
+        <div style="font-size:.76rem;color:var(--t3);margin-top:2px">Dernières nouvelles pour chaque valeur de votre portefeuille</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="newsFilter" class="fi" style="width:auto;font-size:.78rem;padding:5px 10px" onchange="renderNewsFilter()">
+          <option value="">Toutes les valeurs</option>
+        </select>
+        <button class="btn btn-p btn-s" onclick="loadAllNews()">↻ Actualiser</button>
+      </div>
+    </div>
+    <div id="newsMeta" style="font-size:.72rem;color:var(--t3);margin-bottom:10px;display:none"></div>
+    <div id="newsBody"><div style="text-align:center;color:var(--t3);padding:48px;font-size:.85rem">Cliquez sur <b>↻ Actualiser</b> pour charger les dernières actualités de vos positions.</div></div>
+  </div>
 
 <!-- DROPDOWN (shared) -->
 <div id="dd"></div>
@@ -1209,6 +1239,120 @@ function totals(){
     const db=DB_BY_ISIN[h.isin];if((db&&db.pea)||h.pea)pea++;});
   return {val,cost,day,priced,pea};
 }
+/* ════════════ ACTUALITÉS ════════════ */
+let newsCache = {};       // sym → {items, ts}
+let allNewsItems = [];    // liste complète après load
+
+async function fetchNewsYF(sym, count=5){
+  const cached=newsCache[sym];
+  if(cached&&Date.now()-cached.ts<1800000) return cached.items; // 30 min cache
+  const url=`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&quotesCount=0&newsCount=${count}&enableFuzzyQuery=false`;
+  const r=await fetch(url,{signal:AbortSignal.timeout(10000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  const items=(d.news||[]).map(n=>({
+    title:n.title, link:n.link, publisher:n.publisher,
+    time:n.providerPublishTime*1000, sym,
+    thumb:n.thumbnail?.resolutions?.find(x=>x.width>=100)?.url||null
+  }));
+  newsCache[sym]={items,ts:Date.now()};
+  return items;
+}
+
+async function fetchNewsAV(sym, count=5){
+  if(!avKey) throw new Error('nokey');
+  const avSym=toAVSym(sym);
+  const url=`https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(avSym)}&limit=${count}&sort=LATEST&apikey=${encodeURIComponent(avKey)}`;
+  const r=await fetch(url,{signal:AbortSignal.timeout(15000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(d.Note||d.Information) throw new Error('limite AV');
+  trackAVCall();
+  return (d.feed||[]).map(n=>{
+    const ts=n.tickerSentimentList||n.ticker_sentiment||[];
+    const ts2=ts.find(t=>t.ticker===avSym)||ts[0]||{};
+    const sentLabel=ts2.ticker_sentiment_label||n.overall_sentiment_label||'';
+    const sentCls=sentLabel.toLowerCase().includes('bull')||sentLabel==='Positive'?'news-pos':
+                  sentLabel.toLowerCase().includes('bear')||sentLabel==='Negative'?'news-neg':'news-neu';
+    return{title:n.title,link:n.url,publisher:n.source,
+      time:new Date(n.time_published.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/,'$1-$2-$3T$4:$5:$6')).getTime(),
+      sym,thumb:null,sentiment:sentLabel,sentCls};
+  });
+}
+
+async function loadAllNews(){
+  const body=document.getElementById('newsBody');
+  const meta=document.getElementById('newsMeta');
+  if(!holdings.length){
+    body.innerHTML='<div class="onb"><div class="i">📰</div><h2>Portefeuille vide</h2><p>Ajoutez des positions pour voir leurs actualités.</p></div>';
+    return;
+  }
+  body.innerHTML='<div style="text-align:center;padding:48px"><span class="spin" style="width:28px;height:28px;border-width:3px"></span><div style="margin-top:12px;color:var(--t3);font-size:.82rem">Chargement des actualités…</div></div>';
+  meta.style.display='none';
+
+  // Populate filter dropdown
+  const sel=document.getElementById('newsFilter');
+  sel.innerHTML='<option value="">Toutes les valeurs</option>'+holdings.map(h=>`<option value="${h.sym}">${h.name}</option>`).join('');
+
+  allNewsItems=[];
+  let loaded=0;
+  for(const h of holdings){
+    try{
+      // Essai AV NEWS_SENTIMENT si clé présente et quota OK
+      if(avKey&&!avLimited&&avCalls().n<20){
+        try{const items=await fetchNewsAV(h.sym,4);allNewsItems.push(...items);loaded++;continue;}
+        catch(e){}
+      }
+      // Fallback Yahoo Finance
+      const items=await fetchNewsYF(h.sym,5);
+      allNewsItems.push(...items);
+      loaded++;
+    }catch(e){console.warn('news',h.sym,e.message);}
+    await sleep(300);
+  }
+
+  // Déduplique + trie par date
+  const seen=new Set();
+  allNewsItems=allNewsItems
+    .filter(n=>{if(!n.title||seen.has(n.title))return false;seen.add(n.title);return true;})
+    .sort((a,b)=>b.time-a.time);
+
+  const count=allNewsItems.length;
+  meta.textContent=`${count} article${count>1?'s':''} · ${loaded} valeur${loaded>1?'s':''} analysées · ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
+  meta.style.display='';
+  renderNewsFilter();
+}
+
+function newsCardHTML(n){
+  const d=new Date(n.time);
+  const now=Date.now();
+  const diff=now-n.time;
+  let timeStr=diff<3600000?Math.round(diff/60000)+' min':diff<86400000?Math.round(diff/3600000)+'h':d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  const sentBadge=n.sentiment?`<span class="news-sent ${n.sentCls||'news-neu'}">${n.sentiment}</span>`:'';
+  return `<a href="${n.link}" target="_blank" rel="noopener" class="news-card">
+    ${n.thumb?`<img class="news-thumb" src="${n.thumb}" loading="lazy" onerror="this.style.display='none'">`:''}
+    <div style="flex:1;min-width:0">
+      <div class="news-meta">
+        <span class="news-sym">${n.sym}</span>
+        ${sentBadge}
+        <span>${n.publisher}</span><span>·</span><span>${timeStr}</span>
+      </div>
+      <div class="news-title">${n.title}</div>
+    </div>
+  </a>`;
+}
+
+function renderNewsFilter(){
+  const body=document.getElementById('newsBody');
+  const filter=document.getElementById('newsFilter')?.value||'';
+  const items=filter?allNewsItems.filter(n=>n.sym===filter):allNewsItems;
+  if(!items.length){
+    body.innerHTML='<div style="text-align:center;color:var(--t3);padding:40px;font-size:.85rem">Aucune actualité — cliquez sur ↻ Actualiser.</div>';
+    return;
+  }
+  body.innerHTML=items.map(newsCardHTML).join('');
+}
+
 function advice(h){
   const s=stat(h); if(s.price==null) return {t:'—',c:'',msg:''};
   const p=s.p; const plPct=s.plPct;
@@ -1772,6 +1916,7 @@ function showTab(t){
   if(t==='opp'){initPref();renderOpps();}
   if(t==='dash')renderDash();
   if(t==='settings')populateSettings();
+  if(t==='news'&&!allNewsItems.length&&holdings.length) loadAllNews();
 }
 function setNetDot(s){const d=document.getElementById('netDot');const m={ok:'var(--green)',load:'var(--blue)',err:'var(--red)',idle:'var(--t3)'};d.style.background=m[s]||m.idle;}
 let refreshTimer=null;
