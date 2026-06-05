@@ -279,7 +279,9 @@ details[open] summary:before{content:'▾ '}
     <div id="portEmpty" style="display:none"></div>
     <div id="portContent">
       <div class="card">
-        <h3>Mes positions <span id="portMeta" style="font-weight:400;color:var(--t3)"></span></h3>
+        <h3>Mes positions <span id="portMeta" style="font-weight:400;color:var(--t3)"></span>
+          <button class="btn btn-g btn-s" onclick="analyzeAllWithAI()" title="Générer des conseils IA pour toutes les positions" style="font-size:.76rem;border-color:rgba(168,85,247,.3)">🤖 Conseils IA</button>
+        </h3>
         <div class="tw">
           <table>
             <thead><tr>
@@ -290,7 +292,7 @@ details[open] summary:before{content:'▾ '}
           </table>
         </div>
         <div style="font-size:.72rem;color:var(--t3);margin-top:10px;line-height:1.5">
-          ⚠️ Les conseils sont <strong>indicatifs</strong>, générés par une heuristique (+/- value, position vs plus-haut/plus-bas 52 sem.). Ils ne constituent pas un conseil en investissement.
+          ⚠️ Les conseils heuristiques sont <strong>indicatifs</strong> (+/- value, range 52 sem.). Les conseils <span style="color:var(--pur)">🤖 IA</span> utilisent Claude Haiku (nécessite une clé Anthropic dans ⚙️ Paramètres). Aucun de ces conseils ne constitue un conseil en investissement.
         </div>
       </div>
     </div>
@@ -377,6 +379,20 @@ details[open] summary:before{content:'▾ '}
           <div style="display:flex;gap:8px;align-items:center">
             <button class="btn btn-p" style="flex:1" onclick="savePgKey()">💾 Enregistrer la clé</button>
             <button class="btn btn-d btn-s" id="pgRemoveBtn" style="display:none" onclick="removePgKey()">Supprimer</button>
+          </div>
+        </div>
+
+        <!-- Anthropic (conseils IA) -->
+        <div class="sett-card" style="border-color:rgba(168,85,247,.3)">
+          <div class="sett-card-ttl">🤖 Anthropic <span class="bdg" style="background:rgba(168,85,247,.14);color:var(--pur)">optionnel · conseils IA</span></div>
+          <p class="sett-desc">Génère des conseils personnalisés par IA (Claude Haiku) pour chaque position, en intégrant cours, +/- value et actualités récentes. Clé sur <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>.</p>
+          <div class="fg" style="margin-bottom:8px">
+            <input type="text" class="fi" id="anthropicKeyInput" placeholder="sk-ant-..." autocomplete="off" style="font-family:monospace;font-size:.82rem">
+          </div>
+          <div id="anthropicKeyMsg" class="badge" style="display:none;margin-bottom:10px"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-p" style="flex:1" onclick="saveAnthropicKey()">💾 Enregistrer</button>
+            <button class="btn btn-d btn-s" id="anthropicRemoveBtn" style="display:none" onclick="removeAnthropicKey()">Supprimer</button>
           </div>
         </div>
 
@@ -627,9 +643,11 @@ let prefSector = localStorage.getItem('pf_pref') || null;
 let fbCfg = JSON.parse(localStorage.getItem('pf_fb') || 'null');
 let fbUser = null, fbApp = null, fbTimer = null;
 let pgKey = localStorage.getItem('pf_pg') || null;           // clé Polygon.io (optionnel, US)
-let avKey = localStorage.getItem('pf_av') || null;           // clé Alpha Vantage (source principale)
-let avLimited = false;                                        // quota 25/jour épuisé ce session
+let avKey = localStorage.getItem('pf_av') || null;           // clé Alpha Vantage
+let avLimited = false;
 let gsheetUrl = localStorage.getItem('pf_gs') || null;       // URL Google Sheets CSV
+let anthropicKey = localStorage.getItem('pf_anthropic') || null; // clé Anthropic (conseils IA)
+let aiCache = JSON.parse(localStorage.getItem('pf_ai_cache')||'{}'); // {sym: {conseil,confiance,résumé,pos,neg,price,ts}}
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 /* ════════════ BASE PEA (ISIN ↔ mnémonique) — Boursobank ════════════
@@ -1239,6 +1257,115 @@ function totals(){
     const db=DB_BY_ISIN[h.isin];if((db&&db.pea)||h.pea)pea++;});
   return {val,cost,day,priced,pea};
 }
+/* ════════════ CONSEILS IA (Anthropic Claude) ════════════ */
+function aiCacheKey(h, price){ return `${h.sym}:${Math.round(price)}`; }
+function saveAICache(){ localStorage.setItem('pf_ai_cache', JSON.stringify(aiCache)); }
+function getAICached(h, price){
+  const k=aiCacheKey(h,price), e=aiCache[k];
+  if(!e||!e.ts) return null;
+  if(Date.now()-e.ts > 43200000) return null; // expire 12 h
+  return e;
+}
+
+async function analyzeWithAI(h){
+  if(!anthropicKey) throw new Error('nokey');
+  const s=stat(h);
+  if(s.price==null) throw new Error('no price');
+  const plStr=(s.plPct>=0?'+':'')+s.plPct.toFixed(2)+'%';
+  const dayStr=s.dayPct!=null?(s.dayPct>=0?'+':'')+s.dayPct.toFixed(2)+'%':'N/A';
+  const news=(newsCache[h.sym]?.items||[]).slice(0,6).map(n=>`- ${n.title} (${n.publisher})`).join('\n');
+
+  const prompt=`Tu es analyste financier spécialisé dans les actions PEA européennes. Analyse cette position et donne un conseil d'investissement précis.
+
+POSITION
+Valeur : ${h.name} (${h.sym}) — ${h.isin||'ISIN N/A'}
+Type : ${h.type} | Secteur : ${h.sector||'N/A'} | PEA : ${h.pea?'Oui':'Non/Inconnu'}
+PRU : ${h.buy} € | Cours actuel : ${s.price} €
++/- value : ${plStr} (${s.pl>=0?'+':''}${s.pl.toFixed(2)} €)
+Variation du jour : ${dayStr} | Quantité : ${h.qty}
+
+ACTUALITÉS RÉCENTES${news?'\n'+news:'\nAucune actualité disponible.'}
+
+CONTEXTE MARCHÉ (juin 2026)
+Cycle de baisse des taux BCE entamé. Transition énergétique portée par les politiques européennes.
+Mid-caps françaises sous pression de liquidités. Valorisations raisonnables sur le PEA.
+
+Réponds UNIQUEMENT avec un objet JSON valide (sans markdown) :
+{"conseil":"Conserver|Renforcer|Alléger|Surveiller|Vendre","confiance":"faible|moyen|élevé","résumé":"2 phrases max justifiant le conseil","points_positifs":["..."],"points_négatifs":["..."]}`;
+
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'x-api-key':anthropicKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-allow-browser':'true',
+      'content-type':'application/json',
+    },
+    body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:512,
+      messages:[{role:'user',content:prompt}]
+    }),
+    signal:AbortSignal.timeout(30000)
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+r.status);}
+  const d=await r.json();
+  const text=d.content[0].text.trim();
+  const m=text.match(/\{[\s\S]*\}/);
+  if(!m) throw new Error('Réponse IA invalide');
+  const result=JSON.parse(m[0]);
+  // persist
+  const k=aiCacheKey(h,s.price);
+  aiCache[k]={...result,price:s.price,ts:Date.now()};
+  saveAICache();
+  return result;
+}
+
+function applyAIAdviceToCell(hId, result){
+  const wrap=document.getElementById('adv-'+hId);
+  if(!wrap) return;
+  const conseils={'Conserver':'adv-hold','Renforcer':'adv-buy','Alléger':'adv-trim','Surveiller':'adv-watch','Vendre':'adv-watch'};
+  const cls=conseils[result.conseil]||'adv-hold';
+  const conf={faible:'🔸',moyen:'🔶',élevé:'🔷'}[result.confiance]||'';
+  const pos=(result.points_positifs||[]).map(p=>`✅ ${p}`).join('<br>');
+  const neg=(result.points_négatifs||[]).map(p=>`⚠️ ${p}`).join('<br>');
+  const msg=`${result.résumé}<br><br>${pos}${pos&&neg?'<br>':''}${neg}<br><br><span style="opacity:.6;font-size:.7rem">Confiance ${conf} ${result.confiance} · IA Claude Haiku</span>`;
+  wrap.innerHTML=`<span class="advice ${cls}">${result.conseil}</span><span style="font-size:.6rem;opacity:.55;margin-left:3px">✨</span><div class="adv-tip">${msg}</div>`;
+  wrap.onclick=function(){ this.classList.toggle('open'); };
+}
+
+async function analyzeOneWithAI(hId){
+  const h=holdings.find(x=>x.id===hId); if(!h) return;
+  const s=stat(h);
+  const wrap=document.getElementById('adv-'+hId); if(!wrap) return;
+  wrap.innerHTML='<span class="spin"></span>';
+  try{
+    const r=await analyzeWithAI(h);
+    applyAIAdviceToCell(hId,r);
+  }catch(e){
+    const a=advice(h);
+    wrap.innerHTML=`<span class="advice ${a.c}">${a.t}</span><span title="${e.message}" style="font-size:.65rem;cursor:help;opacity:.5;margin-left:4px">⚠️</span>`;
+    wrap.onclick=null;
+  }
+}
+
+async function analyzeAllWithAI(){
+  if(!anthropicKey){alert('Ajoutez votre clé Anthropic dans ⚙️ Paramètres pour utiliser les conseils IA.');showTab('settings');return;}
+  if(!holdings.length) return;
+  // Set all cells to loading
+  holdings.forEach(h=>{ const w=document.getElementById('adv-'+h.id); if(w) w.innerHTML='<span class="spin"></span>'; });
+  for(const h of holdings){
+    const s=stat(h);
+    // Check cache first
+    if(s.price!=null){
+      const cached=getAICached(h,s.price);
+      if(cached){applyAIAdviceToCell(h.id,cached);continue;}
+    }
+    await analyzeOneWithAI(h.id);
+    await sleep(500); // courtesy between calls
+  }
+}
+
 /* ════════════ ACTUALITÉS ════════════ */
 let newsCache = {};       // sym → {items, ts}
 let allNewsItems = [];    // liste complète après load
@@ -1449,11 +1576,13 @@ function renderPort(){
       <td class="${cls(s.dayPct)}">${pct(s.dayPct)}</td>
       <td>${eur(s.value)}</td>
       <td class="${cls(s.pl)}">${eur(s.pl)}<div style="font-size:.72rem">${pct(s.plPct)}</div></td>
-      <td><div class="adv-wrap" onclick="this.classList.toggle('open')"><span class="advice ${a.c}">${a.t}</span>${a.msg?`<div class="adv-tip">${a.msg}</div>`:''}</div></td>
+      <td><div class="adv-wrap" id="adv-${h.id}" onclick="this.classList.toggle('open')"><span class="advice ${a.c}">${a.t}</span>${a.msg?`<div class="adv-tip">${a.msg}</div>`:''}</div></td>
       <td style="white-space:nowrap">
         <button class="ico-btn" onclick="editH(${h.id})" title="Modifier">✏️</button>
         <button class="ico-btn" onclick="delH(${h.id})" title="Supprimer">🗑</button></td>`;
     body.appendChild(tr);
+    // Apply cached AI advice if available
+    if(s.price!=null){ const cached=getAICached(h,s.price); if(cached) applyAIAdviceToCell(h.id,cached); }
   });
 }
 
@@ -1758,6 +1887,9 @@ function populateSettings(){
   document.getElementById('pgKeyInput').value=pgKey||'';
   document.getElementById('pgRemoveBtn').style.display=pgKey?'':'none';
   document.getElementById('pgKeyMsg').style.display='none';
+  document.getElementById('anthropicKeyInput').value=anthropicKey||'';
+  document.getElementById('anthropicRemoveBtn').style.display=anthropicKey?'':'none';
+  document.getElementById('anthropicKeyMsg').style.display='none';
   document.getElementById('gsUrlInput').value=gsheetUrl||'';
   document.getElementById('gsRemoveBtn').style.display=gsheetUrl?'':'none';
   document.getElementById('gsMsg').style.display='none';
@@ -1814,6 +1946,23 @@ function removePgKey(){
   document.getElementById('pgRemoveBtn').style.display='none';
   renderSrcStatus();
   document.getElementById('pgKeyMsg').style.display='none';
+}
+function saveAnthropicKey(){
+  const k=document.getElementById('anthropicKeyInput').value.trim();
+  const msgEl=document.getElementById('anthropicKeyMsg');
+  if(!k){msgEl.textContent='Entrez votre clé Anthropic (sk-ant-...).';msgEl.className='badge b-err';msgEl.style.display='flex';return;}
+  anthropicKey=k; localStorage.setItem('pf_anthropic',k);
+  document.getElementById('anthropicRemoveBtn').style.display='';
+  msgEl.textContent='✅ Clé enregistrée — utilisez 🤖 Conseils IA dans l\'onglet Portefeuille.';msgEl.className='badge b-ok';msgEl.style.display='flex';
+  setTimeout(()=>msgEl.style.display='none',4000);
+}
+function removeAnthropicKey(){
+  if(!confirm('Supprimer la clé Anthropic ? Les conseils IA ne seront plus disponibles.'))return;
+  anthropicKey=null; localStorage.removeItem('pf_anthropic');
+  aiCache={}; saveAICache();
+  document.getElementById('anthropicKeyInput').value='';
+  document.getElementById('anthropicRemoveBtn').style.display='none';
+  document.getElementById('anthropicKeyMsg').style.display='none';
 }
 function closeSync(){ showTab('dash'); }
 
