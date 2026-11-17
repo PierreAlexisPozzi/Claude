@@ -35,8 +35,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 #miniWrap .cap{display:flex;justify-content:space-between;font:600 11px var(--display);letter-spacing:.1em;color:var(--ink-dim);padding:5px 2px 0;text-transform:uppercase}
 #trick{position:fixed;left:50%;top:22%;transform:translate(-50%,0);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s,transform .25s}
 #trick.show{opacity:1;transform:translate(-50%,-6px)}
-#trick .t{font:800 clamp(28px,5vw,46px)/1 var(--display);text-transform:uppercase;letter-spacing:.02em;text-shadow:0 2px 14px rgba(0,0,0,.45)}
-#trick .s{max-width:min(90vw,640px);margin-inline:auto;text-wrap:balance;font:600 16px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-top:6px;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+#trick .t{font:800 clamp(28px,5vw,46px)/1 var(--display);text-transform:uppercase;letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.7),0 2px 18px rgba(0,0,0,.45)}
+#trick .s{max-width:min(90vw,640px);margin-inline:auto;text-wrap:balance;font:600 16px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-top:6px;text-shadow:0 1px 3px rgba(0,0,0,.8),0 1px 10px rgba(0,0,0,.5)}
 #prompt{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 26px);transform:translateX(-50%);padding:9px 16px;font:600 15px var(--body);white-space:nowrap;display:flex;gap:10px;align-items:center}
 #help{position:fixed;left:calc(env(safe-area-inset-left,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding:10px 12px;display:grid;grid-template-columns:auto auto;gap:5px 10px;font:500 12.5px var(--body);color:var(--ink-dim);align-items:center}
 #help .k{display:flex;gap:3px;justify-content:flex-end}
@@ -112,11 +112,11 @@ body.touch #tools,body.touch .ctrls{display:none}
   <div id="trick"><div class="t" id="trickT"></div><div class="s" id="trickS"></div></div>
   <div id="prompt" class="panel" hidden></div>
   <div id="help" class="panel">
-    <span class="k"><span class="key">←</span><span class="key">→</span></span><span>Prendre les carres · vrilles en l'air</span>
-    <span class="k"><span class="key">↑</span></span><span>Schuss / pas de patineur · frontflip</span>
-    <span class="k"><span class="key">↓</span></span><span>Freiner, déraper · backflip</span>
+    <span class="k"><span class="key">←</span><span class="key">→</span></span><span>Carres · vrilles en l'air (ou Q / D)</span>
+    <span class="k"><span class="key">↑</span></span><span>Schuss, patiner · frontflip (ou Z)</span>
+    <span class="k"><span class="key">↓</span></span><span>Freiner, déraper · backflip (ou S)</span>
     <span class="k"><span class="key">Espace</span></span><span>Maintenir puis relâcher : saut</span>
-    <span class="k"><span class="key">⇧</span><span class="key">Q</span></span><span>Grab (mute / tail)</span>
+    <span class="k"><span class="key">⇧</span><span class="key">F</span></span><span>Grab (mute / tail)</span>
     <span class="k"><span class="key">X</span></span><span>Demi-tour : skier en arrière</span>
     <span class="k"><span class="key">E</span></span><span>Prendre la remontée</span>
     <span class="k"><span class="key">R</span></span><span>Retour à la remontée la plus proche</span>
@@ -169,7 +169,7 @@ body.touch #tools,body.touch .ctrls{display:none}
       <div><span class="ks"><span class="key">Espace</span></span>Saut (maintenir)</div>
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>En l'air : 180, 360, 540…</div>
       <div><span class="ks"><span class="key">↑</span><span class="key">↓</span></span>En l'air : front / backflip</div>
-      <div><span class="ks"><span class="key">⇧</span><span class="key">Q</span></span>Grabs</div>
+      <div><span class="ks"><span class="key">⇧</span><span class="key">F</span></span>Grabs</div>
       <div><span class="ks"><span class="key">X</span></span>Passer en switch</div>
       <div><span class="ks"><span class="key">E</span></span>Monter dans la remontée</div>
       <div><span class="ks"><span class="key">M</span></span>Plan, téléportation</div>
@@ -190,7 +190,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const wrapPi = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
-const IS_TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+const IS_TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 if (IS_TOUCH) document.body.classList.add('touch');
 const Q = IS_TOUCH
   ? { trees: 9000, spacing: 9.5, shadow: 1024, pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: false }
@@ -1140,6 +1140,16 @@ function standUp() {
   P.state = 'ski'; P.vel.set(0, 0, 0); P.pitch = 0; P.edge = 0;
   P.pos.y = H(P.pos.x, P.pos.z); normalAt(P.pos.x, P.pos.z, _n);
   if (Math.hypot(_n.x, _n.z) > 0.02) P.yaw = Math.atan2(_n.x, _n.z);
+  // if a trunk sits right below, step sideways so the line is clear
+  const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw);
+  const cx = Math.floor((P.pos.x + HALF) / TC), cz = Math.floor((P.pos.z + HALF) / TC);
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const l = trees.grid.get(cx + dx + (cz + dz) * 1000); if (!l) continue;
+    for (const i of l) {
+      const ex = trees.x[i] - P.pos.x, ez = trees.z[i] - P.pos.z, ahead = ex * fx + ez * fz, side = -ex * fz + ez * fx;
+      if (ahead > -0.5 && ahead < 6 && Math.abs(side) < 0.6 * trees.s[i] + 0.8) { const sgn = side >= 0 ? -1 : 1; P.pos.x += -fz * sgn * 1.6; P.pos.z += fx * sgn * 1.6; P.pos.y = H(P.pos.x, P.pos.z); return; }
+    }
+  }
 }
 function collideObstacles() {
   const sp = P.vel.length();
@@ -1150,7 +1160,9 @@ function collideObstacles() {
       const r = 0.5 * trees.s[i] + 0.3, ex = P.pos.x - trees.x[i], ez = P.pos.z - trees.z[i];
       if (ex * ex + ez * ez < r * r) {
         if (sp > 4.5 && P.state !== 'crash') { P.vel.multiplyScalar(0.15); crash('Sapin percuté'); return true; }
-        const d = Math.hypot(ex, ez) || 1; P.pos.x = trees.x[i] + ex / d * r; P.pos.z = trees.z[i] + ez / d * r; P.vel.set(0, 0, 0); return true;
+        const d = Math.hypot(ex, ez) || 1, nx = ex / d, nz = ez / d; P.pos.x = trees.x[i] + nx * r; P.pos.z = trees.z[i] + nz * r;
+        const vr = P.vel.x * nx + P.vel.z * nz; if (vr < 0) { P.vel.x -= vr * nx; P.vel.z -= vr * nz; }   // slide around the trunk
+        return true;
       }
     }
   }
@@ -1167,7 +1179,7 @@ function pushOutObstacles() {
   const cx = Math.floor((P.pos.x + HALF) / TC), cz = Math.floor((P.pos.z + HALF) / TC);
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     const l = trees.grid.get(cx + dx + (cz + dz) * 1000); if (!l) continue;
-    for (const i of l) { const r = 0.5 * trees.s[i] + 0.35, ex = P.pos.x - trees.x[i], ez = P.pos.z - trees.z[i], d = Math.hypot(ex, ez); if (d < r) { const k = d || 1; P.pos.x = trees.x[i] + ex / k * r; P.pos.z = trees.z[i] + ez / k * r; P.vel.set(0, 0, 0); } }
+    for (const i of l) { const r = 0.5 * trees.s[i] + 0.35, ex = P.pos.x - trees.x[i], ez = P.pos.z - trees.z[i], d = Math.hypot(ex, ez); if (d < r) { const k = d || 1; P.pos.x = trees.x[i] + ex / k * r; P.pos.z = trees.z[i] + ez / k * r; const vr = (P.vel.x * ex + P.vel.z * ez) / k; if (vr < 0) { P.vel.x -= vr * ex / k; P.vel.z -= vr * ez / k; } } }
   }
   for (const o of obstacles) { const ex = P.pos.x - o.x, ez = P.pos.z - o.z, d = Math.hypot(ex, ez); if (d < o.r) { const k = d || 1; P.pos.x = o.x + ex / k * o.r; P.pos.z = o.z + ez / k * o.r; P.vel.set(0, 0, 0); } }
 }
@@ -1322,6 +1334,7 @@ function updateCamera(dt, snap) {
   }
   const dist = camMode === 1 ? 15 : P.state === 'lift' ? 10 : 6.6, hgt = camMode === 1 ? 6.5 : P.state === 'lift' ? 3.5 : 2.5;
   _q.copy(target).addScaledVector(camDir, -dist); _q.y += hgt;
+  if (P.state === 'lift') _q.addScaledVector(P.lift.side, P.lift.type === 'tbar' ? 4 : 3);   // look past the hanger
   const kp = snap ? 1 : 1 - Math.exp(-dt * 7);
   camPos.lerp(_q, kp);
   const gh = H(camPos.x, camPos.z) + 1.1; if (camPos.y < gh) camPos.y = gh;
@@ -1467,25 +1480,29 @@ function updateHud(dt) {
 }
 
 /* ---------------- Input ---------------- */
-const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'jump', ShiftLeft: 'grab', ShiftRight: 'grab', KeyQ: 'tail' };
+// movement by physical position (WASD on QWERTY = ZQSD on AZERTY), letter shortcuts by the printed letter
+const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'jump', ShiftLeft: 'grab', ShiftRight: 'grab' };
+const keyOf = e => KEYMAP[e.code] || ((e.key || '').toLowerCase() === 'f' ? 'tail' : null);
+let helpTouched = false;
 let running = false;
 window.addEventListener('keydown', e => {
   if (!running) { if (e.code === 'Enter' && !$('go').disabled) startGame(); return; }
-  const k = KEYMAP[e.code];
+  const k = keyOf(e);
   if (k) { input[k] = true; e.preventDefault(); }
   if (e.repeat) return;
-  switch (e.code) {
-    case 'KeyX': queued.add('revert'); break;
-    case 'KeyE': case 'Enter': queued.add('action'); break;
-    case 'KeyR': queued.add('respawn'); break;
-    case 'KeyC': camMode = (camMode + 1) % 3; break;
-    case 'KeyM': toggleMap(); break;
+  const key = e.key === 'Enter' || e.key === 'Escape' ? e.key : (e.key || '').toLowerCase();
+  switch (key) {
+    case 'x': queued.add('revert'); break;
+    case 'e': case 'Enter': queued.add('action'); break;
+    case 'r': queued.add('respawn'); break;
+    case 'c': camMode = (camMode + 1) % 3; break;
+    case 'm': toggleMap(); break;
     case 'Escape': if (mapOpen) toggleMap(false); break;
-    case 'KeyH': $('help').hidden = !$('help').hidden; break;
-    case 'KeyN': $('muteBtn').textContent = 'Son : ' + (sfx.toggle() ? 'oui' : 'non'); break;
+    case 'h': helpTouched = true; $('help').hidden = !$('help').hidden; break;
+    case 'n': $('muteBtn').textContent = 'Son : ' + (sfx.toggle() ? 'oui' : 'non'); break;
   }
 });
-window.addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) { input[k] = false; e.preventDefault(); } });
+window.addEventListener('keyup', e => { const k = keyOf(e); if (k) { input[k] = false; e.preventDefault(); } });
 window.addEventListener('blur', () => { for (const k in input) input[k] = false; });
 $('mapBtn').onclick = () => toggleMap();
 $('closeMap').onclick = () => toggleMap(false);
@@ -1533,7 +1550,7 @@ function startGame() {
   running = true; $('start').hidden = true; $('hud').hidden = false;
   if (IS_TOUCH) { $('touch').hidden = false; $('help').hidden = true; }
   if (window.innerWidth < 760) $('help').hidden = true;
-  setTimeout(() => { $('help').hidden = true; }, 15000);
+  setTimeout(() => { if (!helpTouched) $('help').hidden = true; }, 15000);
   sfx.init();
   canvas.focus(); window.focus && window.focus();
   updateCamera(0, true);
