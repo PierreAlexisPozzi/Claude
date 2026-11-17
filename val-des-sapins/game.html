@@ -788,9 +788,10 @@ function buildTerrainMesh() {
   geo.setAttribute('aIce', new THREE.BufferAttribute(aIce, 1));
   geo.setAttribute('aSun', new THREE.BufferAttribute(sunArr, 1));
   const mesh = new THREE.Mesh(geo, terrainMat);
-  mesh.receiveShadow = true; mesh.castShadow = true;
+  mesh.receiveShadow = true; mesh.castShadow = !IS_TOUCH; terrainMesh = mesh;
   scene.add(mesh);
 }
+let terrainMesh = null;
 function sunAt(x, z) {
   let gx = clamp((x + HALF) / CELL, 0, N - 1e-4), gz = clamp((z + HALF) / CELL, 0, N - 1e-4);
   const ix = gx | 0, iz = gz | 0, fx = gx - ix, fz = gz - iz, i = iz * VN + ix;
@@ -1402,7 +1403,7 @@ const plume = { pos: new Float32Array(PLUME * 3), vel: new Float32Array(PLUME * 
 let plumeGeo = null;
 function initPlumes() {
   plumeGeo = new THREE.BufferGeometry(); plumeGeo.setAttribute('position', new THREE.BufferAttribute(plume.pos, 3));
-  const pts = new THREE.Points(plumeGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 0.55, map: puffTex, transparent: true, opacity: 0.55, depthWrite: false }));
+  const pts = new THREE.Points(plumeGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 1.1, map: puffTex, transparent: true, opacity: 0.5, depthWrite: false }));
   pts.frustumCulled = false; scene.add(pts);
 }
 function updatePlumes(dt, cam) {
@@ -1412,7 +1413,7 @@ function updatePlumes(dt, cam) {
     if (active >= 10) break;
     if (Math.abs(c.x - cam.x) > 260 || Math.abs(c.z - cam.z) > 260) continue;
     active++;
-    const n = Math.floor(dt * 70 + Math.random());
+    const n = Math.floor(dt * 130 + Math.random());
     for (let k = 0; k < n; k++) {
       const i = plume.i = (plume.i + 1) % PLUME, sp = (c.type === 'lance' ? 7 : 13) * (0.7 + Math.random() * 0.6);
       plume.pos[i * 3] = c.nozzle.x; plume.pos[i * 3 + 1] = c.nozzle.y; plume.pos[i * 3 + 2] = c.nozzle.z;
@@ -2431,7 +2432,7 @@ const sfx = (() => {
       for (const T of tunnels) for (const i of [T.i0, T.i1]) { const q = T.S[i]; mix = Math.max(mix, smoothstep(80, 12, Math.hypot(q.x - P.pos.x, q.z - P.pos.z))); }
       mus.bus.gain.setTargetAtTime(mix * 0.5, t, 0.25);
       if (mix > 0.01) {
-        if (!mus.playing) { mus.playing = true; mus.next = t + 0.05; }
+        if (!mus.playing || mus.next < t - 0.2) { mus.playing = true; mus.next = t + 0.05; }   // never replay missed steps after a pause
         const spb = 60 / 124 / 4;
         while (mus.next < t + 0.15) { step(mus.step, mus.next); mus.next += spb; mus.step = (mus.step + 1) % 64; }
       } else mus.playing = false;
@@ -2646,10 +2647,11 @@ function autoQuality(dt) {
   perf.t += dt; perf.n++;
   if (perf.t < 4) return;
   const ms = perf.t / perf.n * 1000; perf.t = 0; perf.n = 0;
-  if (ms < 36 || perf.stage >= 2) return;
+  if (ms < 36 || perf.stage >= 3) return;
   perf.stage++;
   if (perf.stage === 1) renderer.setPixelRatio(Math.min(1, Q.pr));
-  else { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  else if (perf.stage === 2) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  else if (terrainMesh) terrainMesh.castShadow = false;   // the baked sun shading still darkens slopes in the shade
   resize();
 }
 function resize() { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
@@ -2707,7 +2709,7 @@ window.__ski = {
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
   teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
-  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, get obstacles() { return obstacles.length; },
+  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
   clear() { for (const k in input) input[k] = false; },
