@@ -214,7 +214,17 @@ function fbm(x, y, oct) { let s = 0, a = 1, f = 1, n = 0; for (let i = 0; i < oc
 function ridged(x, y, oct) { let s = 0, a = 0.5, f = 1, w = 1, n = 0; for (let i = 0; i < oct; i++) { let r = 1 - Math.abs(perlin(x * f + i * 31.3, y * f + i * 7.9)); r *= r; s += r * a * w; n += a; w = clamp(r * 1.6, 0, 1); a *= 0.5; f *= 2.05; } return s / n; }
 
 /* ---------------- World ---------------- */
-const HALF = 1400, WORLD = 2800, N = 384, CELL = WORLD / N, VN = N + 1, ALT0 = 1480;
+const HALF = 1400, WORLD = 2800, N = 448, CELL = WORLD / N, VN = N + 1, ALT0 = 1480;
+// "replat puis mur": a gentle shelf above a steep pitch, localized across the slope (never creates a closed hollow)
+const WALLS = [
+  { name: 'Mur du Couloir', x0: 120, x1: 250, x2: 420, x3: 540, zA: -900, z0: -560, z1: -330, B: 82 },
+  { name: "Mur de l'Est", x0: 560, x1: 620, x2: 760, x3: 830, zA: -330, z0: 380, z1: 560, B: 58 },
+];
+// ridges running down the fall line, pierced by tunnels
+const RIDGES = [
+  { x: 420, w: 55, h: 72, za: -760, zb: -560, zc: 140, zd: 320 },
+  { x: -400, w: 40, h: 56, za: -470, zb: -400, zc: -150, zd: -90 },
+];
 function baseHeight(x, z) {
   const t = clamp((z + HALF) / 2600, 0, 1);
   const ax = Math.abs(x);
@@ -224,6 +234,14 @@ function baseHeight(x, z) {
   y += 0.00011 * x * x * (0.55 + 0.45 * (1 - t));
   y += 540 * smoothstep(650, 1400, ax) * (0.45 + 0.55 * (1 - t));
   y += 620 * smoothstep(-1120, -1400, z) * (0.55 + 0.45 * smoothstep(0, 700, ax));
+  for (const w of WALLS) {
+    const m = smoothstep(w.x0, w.x1, x) * smoothstep(w.x3, w.x2, x);
+    if (m > 0) y += w.B * m * (smoothstep(w.zA, w.z0, z) - smoothstep(w.z0, w.z1, z));
+  }
+  for (const r of RIDGES) {
+    const k = Math.exp(-Math.pow((x - r.x) / r.w, 2));
+    if (k > 0.001) y += r.h * k * smoothstep(r.za, r.zb, z) * smoothstep(r.zd, r.zc, z) * (0.85 + 0.15 * perlin(z * 0.01, x * 0.01));
+  }
   const calm = 1 - smoothstep(0.8, 1.0, t);
   y += fbm(x * 0.0016 + 3.1, z * 0.0016 - 1.7, 4) * 55 * calm;
   const wild = clamp(smoothstep(520, 1300, ax) + 0.9 * smoothstep(-650, -1400, z), 0, 1);
@@ -243,7 +261,7 @@ function gridH(x, z) {
 }
 function H(x, z) { return gridH(x, z) + featH(x, z); }
 function normalAt(x, z, out) {
-  const e = featH(x, z) > 0 || featH(x + 0.6, z) > 0 || featH(x - 0.6, z) > 0 || featH(x, z + 0.6) > 0 || featH(x, z - 0.6) > 0 ? 0.1 : 0.6;
+  const e = nearKicker(x, z) ? 0.1 : 0.45;
   const hx = H(x + e, z) - H(x - e, z), hz = H(x, z + e) - H(x, z - e);
   return out.set(-hx, 2 * e, -hz).normalize();
 }
@@ -255,14 +273,14 @@ const LEVELS = {
   park: { c: '#f08a24', label: 'Snowpark' }, track: { c: '#ffffff', label: 'Piste de téléski' }
 };
 const PISTES = [
-  { name: 'Le Couloir', lvl: 'noire', w: 22, pts: [[90, -1118], [230, -950], [320, -700], [260, -450], [120, -200], [-50, 60]] },
-  { name: 'La Grande Combe', lvl: 'rouge', w: 34, pts: [[40, -1118], [-120, -900], [-260, -620], [-300, -350], [-220, -100], [-130, 70]] },
-  { name: 'Le Balcon', lvl: 'bleue', w: 26, pts: [[615, -160], [420, -140], [170, -50], [-50, 75]] },
-  { name: 'Le Mur', lvl: 'rouge', w: 30, pts: [[650, -160], [700, 150], [650, 500], [578, 845]] },
+  { name: 'Le Couloir', lvl: 'noire', w: 22, pts: [[90, -1118], [230, -950], [320, -700], [300, -450], [120, -200], [-50, 60]], wall: true },
+  { name: 'La Grande Combe', lvl: 'rouge', w: 34, pts: [[40, -1118], [-120, -900], [-260, -620], [-300, -350], [-220, -100], [-130, 70]], moguls: [560, 820] },
+  { name: 'Le Balcon', lvl: 'bleue', w: 26, pts: [[615, -160], [420, -140], [170, -50], [-50, 75]], tunnel: 'Tunnel du Balcon' },
+  { name: "Le Mur de l'Est", lvl: 'noire', w: 30, pts: [[650, -160], [700, 150], [690, 470], [640, 640], [578, 845]], wall: true, moguls: [700, 960] },
   { name: 'Les Sapins', lvl: 'bleue', w: 30, pts: [[-100, 172], [60, 380], [250, 620], [230, 860], [90, 1090]] },
   { name: 'Retour Village', lvl: 'verte', w: 32, pts: [[-170, 172], [-340, 420], [-380, 700], [-300, 950], [-130, 1120]] },
   { name: 'Les Écureuils', lvl: 'bleue', w: 28, pts: [[560, 902], [400, 1010], [190, 1112]] },
-  { name: 'Liaison Snowpark', lvl: 'bleue', w: 24, pts: [[-295, -330], [-420, -200], [-515, -70]] },
+  { name: 'Liaison Snowpark', lvl: 'bleue', w: 24, pts: [[-295, -330], [-420, -200], [-515, -70]], tunnel: 'Tunnel des Marmottes' },
   { name: 'Snowpark', lvl: 'park', w: 56, pts: [[-515, -60], [-510, 140], [-495, 390]], minGrade: 0.16, cross: 0.06 },
   { name: 'Les Marmottes', lvl: 'verte', w: 40, pts: [[-245, 950], [-200, 1150]] },
 ];
@@ -276,20 +294,29 @@ const LIFTS = [
 // téléski tracks are groomed too (top → bottom)
 LIFTS.filter(l => l.type === 'tbar').forEach(l => PISTES.push({ name: l.name, lvl: 'track', w: 10, pts: [l.t, l.b], hidden: true, cross: 0.3 }));
 
-/* zone grid (4 m): piste id per cell, and tree clearance */
+/* Snow types: one row of glide parameters each (used by physics, HUD, sound, spray, shading) */
+const SNOW = [
+  { id: 'damee', label: 'Damée', mu: 0.038, drag: 0.0040, res: 0, aLat: 22, rMin: 8.5, gripCarve: 14, gripSkid: 6, pivot: 1, sink: 0, rough: 0, takeoff: 1 },
+  { id: 'glacee', label: 'Glacée', mu: 0.026, drag: 0.0040, res: 0, aLat: 7.5, rMin: 12, gripCarve: 5, gripSkid: 1.8, pivot: 1.15, sink: 0, rough: 0.22, takeoff: 1 },
+  { id: 'bosses', label: 'Bosses', mu: 0.07, drag: 0.0046, res: 0.4, aLat: 14, rMin: 6.5, gripCarve: 10, gripSkid: 5, pivot: 1.3, sink: 0.02, rough: 0.25, takeoff: 1.7 },
+  { id: 'poudreuse', label: 'Poudreuse', mu: 0.05, drag: 0.0058, res: 1.5, aLat: 12, rMin: 15, gripCarve: 8, gripSkid: 5, pivot: 0.5, sink: 0.42, rough: 0.08, takeoff: 1.2 },
+  { id: 'trafolle', label: 'Trafolle', mu: 0.08, drag: 0.0066, res: 1.3, aLat: 9.5, rMin: 12, gripCarve: 6.5, gripSkid: 3.8, pivot: 0.7, sink: 0.15, rough: 1, takeoff: 1.3 },
+  { id: 'park', label: 'Damée · park', mu: 0.038, drag: 0.0040, res: 0, aLat: 22, rMin: 8.5, gripCarve: 14, gripSkid: 6, pivot: 1, sink: 0, rough: 0, takeoff: 1 },
+  { id: 'culture', label: 'Neige de culture', mu: 0.031, drag: 0.0040, res: 0, aLat: 17, rMin: 9, gripCarve: 11, gripSkid: 4.2, pivot: 1, sink: 0, rough: 0.07, takeoff: 1 },
+  { id: 'tunnel', label: 'Tunnel', mu: 0.034, drag: 0.0040, res: 0, aLat: 20, rMin: 8.5, gripCarve: 14, gripSkid: 6, pivot: 1, sink: 0, rough: 0, takeoff: 1 },
+];
+const SN = { DAMEE: 0, GLACEE: 1, BOSSES: 2, POUDREUSE: 3, TRAFOLLE: 4, PARK: 5, CULTURE: 6, TUNNEL: 7 };
+
+/* zone grid (4 m): piste id per cell, tree clearance, distance to pistes, snow type */
 const ZR = 4, ZN = WORLD / ZR;
 const zoneGrid = new Int8Array(ZN * ZN).fill(-1);
 const clearGrid = new Uint8Array(ZN * ZN);
-function zoneAt(x, z) {
-  const ix = Math.floor((x + HALF) / ZR), iz = Math.floor((z + HALF) / ZR);
-  if (ix < 0 || iz < 0 || ix >= ZN || iz >= ZN) return -1;
-  return zoneGrid[iz * ZN + ix];
-}
-function isClear(x, z) {
-  const ix = Math.floor((x + HALF) / ZR), iz = Math.floor((z + HALF) / ZR);
-  if (ix < 0 || iz < 0 || ix >= ZN || iz >= ZN) return true;
-  return clearGrid[iz * ZN + ix] === 1;
-}
+const pisteDist = new Float32Array(ZN * ZN).fill(999);
+const snowGrid = new Uint8Array(ZN * ZN).fill(SN.POUDREUSE);
+const zIdx = (x, z) => { const ix = Math.floor((x + HALF) / ZR), iz = Math.floor((z + HALF) / ZR); return ix < 0 || iz < 0 || ix >= ZN || iz >= ZN ? -1 : iz * ZN + ix; };
+function zoneAt(x, z) { const i = zIdx(x, z); return i < 0 ? -1 : zoneGrid[i]; }
+function isClear(x, z) { const i = zIdx(x, z); return i < 0 ? true : clearGrid[i] === 1; }
+function snowAt(x, z) { const i = zIdx(x, z); return i < 0 ? SN.POUDREUSE : snowGrid[i]; }
 function rasterSeg(res, n, ax, az, bx, bz, R, cb) {
   const minX = Math.max(0, Math.floor((Math.min(ax, bx) - R + HALF) / res)), maxX = Math.min(n, Math.ceil((Math.max(ax, bx) + R + HALF) / res));
   const minZ = Math.max(0, Math.floor((Math.min(az, bz) - R + HALF) / res)), maxZ = Math.min(n, Math.ceil((Math.max(az, bz) + R + HALF) / res));
@@ -328,9 +355,18 @@ function smoothBase(x, z) {
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) s += gridH(x + i * r, z + j * r);
   return s / 9;
 }
+const pisteHeading = (p, i) => { const S = p.samples, a = S[Math.max(0, i - 1)], b = S[Math.min(S.length - 1, i + 1)]; return Math.atan2(b.x - a.x, b.z - a.z); };
 
-/* features: kickers (analytic, physics + own mesh) */
-const kickers = [], rails = [];
+/* features: kickers (analytic) + mogul patches (0.5 m height grids), shared by physics and meshes */
+const kickers = [], rails = [], patches = [];
+function nearKicker(x, z) { for (const k of kickers) { const dx = x - k.x, dz = z - k.z; if (dx * dx + dz * dz < k.R2 + 40) return true; } return false; }
+function patchSample(p, arr, x, z) {
+  const gx = (x - p.x0) / p.res, gz = (z - p.z0) / p.res;
+  if (gx < 0 || gz < 0 || gx >= p.nx - 1 || gz >= p.nz - 1) return 0;
+  const ix = gx | 0, iz = gz | 0, fx = gx - ix, fz = gz - iz, i = iz * p.nx + ix;
+  return lerp(lerp(arr[i], arr[i + 1], fx), lerp(arr[i + p.nx], arr[i + p.nx + 1], fx), fz);
+}
+function mogulWeight(x, z) { let w = 0; for (const p of patches) w = Math.max(w, patchSample(p, p.wgt, x, z)); return w; }
 function featH(x, z) {
   let h = 0;
   for (let i = 0; i < kickers.length; i++) {
@@ -346,7 +382,22 @@ function featH(x, z) {
     if (w > k.W / 2) p *= 1 - smoothstep(k.W / 2, k.W / 2 + 1.2, w);
     if (p > h) h = p;
   }
+  for (let i = 0; i < patches.length; i++) { const p = patches[i]; if (x >= p.x0 && z >= p.z0 && x < p.x1 && z < p.z1) h += patchSample(p, p.h, x, z); }
   return h;
+}
+
+/* tunnels: a piste segment that runs under a ridge; physics follows an explicit "in tunnel" flag */
+const tunnels = [];
+function tunnelLocal(T, x, z, margin) {
+  const a0 = Math.max(0, T.i0 - margin), a1 = Math.min(T.S.length - 1, T.i1 + margin);
+  let bi = -1, bt = 0, bd = 1e9, bx = 0, bz = 0, ux = 0, uz = 0;
+  for (let i = a0; i < a1; i++) {
+    const A = T.S[i], B = T.S[i + 1], dx = B.x - A.x, dz = B.z - A.z, l2 = dx * dx + dz * dz || 1;
+    const t = clamp(((x - A.x) * dx + (z - A.z) * dz) / l2, 0, 1), cx = A.x + dx * t, cz = A.z + dz * t, d = Math.hypot(x - cx, z - cz);
+    if (d < bd) { bd = d; bi = i; bt = t; bx = cx; bz = cz; const l = Math.sqrt(l2); ux = dx / l; uz = dz / l; }
+  }
+  if (bi < 0 || bd > T.hw + 10) return null;
+  return { s: (bi - T.i0 + bt) * 4, w: -(x - bx) * uz + (z - bz) * ux, y: lerp(T.hs[bi], T.hs[bi + 1], bt), px: -uz, pz: ux, ux, uz };
 }
 
 /* ---------------- Generation ---------------- */
@@ -373,10 +424,26 @@ function genPistes() {
     mono();
     p.samples = S; p.hs = hs; p.color = LEVELS[p.lvl].c; p.idx = idx;
     p.maxCut = 0; for (let i = 0; i < hs.length; i++) p.maxCut = Math.max(p.maxCut, sm[i] - hs[i]);
-    const hw = p.w / 2, R = hw + 16, cross = p.cross ?? 0.22;
+    // tunnel span: the longest run where the piste would otherwise cut more than 10 m into a ridge
+    p.tr = null;
+    if (p.tunnel) {
+      let best = null, cur = null;
+      for (let i = 0; i < S.length; i++) {
+        if (sm[i] - hs[i] > 10) { if (!cur) cur = [i, i]; else cur[1] = i; }
+        else if (cur) { if (!best || cur[1] - cur[0] > best[1] - best[0]) best = cur; cur = null; }
+      }
+      if (cur && (!best || cur[1] - cur[0] > best[1] - best[0])) best = cur;
+      if (best && best[1] - best[0] >= 6) { p.tr = best; tunnels.push({ name: p.tunnel, piste: p, S, hs, i0: best[0], i1: best[1], hw: 5, ceil: 6.4, len: (best[1] - best[0]) * 4 }); }
+    }
+    const cross = p.cross ?? 0.22;
+    const hwAt = i => { if (!p.tr) return p.w / 2; const k = Math.min(Math.abs(i - p.tr[0]), Math.abs(i - p.tr[1])) * 4; return lerp(6, p.w / 2, smoothstep(0, 45, k)); };
     for (let i = 0; i < S.length - 1; i++) {
-      const a = S[i], b = S[i + 1];
+      if (p.tr && i >= p.tr[0] && i < p.tr[1]) continue;           // under the ridge: leave the mountain intact
+      const capA = p.tr && i + 1 === p.tr[0], capB = p.tr && i === p.tr[1];
+      const skip = t => (capA && t > 0.999) || (capB && t < 0.001);
+      const a = S[i], b = S[i + 1], hw = hwAt(i), R = hw + 16;
       rasterSeg(CELL, N, a.x, a.z, b.x, b.z, R, (ix, iz, d, t) => {
+        if (skip(t)) return;
         const vi = iz * VN + ix;
         const w = 1 - smoothstep(hw, R, d);
         const hc = lerp(hs[i], hs[i + 1], t), smc = lerp(sm[i], sm[i + 1], t);
@@ -385,15 +452,93 @@ function genPistes() {
         tSum[vi] += target * ww; wSum[vi] += ww;
         if (w > groomW[vi]) groomW[vi] = w;
       });
-      if (!p.hidden) rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 2, (ix, iz) => { zoneGrid[iz * ZN + ix] = idx; });
-      rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 7, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+      if (!p.hidden) rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 2, (ix, iz, d, t) => { if (!skip(t)) zoneGrid[iz * ZN + ix] = idx; });
+      rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 7, (ix, iz, d, t) => { if (!skip(t)) clearGrid[iz * ZN + ix] = 1; });
     }
   });
   for (let i = 0; i < heights.length; i++) if (groomW[i] > 0) heights[i] = lerp(heights[i], tSum[i] / wSum[i], groomW[i]);
+  // keep trees off the ridge just above each portal (the portal galleries sit there)
+  for (const T of tunnels) for (const [i, j] of [[T.i0 - 3, T.i0 + 4], [T.i1 - 4, T.i1 + 3]]) {
+    const a = T.S[clamp(i, 0, T.S.length - 1)], b = T.S[clamp(j, 0, T.S.length - 1)];
+    rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, T.hw + 8, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+  }
 }
 function flattenPad(x, z, r0, r1) {
   const hC = gridH(x, z);
   rasterSeg(CELL, N, x, z, x, z, r1, (ix, iz, d) => { const vi = iz * VN + ix; heights[vi] = lerp(heights[vi], hC, 1 - smoothstep(r0, r1, d)); });
+}
+function mogulKernel(s, w) {
+  const LS = 5.0, LW = 5.4, R = 2.75; let best = 0;
+  const r0 = Math.floor(s / LS);
+  for (let r = r0 - 1; r <= r0 + 1; r++) {
+    const off = (r & 1) * LW * 0.5 + r * 0.7;
+    const c0 = Math.round((w - off) / LW);
+    for (let c = c0 - 1; c <= c0 + 1; c++) {
+      const h1 = Math.abs(Math.sin(r * 127.1 + c * 311.7) * 43758.5453) % 1, h2 = Math.abs(Math.sin(r * 269.5 + c * 183.3) * 24634.6345) % 1;
+      const cs = r * LS + (h1 - 0.5) * 1.4, cw = c * LW + off + (h2 - 0.5) * 1.6;
+      const ds = (s - cs) * (s < cs ? 1.05 : 0.85), dw = w - cw;      // a touch steeper on the uphill face
+      const q = (ds * ds + dw * dw) / (R * R);
+      if (q < 1) { const k = (1 - q) * (1 - q) * (0.8 + 0.4 * h1); if (k > best) best = k; }
+    }
+  }
+  return best;
+}
+function genMoguls() {
+  PISTES.forEach(p => {
+    if (!p.moguls) return;
+    const [d0, d1] = p.moguls, S = p.samples, hw = p.w / 2;
+    const i0 = clamp(Math.floor(d0 / 4) - 1, 0, S.length - 2), i1 = clamp(Math.ceil(d1 / 4) + 1, 1, S.length - 1);
+    let mnx = 1e9, mnz = 1e9, mxx = -1e9, mxz = -1e9;
+    for (let i = i0; i <= i1; i++) { mnx = Math.min(mnx, S[i].x); mxx = Math.max(mxx, S[i].x); mnz = Math.min(mnz, S[i].z); mxz = Math.max(mxz, S[i].z); }
+    const res = 0.5, pad = hw + 3, x0 = Math.floor(mnx - pad), z0 = Math.floor(mnz - pad);
+    const nx = Math.ceil((mxx + pad - x0) / res) + 1, nz = Math.ceil((mxz + pad - z0) / res) + 1;
+    const h = new Float32Array(nx * nz), wgt = new Float32Array(nx * nz), best = new Float32Array(nx * nz).fill(1e9), dir = new Float32Array(nx * nz);
+    for (let i = i0; i < i1; i++) {
+      const a = S[i], b = S[i + 1], dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, l = Math.sqrt(l2), R = hw + 1;
+      const gx0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - R - x0) / res)), gx1 = Math.min(nx - 1, Math.ceil((Math.max(a.x, b.x) + R - x0) / res));
+      const gz0 = Math.max(0, Math.floor((Math.min(a.z, b.z) - R - z0) / res)), gz1 = Math.min(nz - 1, Math.ceil((Math.max(a.z, b.z) + R - z0) / res));
+      for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
+        const x = x0 + gx * res, z = z0 + gz * res;
+        const t = clamp(((x - a.x) * dx + (z - a.z) * dz) / l2, 0, 1), cx = a.x + dx * t, cz = a.z + dz * t, d = Math.hypot(x - cx, z - cz);
+        const k = gz * nx + gx;
+        if (d >= R || d >= best[k]) continue;
+        best[k] = d;
+        const s = (i + t) * 4, w = -(x - cx) * dz / l + (z - cz) * dx / l;
+        const fade = smoothstep(d0, d0 + 18, s) * smoothstep(d1, d1 - 18, s) * (1 - smoothstep(hw - 4, hw - 0.5, Math.abs(w)));
+        wgt[k] = fade; h[k] = 0.95 * mogulKernel(s, w) * fade; dir[k] = Math.atan2(dx, dz);
+      }
+    }
+    patches.push({ piste: p, x0, z0, res, nx, nz, x1: x0 + (nx - 1) * res, z1: z0 + (nz - 1) * res, h, wgt, dir });
+  });
+}
+function genSnowGrid() {
+  PISTES.forEach(p => {
+    if (p.hidden) return;
+    const S = p.samples, hw = p.w / 2;
+    for (let i = 0; i < S.length - 1; i++) {
+      if (p.tr && i >= p.tr[0] && i < p.tr[1]) continue;
+      rasterSeg(ZR, ZN - 1, S[i].x, S[i].z, S[i + 1].x, S[i + 1].z, hw + 90, (ix, iz, d) => { const k = iz * ZN + ix, e = Math.max(0, d - hw); if (e < pisteDist[k]) pisteDist[k] = e; });
+    }
+  });
+  const liftNear = (x, z) => LIFTS.some(L => { const ax = L.b[0], az = L.b[1], bx = L.t[0], bz = L.t[1], dx = bx - ax, dz = bz - az, t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1); return Math.hypot(x - ax - dx * t, z - az - dz * t) < 30; });
+  const nrm = new V3();
+  for (let iz = 0; iz < ZN; iz++) for (let ix = 0; ix < ZN; ix++) {
+    const k = iz * ZN + ix, x = -HALF + (ix + 0.5) * ZR, z = -HALF + (iz + 0.5) * ZR, zone = zoneGrid[k];
+    let t;
+    if (zone >= 0) {
+      const p = PISTES[zone];
+      if (mogulWeight(x, z) > 0.25) t = SN.BOSSES;
+      else if (p.lvl === 'park') t = SN.PARK;
+      else { normalAt(x, z, nrm); t = nrm.y < 0.86 ? SN.GLACEE : nearestCannon(x, z) < 34 ? SN.CULTURE : SN.DAMEE; }
+    } else t = crudAt(x, z, k, liftNear) > 0.5 ? SN.TRAFOLLE : SN.POUDREUSE;
+    snowGrid[k] = t;
+  }
+}
+function crudAt(x, z, k, liftNear) {
+  let c = smoothstep(70, 12, pisteDist[k]) * 0.85;
+  c += smoothstep(0.32, 0.5, fbm(x * 0.006 + 9, z * 0.006 - 4, 3)) * 0.7;
+  if (liftNear && liftNear(x, z)) c += 0.6;
+  return c;
 }
 
 /* ---------------- Three setup ---------------- */
@@ -621,43 +766,227 @@ function placeRocks() {
   scene.add(mesh);
 }
 
-/* ---------------- Buildings ---------------- */
-function chaletGeo(w, d, h, wall) {
-  const parts = [];
-  const base = new THREE.BoxGeometry(w, h + 5, d); base.translate(0, (h + 5) / 2 - 5, 0); parts.push({ g: base, c: wall });
-  const stone = new THREE.BoxGeometry(w + 0.1, 1.1, d + 0.1); stone.translate(0, 0.2, 0); parts.push({ g: stone, c: '#8c8a86' });
-  const rh = w * 0.32, rl = Math.hypot(w / 2 + 0.6, rh);
-  for (const s of [-1, 1]) {
-    const r = new THREE.BoxGeometry(rl, 0.35, d + 1.4); r.rotateZ(-s * Math.atan2(rh, w / 2 + 0.6)); r.translate(s * (w / 4 + 0.3), h + rh / 2, 0); parts.push({ g: r, c: '#f1f5fa' });
+/* ---------------- Buildings & villages ---------------- */
+// Layout inspired by big French domains: a high purpose-built station, wooden mid-villages, a traditional village at the bottom
+const VILLAGES = [
+  { name: 'Les Granges', style: 'trad', alt: 'village', piste: 'Les Sapins', d: [960, 1130], also: [['Retour Village', 1000, 1130]] },
+  { name: 'Val Haut 1800', style: 'station', piste: 'Les Sapins', d: [24, 170], also: [['Retour Village', 24, 150]], bridge: ['Les Sapins', 92] },
+  { name: 'Les Écureuils', style: 'hameau', piste: 'Les Écureuils', d: [10, 210], also: [] },
+  { name: 'Bellecime 1950', style: 'bois', piste: 'Liaison Snowpark', d: [250, 340], also: [] },
+];
+const facadeTex = {};
+function makeFacade(kind) {
+  const W = 256, Hh = 256, c = document.createElement('canvas'); c.width = W; c.height = Hh; const g = c.getContext('2d');
+  const r = mulberry32(kind.length * 97);
+  if (kind === 'concrete' || kind === 'woodblock') {
+    g.fillStyle = kind === 'concrete' ? '#cfc6b8' : '#7b5434'; g.fillRect(0, 0, W, Hh);
+    if (kind === 'woodblock') for (let x = 0; x < W; x += 8) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.12})`; g.fillRect(x, 0, 2, Hh); }
+    else for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(80,70,60,${r() * 0.08})`; g.fillRect(r() * W, r() * Hh, 6, 6); }
+    // one floor = 128 px tall, one bay = 128 px wide
+    for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) {
+      const x = bx * 128, y = fy * 128;
+      const lit = r() < 0.3;
+      g.fillStyle = lit ? '#f3c983' : '#2c3644'; g.fillRect(x + 22, y + 26, 84, 64);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x + 22, y + 26, 84, 8);
+      g.strokeStyle = kind === 'concrete' ? '#efe9df' : '#3a2616'; g.lineWidth = 4; g.strokeRect(x + 22, y + 26, 84, 64); g.beginPath(); g.moveTo(x + 64, y + 26); g.lineTo(x + 64, y + 90); g.stroke();
+      g.fillStyle = kind === 'concrete' ? '#8a5a36' : '#4a2f1b'; g.fillRect(x + 6, y + 98, 116, 10);       // balcony slab
+      for (let k = 0; k < 12; k++) g.fillRect(x + 8 + k * 9.5, y + 90, 3, 10);                       // balusters
+    }
+  } else { // chalet planks
+    g.fillStyle = '#8a5a34'; g.fillRect(0, 0, W, Hh);
+    for (let y = 0; y < Hh; y += 16) { g.fillStyle = `rgba(0,0,0,${0.1 + r() * 0.1})`; g.fillRect(0, y, W, 2); g.fillStyle = `rgba(255,220,180,${r() * 0.06})`; g.fillRect(0, y + 2, W, 6); }
+    for (let i = 0; i < 2; i++) { const x = 40 + i * 120; g.fillStyle = r() < 0.4 ? '#f1c27d' : '#2b3340'; g.fillRect(x, 70, 56, 70); g.strokeStyle = '#3a2412'; g.lineWidth = 6; g.strokeRect(x, 70, 56, 70); g.fillStyle = '#5a2e1c'; g.fillRect(x - 14, 70, 12, 70); g.fillRect(x + 58, 70, 12, 70); }
   }
-  const gable = new THREE.CylinderGeometry(0, w / 2 * 1.41, rh * 1.0, 4, 1); gable.rotateY(Math.PI / 4); gable.scale(1, 1, d / w * 0.98); gable.translate(0, h + rh / 2 - 0.05, 0); parts.push({ g: gable, c: wall });
-  for (let i = -1; i <= 1; i += 2) for (let j = 0; j < 2; j++) {
-    const win = new THREE.BoxGeometry(0.9, 0.9, 0.08); win.translate(i * w * 0.24, 1.6 + j * 2.2, d / 2 + 0.02); parts.push({ g: win, c: j ? '#ffd38a' : '#33404f' });
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
+// box whose UVs repeat the facade texture per metre (bay = 3.2 m, floor = 2.9 m)
+function facadeBox(w, h, d, bay, floor) {
+  const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv, n = g.attributes.normal;
+  for (let i = 0; i < uv.count; i++) {
+    const nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i));
+    const sx = ny > 0.5 ? 0 : (nx > 0.5 ? d : w) / (bay * 2), sy = ny > 0.5 ? 0 : h / (floor * 2);
+    uv.setXY(i, uv.getX(i) * sx, uv.getY(i) * sy);
   }
-  const balc = new THREE.BoxGeometry(w * 0.8, 0.12, 1.1); balc.translate(0, 2.9, d / 2 + 0.55); parts.push({ g: balc, c: '#5a3b24' });
-  return mergeParts(parts);
+  return g;
 }
-function addBuilding(x, z, w, d, h, rot, wall) {
-  const m = new THREE.Mesh(chaletGeo(w, d, h, wall), lambertVC());
-  let y = Infinity; for (const [ox, oz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2], [0, 0]]) y = Math.min(y, gridH(x + ox, z + oz));
-  m.position.set(x, y, z); m.rotation.y = rot; m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  obstacles.push({ x, z, r: Math.max(w, d) * 0.55 });
+const buildMats = {};
+function bmat(kind) {
+  if (!buildMats[kind]) buildMats[kind] = new THREE.MeshLambertMaterial({ map: facadeTex[kind] || (facadeTex[kind] = makeFacade(kind)) });
+  return buildMats[kind];
 }
-function buildVillage() {
-  const walls = ['#7a4f2f', '#8a5a34', '#6b4428', '#93633b'];
-  let placed = 0;
-  for (let i = 0; i < 400 && placed < 16; i++) {
-    const x = -260 + rnd() * 560, z = 1175 + rnd() * 170;
-    if (isClear(x, z)) continue;
-    if (Math.hypot(x - 40, z - 1135) < 40 || Math.hypot(x + 165, z - 1166) < 30) continue;
-    if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 14)) continue;
-    const w = 9 + rnd() * 6, d = 8 + rnd() * 5;
-    addBuilding(x, z, w, d, 5 + rnd() * 3, Math.round(rnd() * 4) * Math.PI / 2 + (rnd() - 0.5) * 0.3, walls[i % 4]);
-    placed++;
+const snowRoofMat = new THREE.MeshLambertMaterial({ color: '#f3f7fc' }), plinthMat = new THREE.MeshLambertMaterial({ color: '#8e8a84' });
+function groundMin(x, z, w, d, rot) {
+  let y = Infinity; const c = Math.cos(rot), s = Math.sin(rot);
+  for (const [ox, oz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2], [0, 0]]) y = Math.min(y, gridH(x + ox * c + oz * s, z - ox * s + oz * c));
+  return y;
+}
+function placeHouse(x, z, rot, kind) {
+  // kind: 'chalet' (2 floors), 'hameau' (wood, 2-3 floors), 'station' (concrete block 5-7 floors), 'bois' (wood-clad block 4-5 floors)
+  const spec = { chalet: [10, 9, 2, 'chalet', 0.42], hameau: [12, 10, 3, 'woodblock', 0.38], station: [26, 12, 6, 'concrete', 0.12], bois: [20, 12, 4, 'woodblock', 0.3] }[kind];
+  const w = spec[0] * (0.85 + rnd() * 0.3), d = spec[1] * (0.9 + rnd() * 0.2), floors = spec[2] + Math.floor(rnd() * (kind === 'station' ? 3 : 2)), h = floors * 2.9;
+  const y = groundMin(x, z, w, d, rot), top = Math.max(gridH(x, z), y) + 0.5;
+  const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rot;
+  const plinthH = top - y + 1.2;
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, plinthH, d + 0.4), plinthMat); plinth.position.y = y - 0.6 + plinthH / 2; grp.add(plinth);
+  const body = new THREE.Mesh(facadeBox(w, h, d, 3.2, 2.9), bmat(spec[3])); body.position.y = top + h / 2; grp.add(body);
+  // roof: gable with snow, shallow for big blocks
+  const pitch = spec[4], rh = w / 2 * pitch, rl = Math.hypot(w / 2 + 0.8, rh);
+  for (const sgn of [-1, 1]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(rl, 0.45, d + 1.6), snowRoofMat);
+    r.rotation.z = -sgn * Math.atan2(rh, w / 2 + 0.8); r.position.set(sgn * (w / 4 + 0.4), top + h + rh / 2, 0); grp.add(r);
   }
-  addBuilding(-232, 128, 18, 12, 6.5, 0.35, '#6f4a2c');   // restaurant d'altitude
-  addBuilding(430, 300, 8, 7, 4.5, -0.4, '#5d3d26');     // refuge en forêt
+  const gable = new THREE.Mesh(new THREE.CylinderGeometry(0, w / 2 * 1.41, rh, 4, 1), bmat(spec[3])); gable.rotation.y = Math.PI / 4; gable.scale.set(1, 1, d / w * 0.98); gable.position.y = top + h + rh / 2 - 0.05;
+  const gw = new THREE.Group(); gw.add(gable); grp.add(gw);
+  grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(grp);
+  const r = Math.max(w, d) * 0.5 + 0.6;
+  obstacles.push({ x, z, r: Math.min(w, d) * 0.5 + 0.8 });
+  // long blocks: add extra circles along their length so skiers can't clip the ends
+  if (w > d * 1.4) { const c = Math.cos(rot), s = Math.sin(rot); for (const k of [-1, 1]) obstacles.push({ x: x + c * k * (w / 2 - d / 2), z: z - s * k * (w / 2 - d / 2), r: d * 0.5 + 0.8 }); }
+  rasterSeg(ZR, ZN - 1, x, z, x, z, r + 6, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+  return { w, d, h, top };
 }
+function liftDist(x, z) {
+  let m = 1e9; for (const L of LIFTS) { const ax = L.b[0], az = L.b[1], bx = L.t[0], bz = L.t[1], dx = bx - ax, dz = bz - az, t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), -0.05, 1.05); m = Math.min(m, Math.hypot(x - ax - dx * t, z - az - dz * t)); }
+  return m;
+}
+const villageLabels = [];
+function buildVillages() {
+  const byName = n => PISTES.find(p => p.name === n);
+  for (const V of VILLAGES) {
+    const kind = V.style === 'trad' ? 'chalet' : V.style;
+    const runs = [[V.piste, V.d[0], V.d[1]], ...V.also];
+    for (const [pn, d0, d1] of runs) {
+      const p = byName(pn); if (!p) continue;
+      const S = p.samples, hw = p.w / 2;
+      for (let d = d0; d < Math.min(d1, (S.length - 2) * 4); d += kind === 'station' ? 34 : kind === 'bois' ? 28 : 19) {
+        const i = Math.floor(d / 4), hd = pisteHeading(p, i);
+        for (const side of [-1, 1]) {
+          if (rnd() < 0.15) continue;
+          const back = (kind === 'station' ? 12 : 7) + rnd() * 8;
+          const off = hw + back;
+          const x = S[i].x + Math.cos(hd) * off * side, z = S[i].z - Math.sin(hd) * off * side;
+          if (zoneAt(x, z) >= 0 || liftDist(x, z) < 18 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 9)) continue;
+          if (tunnels.some(T => { const tl = tunnelLocal(T, x, z, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 30; })) continue;
+          // long side facing the piste
+          placeHouse(x, z, hd + Math.PI / 2 + (rnd() - 0.5) * (kind === 'chalet' ? 0.5 : 0.08), kind);
+        }
+      }
+      villageLabels.push({ name: V.name, x: S[Math.floor((d0 + d1) / 8)].x, z: S[Math.floor((d0 + d1) / 8)].z });
+    }
+    if (V.bridge) buildBridge(byName(V.bridge[0]), V.bridge[1]);
+  }
+  // traditional village: extra chalets around the base and a church
+  const walls = 0; let placed = 0;
+  for (let i = 0; i < 500 && placed < 14; i++) {
+    const x = -280 + rnd() * 600, z = 1170 + rnd() * 180;
+    if (isClear(x, z) || zoneAt(x, z) >= 0 || liftDist(x, z) < 22) continue;
+    if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 12)) continue;
+    placeHouse(x, z, Math.round(rnd() * 4) * Math.PI / 2 + (rnd() - 0.5) * 0.3, 'chalet'); placed++;
+  }
+  buildChurch(-40, 1290);
+  placeHouse(-232, 128, 0.35, 'bois');   // restaurant d'altitude
+  placeHouse(430, 300, -0.4, 'chalet');  // refuge en forêt
+}
+function buildChurch(x, z) {
+  for (let k = 0; k < 30 && (zoneAt(x, z) >= 0 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 10)); k++) { x += 9; }
+  const y = groundMin(x, z, 10, 16, 0);
+  const grp = new THREE.Group(); grp.position.set(x, y, z);
+  const nave = new THREE.Mesh(new THREE.BoxGeometry(9, 9, 16), new THREE.MeshLambertMaterial({ color: '#e7dccb' })); nave.position.y = 4; grp.add(nave);
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0, 7.2, 4, 4, 1), snowRoofMat); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 1.75); roof.position.y = 10.4; grp.add(roof);
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.2, 18, 4.2), new THREE.MeshLambertMaterial({ color: '#d9cdb9' })); tower.position.set(0, 8, -9); grp.add(tower);
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 2.2, 3.2, 8), new THREE.MeshLambertMaterial({ color: '#3b4a3f' })); bell.position.set(0, 18.4, -9); grp.add(bell);
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(1.4, 7, 8), new THREE.MeshLambertMaterial({ color: '#2f3b33' })); spire.position.set(0, 23.2, -9); grp.add(spire);
+  grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(grp); obstacles.push({ x, z, r: 6 }, { x, z: z - 9, r: 3.5 });
+  rasterSeg(ZR, ZN - 1, x, z, x, z, 16, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+}
+function buildBridge(p, d) {
+  // covered footbridge spanning the piste between two blocks of the station
+  const i = Math.floor(d / 4), S = p.samples, hd = pisteHeading(p, i), y = gridH(S[i].x, S[i].z);
+  const span = p.w + 10, grp = new THREE.Group(); grp.position.set(S[i].x, y + 7.2, S[i].z); grp.rotation.y = hd + Math.PI / 2;
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(span, 0.6, 3.2), plinthMat); grp.add(deck);
+  const body = new THREE.Mesh(facadeBox(span, 2.8, 3, 3.2, 2.9), bmat('woodblock')); body.position.y = 1.7; grp.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(span + 0.6, 0.4, 3.8), snowRoofMat); roof.position.y = 3.3; grp.add(roof);
+  for (const s of [-1, 1]) { const pil = new THREE.Mesh(new THREE.BoxGeometry(1.2, 9, 1.2), plinthMat); pil.position.set(s * span / 2, -3.8, 0); grp.add(pil); obstacles.push({ x: S[i].x + Math.cos(hd) * s * span / 2, z: S[i].z - Math.sin(hd) * s * span / 2, r: 1.2 }); }
+  const sign = makeLabel('Val Haut 1800', '#a6dcff', 'Passerelle des Résidences'); sign.position.set(0, 1.7, 1.8); sign.scale.set(7, 2.2, 1); grp.add(sign);
+  grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(grp);
+}
+
+/* ---------------- Snow cannons ---------------- */
+const cannons = [];
+function genCannons() {
+  const runs = [['Les Sapins', 180, 1080], ['Retour Village', 170, 1100], ['Les Écureuils', 220, 420], ['Les Marmottes', 10, 200], ["Le Mur de l'Est", 980, 1160], ['La Grande Combe', 900, 1200]];
+  for (const [pn, d0, d1] of runs) {
+    const p = PISTES.find(q => q.name === pn); if (!p) continue;
+    const S = p.samples, hw = p.w / 2; let side = 1, k = 0;
+    for (let d = d0; d < Math.min(d1, (S.length - 3) * 4); d += 64) {
+      const i = Math.floor(d / 4), hd = pisteHeading(p, i);
+      const off = hw + 2.2, x = S[i].x + Math.cos(hd) * off * side, z = S[i].z - Math.sin(hd) * off * side;
+      cannons.push({ x, z, y: gridH(x, z), hd, side, type: k % 2 ? 'fan' : 'lance', piste: p.idx });
+      rasterSeg(ZR, ZN - 1, x, z, x, z, 5, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+      side = -side; k++;
+    }
+  }
+}
+function buildCannonMeshes() {
+  const lance = mergeParts([
+    { g: (() => { const g = new THREE.CylinderGeometry(0.09, 0.13, 8, 6); g.translate(0, 4, 0); g.rotateZ(-0.42); return g; })(), c: '#9aa3ae' },
+    { g: (() => { const g = new THREE.CylinderGeometry(0.22, 0.16, 1.1, 8); g.rotateZ(-0.42 - Math.PI / 2 + 0.6); g.translate(3.25, 7.35, 0); return g; })(), c: '#d23a2a' },
+    { g: (() => { const g = new THREE.BoxGeometry(0.6, 0.9, 0.5); g.translate(0, 0.45, 0); return g; })(), c: '#3d4652' }]);
+  const fan = mergeParts([
+    { g: (() => { const g = new THREE.CylinderGeometry(0.85, 0.85, 1.6, 16, 1, true); g.rotateZ(Math.PI / 2 - 0.35); g.translate(0.25, 2.4, 0); return g; })(), c: '#e9eef3' },
+    { g: (() => { const g = new THREE.CylinderGeometry(0.82, 0.82, 0.2, 16); g.rotateZ(Math.PI / 2 - 0.35); g.translate(-0.5, 2.15, 0); return g; })(), c: '#2b3138' },
+    { g: (() => { const g = new THREE.CylinderGeometry(0.08, 0.1, 2.3, 6); g.translate(0, 1.15, 0); return g; })(), c: '#5d6670' },
+    { g: (() => { const g = new THREE.BoxGeometry(1.8, 0.35, 1.2); g.translate(0, 0.2, 0); return g; })(), c: '#e0a325' }]);
+  const mk = (geo, list) => {
+    const m = new THREE.InstancedMesh(geo, lambertVC(), list.length), o = new THREE.Object3D();
+    // the gun points across the piste: local +x aims at the snow
+    list.forEach((c, i) => { o.position.set(c.x, c.y, c.z); o.rotation.set(0, c.hd + (c.side > 0 ? Math.PI : 0), 0); o.updateMatrix(); m.setMatrixAt(i, o.matrix); });
+    m.castShadow = true; m.frustumCulled = false; scene.add(m);
+  };
+  mk(lance, cannons.filter(c => c.type === 'lance')); mk(fan, cannons.filter(c => c.type === 'fan'));
+  cannons.forEach(c => {
+    const a = c.hd + (c.side > 0 ? Math.PI : 0), ax = Math.cos(a), az = -Math.sin(a);   // local +x in world
+    c.nozzle = new V3(c.x + ax * (c.type === 'lance' ? 3.6 : 1.1), c.y + (c.type === 'lance' ? 7.6 : 2.6), c.z + az * (c.type === 'lance' ? 3.6 : 1.1));
+    c.dir = new V3(ax, c.type === 'lance' ? -0.05 : 0.35, az).normalize();
+  });
+}
+// snowmaking plumes: one shared particle pool, only cannons near the camera blow
+const PLUME = 2400;
+const plume = { pos: new Float32Array(PLUME * 3), vel: new Float32Array(PLUME * 3), life: new Float32Array(PLUME), i: 0 };
+let plumeGeo = null;
+function initPlumes() {
+  plumeGeo = new THREE.BufferGeometry(); plumeGeo.setAttribute('position', new THREE.BufferAttribute(plume.pos, 3));
+  const pts = new THREE.Points(plumeGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 0.55, map: puffTex, transparent: true, opacity: 0.55, depthWrite: false }));
+  pts.frustumCulled = false; scene.add(pts);
+}
+function updatePlumes(dt, cam) {
+  if (!plumeGeo) return;
+  let active = 0;
+  for (const c of cannons) {
+    if (active >= 10) break;
+    if (Math.abs(c.x - cam.x) > 260 || Math.abs(c.z - cam.z) > 260) continue;
+    active++;
+    const n = Math.floor(dt * 70 + Math.random());
+    for (let k = 0; k < n; k++) {
+      const i = plume.i = (plume.i + 1) % PLUME, sp = (c.type === 'lance' ? 7 : 13) * (0.7 + Math.random() * 0.6);
+      plume.pos[i * 3] = c.nozzle.x; plume.pos[i * 3 + 1] = c.nozzle.y; plume.pos[i * 3 + 2] = c.nozzle.z;
+      plume.vel[i * 3] = c.dir.x * sp + (Math.random() - 0.5) * 1.6; plume.vel[i * 3 + 1] = c.dir.y * sp + (Math.random() - 0.5) * 1.2; plume.vel[i * 3 + 2] = c.dir.z * sp + (Math.random() - 0.5) * 1.6;
+      plume.life[i] = 2.2 + Math.random() * 1.5;
+    }
+  }
+  for (let i = 0; i < PLUME; i++) {
+    if (plume.life[i] <= 0) { plume.pos[i * 3 + 1] = -9999; continue; }
+    plume.life[i] -= dt; const d = Math.exp(-1.3 * dt);
+    plume.vel[i * 3] = plume.vel[i * 3] * d + 0.6 * dt; plume.vel[i * 3 + 2] = plume.vel[i * 3 + 2] * d + 0.3 * dt;
+    plume.vel[i * 3 + 1] = plume.vel[i * 3 + 1] * d - 1.4 * dt;
+    plume.pos[i * 3] += plume.vel[i * 3] * dt; plume.pos[i * 3 + 1] += plume.vel[i * 3 + 1] * dt; plume.pos[i * 3 + 2] += plume.vel[i * 3 + 2] * dt;
+  }
+  plumeGeo.attributes.position.needsUpdate = true;
+}
+function nearestCannon(x, z) { let m = 1e9; for (const c of cannons) m = Math.min(m, Math.hypot(c.x - x, c.z - z)); return m; }
 
 /* ---------------- Lifts ---------------- */
 class Path {
@@ -911,7 +1240,27 @@ function emit(p, v, n, spread) {
     spray.life[i] = 0.5 + Math.random() * 0.6;
   }
 }
+// soft powder clouds: bigger, slower, translucent puffs
+const CLOUD = 160;
+const cloud = { pos: new Float32Array(CLOUD * 3), vel: new Float32Array(CLOUD * 3), life: new Float32Array(CLOUD), i: 0 };
+const cloudGeo = new THREE.BufferGeometry(); cloudGeo.setAttribute('position', new THREE.BufferAttribute(cloud.pos, 3));
+const puffTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const cloudPts = new THREE.Points(cloudGeo, new THREE.PointsMaterial({ color: '#f4f8ff', size: 1.6, map: puffTex, transparent: true, opacity: 0.42, depthWrite: false }));
+cloudPts.frustumCulled = false; scene.add(cloudPts);
+sprayPts.material.map = puffTex; sprayPts.material.size = 0.22; sprayPts.material.needsUpdate = true;
+function emitCloud(p, v) {
+  const i = cloud.i = (cloud.i + 1) % CLOUD;
+  cloud.pos[i * 3] = p.x + (Math.random() - 0.5); cloud.pos[i * 3 + 1] = p.y + 0.3; cloud.pos[i * 3 + 2] = p.z + (Math.random() - 0.5);
+  cloud.vel[i * 3] = v.x * 0.5; cloud.vel[i * 3 + 1] = 0.6 + Math.random() * 0.6; cloud.vel[i * 3 + 2] = v.z * 0.5;
+  cloud.life[i] = 1.0 + Math.random() * 0.8;
+}
 function updateSpray(dt) {
+  for (let i = 0; i < CLOUD; i++) {
+    if (cloud.life[i] <= 0) { cloud.pos[i * 3 + 1] = -9999; continue; }
+    cloud.life[i] -= dt; const d = Math.exp(-1.6 * dt);
+    for (let k = 0; k < 3; k++) { cloud.vel[i * 3 + k] *= d; cloud.pos[i * 3 + k] += cloud.vel[i * 3 + k] * dt; }
+  }
+  cloudGeo.attributes.position.needsUpdate = true;
   for (let i = 0; i < SPRAY; i++) {
     if (spray.life[i] <= 0) { spray.pos[i * 3 + 1] = -9999; continue; }
     spray.life[i] -= dt; spray.vel[i * 3 + 1] -= 6 * dt;
@@ -927,7 +1276,8 @@ const queued = new Set();
 const P = {
   pos: new V3(), vel: new V3(), yaw: 0, pitch: 0, state: 'ski', edge: 0, charge: 0, prevJump: false,
   air: null, crashT: 0, crashMsg: '', lift: null, liftS: 0, rail: null, railS: 0, railV: 0, railT: 0, railKind: '', railCool: 0,
-  revertT: 0, revertDir: 1, brake: 0, tuck: 0, offPiste: false, zone: -1, score: 0, best: '', stillT: 0, lastLand: 0
+  revertT: 0, revertDir: 1, brake: 0, tuck: 0, offPiste: false, zone: -1, score: 0, best: '', stillT: 0, lastLand: 0,
+  tunnel: null, snow: SN.DAMEE, skid: 0, jolt: 0, yawRate: 0, sinkT: 0, compress: 0, skating: false
 };
 const STEP = 1 / 120;
 const _n = new V3(), _f = new V3(), _l = new V3(), _g = new V3(), _t = new V3();
@@ -938,6 +1288,37 @@ function clampWorld() {
   const lim = HALF - 25;
   if (Math.abs(P.pos.x) > lim) { P.pos.x = Math.sign(P.pos.x) * lim; P.vel.x = 0; }
   if (Math.abs(P.pos.z) > lim) { P.pos.z = Math.sign(P.pos.z) * lim; P.vel.z = 0; }
+}
+/* ground queries that know about tunnels */
+function groundY(x, z) {
+  if (P.tunnel) { const tl = tunnelLocal(P.tunnel, x, z, 2); if (tl && Math.abs(tl.w) < P.tunnel.hw + 1.5) return tl.y; }
+  return H(x, z);
+}
+function groundN(x, z, out) {
+  if (!P.tunnel) return normalAt(x, z, out);
+  const e = 0.6, hx = groundY(x + e, z) - groundY(x - e, z), hz = groundY(x, z + e) - groundY(x, z - e);
+  return out.set(-hx, 2 * e, -hz).normalize();
+}
+function updateTunnel() {
+  if (P.tunnel) {
+    const T = P.tunnel, tl = tunnelLocal(T, P.pos.x, P.pos.z, 2);
+    if (!tl || tl.s < -7.5 || tl.s > T.len + 7.5) { P.tunnel = null; return; }
+    // walls and ceiling of the tube (and of the portal galleries)
+    const lim = T.hw - 0.45;
+    if (Math.abs(tl.w) > lim) {
+      const sg = Math.sign(tl.w), dw = sg * lim - tl.w;
+      P.pos.x += tl.px * dw; P.pos.z += tl.pz * dw;
+      const vl = P.vel.x * tl.px + P.vel.z * tl.pz;
+      if (vl * sg > 0) { P.vel.x -= tl.px * vl; P.vel.z -= tl.pz * vl; P.vel.multiplyScalar(0.985); }
+    }
+    const top = tl.y + T.ceil - 1.9;
+    if (P.pos.y > top) { P.pos.y = top; if (P.vel.y > 0) P.vel.y = 0; }
+    return;
+  }
+  for (const T of tunnels) {
+    const tl = tunnelLocal(T, P.pos.x, P.pos.z, 2);
+    if (tl && tl.s > -6 && tl.s < T.len + 6 && Math.abs(tl.w) < T.hw && P.pos.y < tl.y + T.ceil - 0.5) { P.tunnel = T; return; }
+  }
 }
 function stepSim(dt) {
   for (const a of queued) {
@@ -958,13 +1339,16 @@ function stepSim(dt) {
   if (!isFinite(P.pos.x + P.pos.y + P.pos.z + P.vel.x + P.vel.y + P.vel.z)) respawnNearestLift();
 }
 function groundBasis(x, z) {
-  normalAt(x, z, _n);
+  groundN(x, z, _n);
   fwdVec(_f); _f.addScaledVector(_n, -_f.dot(_n)).normalize();
   _l.crossVectors(_n, _f).normalize();
 }
+function currentSnow() { return P.tunnel ? SN.TUNNEL : FORCE.snow != null ? FORCE.snow : snowAt(P.pos.x, P.pos.z); }
+const FORCE = { snow: null };
 function stepSki(dt) {
-  const zone = zoneAt(P.pos.x, P.pos.z), groomed = zone >= 0 || featH(P.pos.x, P.pos.z) > 0;
-  P.zone = zone; P.offPiste = !groomed;
+  const st = currentSnow(), S = SNOW[st];
+  P.snow = st; P.zone = P.tunnel ? P.tunnel.piste.idx : zoneAt(P.pos.x, P.pos.z);
+  P.offPiste = st === SN.POUDREUSE || st === SN.TRAFOLLE;
   groundBasis(P.pos.x, P.pos.z);
   let speed = P.vel.length();
   const along = P.vel.dot(_f);
@@ -972,69 +1356,99 @@ function stepSki(dt) {
   const braking = input.down, tuck = input.up && !braking;
   P.brake = lerp(P.brake, braking ? 1 : 0, Math.min(1, dt * 10));
   P.tuck = lerp(P.tuck, tuck ? 1 : 0, Math.min(1, dt * 6));
-  P.edge += (steer - P.edge) * Math.min(1, dt * 7);
-  let dYaw = 0;
+  P.edge += (steer - P.edge) * Math.min(1, dt * (st === SN.POUDREUSE ? 4.5 : 7));
+  // rough snow: position-based noise knocks the skis around (reproducible)
+  const rx = P.pos.x * 0.55, rz = P.pos.z * 0.55;
+  const bump = S.rough > 0 && speed > 3 ? perlin(rx, rz) : 0;
+  P.jolt = bump * S.rough * Math.min(1, speed / 12);
+  let dYaw = 0, carveRate = 0, skidRate = 0;
   if (P.revertT > 0) { const r = Math.min(P.revertT, dt); dYaw = P.revertDir * Math.PI * r / 0.32; P.revertT -= dt; }
   else {
-    const pivot = 2.0 * (1 - smoothstep(2, 7, speed));
-    const carve = Math.min(speed / 8.5, 24 / Math.max(speed, 0.1), 2.4);
-    dYaw = P.edge * Math.max(pivot, carve) * (braking ? 1.25 : 1) * dt;
+    const pivot = 2.0 * S.pivot * (1 - smoothstep(2, 7, speed));
+    const wanted = P.edge * Math.max(pivot, Math.min(speed / S.rMin, 2.4)) * (braking ? 1.25 : 1);
+    const lim = S.aLat / Math.max(speed, 0.5);
+    carveRate = clamp(wanted, -lim, lim); skidRate = wanted - carveRate;
+    dYaw = wanted * dt + P.jolt * 0.9 * dt;
   }
   P.yaw += dYaw;
+  P.yawRate = lerp(P.yawRate || 0, dYaw / dt, Math.min(1, dt * 10));
   const carving = Math.abs(P.edge) > 0.15 && !braking && P.revertT <= 0;
-  if (speed > 0.05 && dYaw !== 0 && P.revertT <= 0) P.vel.applyAxisAngle(_n, dYaw * (carving ? 0.985 : 0.6));
+  if (speed > 0.05 && P.revertT <= 0) {
+    if (speed < 5) P.vel.applyAxisAngle(_n, dYaw * 0.6);
+    else P.vel.applyAxisAngle(_n, carveRate * dt * (carving ? 0.985 : 0.7) + skidRate * dt * 0.4);
+  }
+  P.skid = lerp(P.skid || 0, clamp(Math.abs(skidRate) * 1.5 + (braking ? 1 : 0), 0, 1), Math.min(1, dt * 8));
   groundBasis(P.pos.x, P.pos.z);
   _g.set(0, -9.81, 0); _g.addScaledVector(_n, -_g.dot(_n));
-  const mu = groomed ? 0.045 : 0.075;
-  let drag = lerp(0.0042, 0.0019, P.tuck); if (!groomed) drag += 0.0018;
-  const brakeDec = braking ? (speed > 5 ? 5.8 : 3.2) : 0;
+  const drag = lerp(S.drag, S.drag * 0.48, P.tuck);
+  const resist = S.res * (1 - smoothstep(3, 13, speed));          // deep snow: the skis plough until they plane
+  const brakeDec = braking ? (speed > 5 ? 5.8 : 3.2) * (st === SN.GLACEE ? 0.75 : st === SN.POUDREUSE ? 1.25 : 1) : 0;
   P.vel.addScaledVector(_g, dt);
   speed = P.vel.length();
   if (speed > 0.001) {
-    const dec = (mu * 9.81 * _n.y + drag * speed * speed + brakeDec) * dt;
+    const dec = (S.mu * 9.81 * _n.y + drag * speed * speed + resist + brakeDec + Math.abs(P.jolt) * 1.2) * dt;
     if (dec >= speed) P.vel.set(0, 0, 0); else P.vel.multiplyScalar((speed - dec) / speed);
   }
   if (tuck && speed < 6.5) {
     const dirSign = along < -0.5 ? -1 : 1;
     const grade = -_g.dot(_f) * dirSign / 9.81;         // >0 when the skis point uphill
-    const k = clamp(1 - grade / 0.15, 0, 1);
+    const k = clamp(1 - grade / 0.15, 0, 1) * (st === SN.POUDREUSE ? 0.45 : st === SN.TRAFOLLE ? 0.7 : 1);
     P.vel.addScaledVector(_f, dirSign * 2.4 * k * dt);
-  }
+    P.skating = true;
+  } else P.skating = false;
   if (P.revertT <= 0) {
     const lat = P.vel.dot(_l);
-    const grip = braking ? 2.2 : carving ? 14 : speed < 2 ? 20 : groomed ? 6 : 4.5;
+    const grip = braking ? S.gripSkid * 0.4 : carving ? S.gripCarve : speed < 2 ? 20 : S.gripSkid;
     P.vel.addScaledVector(_l, -lat * (1 - Math.exp(-grip * dt)));
   }
   P.vel.addScaledVector(_n, -P.vel.dot(_n));
   speed = P.vel.length();
   if (speed > 42) P.vel.multiplyScalar(42 / speed);
-  if (speed < 0.3 && !tuck && Math.abs(_g.dot(_f)) < mu * 9.81 * _n.y + 0.25) P.vel.set(0, 0, 0);
+  if (speed < 0.3 && !tuck && Math.abs(_g.dot(_f)) < S.mu * 9.81 * _n.y + resist * 0.5 + 0.25) P.vel.set(0, 0, 0);
+  P.sinkT = S.sink * (1 - smoothstep(3, 18, speed) * 0.75);
   if (input.jump) P.charge = Math.min(1, P.charge + dt / 0.55);
   if (!input.jump && P.prevJump) { doJump(); return; }
-  // spray
-  if (speed > 6 && (braking || Math.abs(P.edge) > 0.55 || !groomed) && Math.random() < (braking ? 0.9 : 0.45)) {
-    _t.copy(P.vel).multiplyScalar(0.25).addScaledVector(_l, -Math.sign(P.edge || 1) * speed * 0.12); _t.y += 1.2;
-    emit(P.pos, _t, braking ? 3 : 2, 2.2);
-  }
+  sprayFor(st, speed, braking);
   P.stillT = speed < 0.4 ? P.stillT + dt : 0;
-  moveOnGround(dt, along);
+  moveOnGround(dt, along, st);
 }
-function moveOnGround(dt, along) {
+function sprayFor(st, speed, braking) {
+  const deep = st === SN.POUDREUSE, crud = st === SN.TRAFOLLE;
+  const active = speed > 5 && (braking || P.skid > 0.3 || Math.abs(P.edge) > 0.5 || deep || crud);
+  if (!active) return;
+  const chance = deep ? 1 : braking ? 0.9 : crud ? 0.6 : 0.45;
+  if (Math.random() > chance) return;
+  _t.copy(P.vel).multiplyScalar(deep ? 0.12 : 0.25).addScaledVector(_l, -Math.sign(P.edge || 1) * speed * (deep ? 0.06 : 0.12)); _t.y += deep ? 1.6 : 1.2;
+  emit(P.pos, _t, deep ? 4 : braking ? 3 : 2, deep ? 2.8 : 2.2);
+  if (deep && Math.random() < 0.35) emitCloud(P.pos, _t);
+}
+function moveOnGround(dt, along, st) {
   const speed = P.vel.length();
   P.pos.addScaledVector(P.vel, dt);
   clampWorld();
-  const gh = H(P.pos.x, P.pos.z);
-  normalAt(P.pos.x, P.pos.z, _t);
+  updateTunnel();
+  const gh = groundY(P.pos.x, P.pos.z);
+  groundN(P.pos.x, P.pos.z, _t);
   const sep = P.vel.dot(_t);
+  const S = SNOW[st ?? SN.DAMEE];
   // take-off: compare the skier's climb rate with the ground just ahead (catches kicker lips and rollovers)
   const vh = Math.hypot(P.vel.x, P.vel.z);
   if (vh > 3) {
-    const la = featH(P.pos.x, P.pos.z) > 0 ? 0.2 : 0.5, g1 = H(P.pos.x + P.vel.x / vh * la, P.pos.z + P.vel.z / vh * la);
+    const la = nearKicker(P.pos.x, P.pos.z) ? 0.2 : 0.5, g1 = groundY(P.pos.x + P.vel.x / vh * la, P.pos.z + P.vel.z / vh * la);
     const sepV = (P.vel.y / vh - (g1 - gh) / la) * vh;
-    if (sepV > Math.max(2.2, speed * 0.12)) { P.pos.y = Math.max(P.pos.y, gh); startAir(along < 0); return; }
+    if (sepV > Math.max(2.2, speed * 0.12) * S.takeoff) { P.pos.y = Math.max(P.pos.y, gh); startAir(along < 0); return; }
   }
   P.pos.y = gh;
-  if (speed > 0.01) { P.vel.addScaledVector(_t, -sep); const s2 = P.vel.length(); if (s2 > 1e-4) P.vel.multiplyScalar(speed / s2); }
+  if (speed > 0.01) {
+    P.vel.addScaledVector(_t, -sep);
+    let keep = speed;
+    if (sep < -1.2) {
+      if (st === SN.BOSSES || st === SN.TRAFOLLE) keep *= 1 - Math.min(0.3, (-sep - 1.2) * 0.045);   // legs soak up the bump, speed goes with it
+      else if (sep < -10 && !P.tunnel) { P.vel.multiplyScalar(0.2); crash('Choc contre la pente'); return; }
+      P.compress = Math.min(1.2, (P.compress || 0) + (-sep) * 0.06);
+    }
+    const s2 = P.vel.length(); if (s2 > 1e-4) P.vel.multiplyScalar(keep / s2);
+  }
   if (collideObstacles()) return;
   checkRails();
 }
@@ -1067,12 +1481,12 @@ function stepAir(dt) {
   if (flipIn) { const d = flipIn * 5.0 * dt; P.pitch += d; a.flip += d; }
   else { const w = wrapPi(P.pitch); if (Math.abs(w) < 0.9) { const s = Math.sign(w) * Math.min(Math.abs(w), 2.8 * dt); P.pitch -= s; a.flip -= s; } }
   if (input.grab) { a.grab = 'Mute Grab'; a.grabT += dt; } else if (input.tail) { a.grab = 'Tail Grab'; a.grabT += dt; }
-  P.pos.addScaledVector(P.vel, dt); clampWorld();
+  P.pos.addScaledVector(P.vel, dt); clampWorld(); updateTunnel();
   if (checkRails()) return;
-  const gh = H(P.pos.x, P.pos.z);
+  const gh = groundY(P.pos.x, P.pos.z);
   if (P.pos.y <= gh) {
     if (a.t < 0.08) { P.pos.y = gh; return; }   // still sliding off the lip
-    P.pos.y = gh; normalAt(P.pos.x, P.pos.z, _n); land(_n); return;
+    P.pos.y = gh; groundN(P.pos.x, P.pos.z, _n); land(_n); return;
   }
   if (P.pos.y - gh < 4) collideObstacles();
 }
@@ -1128,17 +1542,18 @@ function crash(msg) {
 }
 function stepCrash(dt) {
   P.crashT -= dt;
-  const gh = H(P.pos.x, P.pos.z);
+  const gh = groundY(P.pos.x, P.pos.z);
   if (P.pos.y > gh + 0.05) { P.vel.y -= 9.81 * dt; }
-  else { P.pos.y = gh; normalAt(P.pos.x, P.pos.z, _n); P.vel.addScaledVector(_n, -Math.min(0, P.vel.dot(_n))); const s = P.vel.length(); if (s > 0) P.vel.multiplyScalar(Math.max(0, s - 9 * dt) / s); }
-  P.pos.addScaledVector(P.vel, dt); clampWorld();
-  const g2 = H(P.pos.x, P.pos.z); if (P.pos.y < g2) P.pos.y = g2;
-  pushOutObstacles();
+  else { P.pos.y = gh; groundN(P.pos.x, P.pos.z, _n); P.vel.addScaledVector(_n, -Math.min(0, P.vel.dot(_n))); const s = P.vel.length(); if (s > 0) P.vel.multiplyScalar(Math.max(0, s - 9 * dt) / s); }
+  P.pos.addScaledVector(P.vel, dt); clampWorld(); updateTunnel();
+  const g2 = groundY(P.pos.x, P.pos.z); if (P.pos.y < g2) P.pos.y = g2;
+  if (!P.tunnel) pushOutObstacles();
   if (P.crashT <= 0) standUp();
 }
 function standUp() {
   P.state = 'ski'; P.vel.set(0, 0, 0); P.pitch = 0; P.edge = 0;
-  P.pos.y = H(P.pos.x, P.pos.z); normalAt(P.pos.x, P.pos.z, _n);
+  P.pos.y = groundY(P.pos.x, P.pos.z); groundN(P.pos.x, P.pos.z, _n);
+  if (P.tunnel) { const tl = tunnelLocal(P.tunnel, P.pos.x, P.pos.z, 2); if (tl) P.yaw = Math.atan2(tl.ux, tl.uz); return; }   // pistes run downhill
   if (Math.hypot(_n.x, _n.z) > 0.02) P.yaw = Math.atan2(_n.x, _n.z);
   // if a trunk sits right below, step sideways so the line is clear
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw);
@@ -1152,6 +1567,7 @@ function standUp() {
   }
 }
 function collideObstacles() {
+  if (P.tunnel) return false;   // trees and chalets above the tube are not in the way
   const sp = P.vel.length();
   const cx = Math.floor((P.pos.x + HALF) / TC), cz = Math.floor((P.pos.z + HALF) / TC);
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -1239,7 +1655,7 @@ function stepLift(dt) {
 }
 function unload(L) {
   L.own.visible = false;
-  P.state = 'ski'; P.lift = null;
+  P.state = 'ski'; P.lift = null; P.tunnel = null;
   P.pos.set(L.exit[0], 0, L.exit[1]); P.pos.y = H(P.pos.x, P.pos.z);
   P.yaw = L.exitYaw; P.vel.set(Math.sin(P.yaw) * 3, 0, Math.cos(P.yaw) * 3); camSnap = true;
   normalAt(P.pos.x, P.pos.z, _n); P.vel.addScaledVector(_n, -P.vel.dot(_n));
@@ -1251,7 +1667,7 @@ function respawnNearestLift() {
   for (const L of LIFTS) { const d = Math.hypot(P.pos.x - L.board.x, P.pos.z - L.board.z); if (d < bd) { bd = d; best = L; } }
   const p = best.board.clone().addScaledVector(best.dir, -7);
   P.pos.set(p.x, H(p.x, p.z), p.z); P.vel.set(0, 0, 0); P.yaw = best.yaw; P.pitch = 0;
-  P.state = 'ski'; P.lift = null; P.air = null; P.rail = null; P.edge = 0; P.charge = 0; P.revertT = 0; camSnap = true;
+  P.state = 'ski'; P.lift = null; P.air = null; P.rail = null; P.edge = 0; P.charge = 0; P.revertT = 0; P.tunnel = null; camSnap = true;
   showTrick(best.name, 'Appuyez sur E pour monter');
 }
 function teleportLift(i) { const L = LIFTS[i]; P.pos.set(L.board.x, 0, L.board.z); respawnNearestLift(); }
@@ -1561,7 +1977,7 @@ $('go').addEventListener('click', startGame);
 /* ---------------- Boot ---------------- */
 const steps = [
   ['Sculpture du relief…', () => { genTerrain(); }],
-  ['Damage des pistes…', () => { genPistes(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); }],
+  ['Damage des pistes…', () => { genPistes(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); genMoguls(); }],
   ['Installation des remontées…', () => {
     LIFTS.forEach(L => { layoutLift(L); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.T.x, L.T.z, L.off + 7, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.B.x, L.B.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.T.x, L.T.z, L.T.x, L.T.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); });
     rasterSeg(ZR, ZN - 1, -232, 128, -232, 128, 22, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
@@ -1573,9 +1989,11 @@ const steps = [
       if (best) { const [p, i] = best, a = p.samples[i], b = p.samples[Math.min(p.samples.length - 1, i + 3)]; L.exitYaw = Math.atan2(b.x - a.x, b.z - a.z); }
       else { normalAt(L.exit[0], L.exit[1], _n); L.exitYaw = Math.atan2(_n.x, _n.z); }
     });
+    genCannons(); genSnowGrid();
   }],
   ['Construction du terrain…', () => { buildTerrainMesh(); buildBackdrop(); }],
-  ['Plantation des sapins…', () => { buildVillage(); placeTrees(); placeRocks(); }],
+  ['Construction des villages…', () => { buildVillages(); buildCannonMeshes(); initPlumes(); }],
+  ['Plantation des sapins…', () => { placeTrees(); placeRocks(); }],
   ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); }],
 ];
 function boot(i) {
@@ -1592,7 +2010,9 @@ function boot(i) {
 window.__ski = {
   P, H, input, queued, camera, skier, LIFTS, PISTES, kickers, rails, trees, zoneAt, normalAt, stepSim, STEP, ALT0, startGame,
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
-  teleport(x, z, yaw) { P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
+  teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
+  teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
+  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY,
   setVel(x, y, z) { P.vel.set(x, y, z); },
   clear() { for (const k in input) input[k] = false; },
   ready: false
