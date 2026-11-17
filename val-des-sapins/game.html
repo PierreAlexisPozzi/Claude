@@ -28,6 +28,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 .speed small{font:600 15px var(--display);color:var(--ink-dim);margin-left:4px;letter-spacing:.06em}
 .meta{display:flex;gap:12px;font:500 13px var(--body);color:var(--ink-dim);font-variant-numeric:tabular-nums;margin-top:2px}
 .meta b{color:var(--ink);font-weight:600}
+.meta.snow{color:var(--ice);font-weight:600;letter-spacing:.02em}
+.flake{font-size:12px}
 #score{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);padding:6px 14px;font:600 14px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
 #score b{color:var(--gold);font-size:18px;font-variant-numeric:tabular-nums;margin-left:6px}
 #miniWrap{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 14px);padding:6px;border-radius:12px}
@@ -106,6 +108,7 @@ body.touch #tools,body.touch .ctrls{display:none}
     <div class="zone"><span class="dot" id="zDot"></span><span id="zName">Hors-piste</span></div>
     <div class="speed"><span id="spd">0</span><small>KM/H</small></div>
     <div class="meta"><span><b id="alt">0</b> m</span><span id="st">À l'arrêt</span></div>
+    <div class="meta snow"><span class="flake" aria-hidden="true">❄</span><span id="snow">Damée</span></div>
   </div>
   <div id="score" class="panel">Freestyle<b id="pts">0</b></div>
   <div id="miniWrap" class="panel"><canvas id="mini" width="340" height="340"></canvas><div class="cap"><span>Plan</span><span>M · carte</span></div></div>
@@ -132,6 +135,7 @@ body.touch #tools,body.touch .ctrls{display:none}
     <div class="side">
       <h2>Plan des pistes</h2>
       <div><h3>Pistes</h3><div class="plist" id="plist"></div></div>
+      <div><h3>Repères</h3><div class="plist"><div><span class="dot" style="background:#6b4428"></span>Villages</div><div><span class="dot" style="background:#ff5ac8"></span>Entrées de tunnel</div><div><span class="dot" style="background:#2bb6d6"></span>Canons à neige</div><div><span class="dot" style="background:#fff"></span>Champs de bosses</div></div></div>
       <div><h3>Aller à une remontée</h3><div class="plist" id="llist"></div></div>
       <button class="tbtn" id="closeMap" type="button">Fermer (M)</button>
     </div>
@@ -151,17 +155,10 @@ body.touch #tools,body.touch .ctrls{display:none}
 
 <div id="start">
   <div class="inner">
-    <div class="eyebrow">Domaine ouvert · 1 480 – 2 400 m</div>
+    <div class="eyebrow" id="eyebrow">Domaine ouvert</div>
     <h1>Val des<span>Sapins</span></h1>
-    <p class="lede">Un domaine entier à parcourir librement. La pente décide : pour remonter, il faut prendre la télécabine, les télésièges ou les tire-fesses. Pistes damées, poudreuse entre les sapins et snowpark.</p>
-    <div class="facts">
-      <span><i class="dot" style="background:var(--verte)"></i>2 vertes</span>
-      <span><i class="dot" style="background:var(--bleue)"></i>4 bleues</span>
-      <span><i class="dot" style="background:var(--rouge)"></i>2 rouges</span>
-      <span><i class="dot noire" style="background:var(--noire)"></i>1 noire</span>
-      <span><i class="dot" style="background:var(--park)"></i>Snowpark</span>
-      <span>5 remontées</span>
-    </div>
+    <p class="lede">Un domaine entier à parcourir librement. La pente décide : pour remonter, il faut prendre la télécabine, les télésièges ou les tire-fesses. Pistes damées, murs glacés, champs de bosses, poudreuse et trafolle entre les sapins, tunnels sous les crêtes et villages à traverser.</p>
+    <div class="facts" id="facts"></div>
     <div class="ctrls">
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>Carres, virages</div>
       <div><span class="ks"><span class="key">↑</span></span>Schuss, patiner</div>
@@ -193,8 +190,8 @@ const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const IS_TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 if (IS_TOUCH) document.body.classList.add('touch');
 const Q = IS_TOUCH
-  ? { trees: 9000, spacing: 9.5, shadow: 1024, pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: false }
-  : { trees: 22000, spacing: 6.8, shadow: 2048, pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true };
+  ? { trees: 9000, spacing: 9.5, shadow: 1024, pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: false, tex: 256 }
+  : { trees: 22000, spacing: 6.8, shadow: 2048, pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, tex: 512 };
 
 /* ---------------- Noise ---------------- */
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -450,7 +447,7 @@ function genPistes() {
         const target = hc + cross * (raw[vi] - smc);
         const ww = w * w * w * w + 1e-6;
         tSum[vi] += target * ww; wSum[vi] += ww;
-        if (w > groomW[vi]) groomW[vi] = w;
+        if (w > groomW[vi]) { groomW[vi] = w; groomDir[vi] = Math.atan2(b.x - a.x, b.z - a.z); }
       });
       if (!p.hidden) rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 2, (ix, iz, d, t) => { if (!skip(t)) zoneGrid[iz * ZN + ix] = idx; });
       rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, hw + 7, (ix, iz, d, t) => { if (!skip(t)) clearGrid[iz * ZN + ix] = 1; });
@@ -548,47 +545,117 @@ renderer.setPixelRatio(Q.pr);
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const MAX_ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4);
 const scene = new THREE.Scene();
-const FOG = new THREE.Color('#c9dcf1');
-scene.fog = new THREE.FogExp2(FOG, 0.0001);
+const FOG = new THREE.Color('#c5d6ea');
+scene.fog = new THREE.FogExp2(FOG, 0.000095);
 scene.background = FOG;
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.3, 26000);
-const SUN_DIR = new V3(0.42, 0.62, 0.66).normalize();
-const hemi = new THREE.HemisphereLight(0xdfeaff, 0x6d7b8f, 0.66); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff3df, 0.78);
+// low winter sun (31°) from the south-east: long shadows that show the relief
+const SUN_DIR = new V3(0.45, 0.52, 0.72).normalize();
+const hemi = new THREE.HemisphereLight(0xd3e2ff, 0x8c95a8, 0.5); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0dc, 0.74);
 sun.castShadow = true; sun.shadow.mapSize.set(Q.shadow, Q.shadow);
-const SC = sun.shadow.camera; SC.left = -45; SC.right = 45; SC.top = 45; SC.bottom = -45; SC.near = 10; SC.far = 900;
-sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
+const SC = sun.shadow.camera; SC.left = -42; SC.right = 42; SC.top = 42; SC.bottom = -42; SC.near = 20; SC.far = 1400;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.06;
 scene.add(sun); scene.add(sun.target);
+const SUN_R = new V3().crossVectors(SUN_DIR, new V3(0, 1, 0)).normalize(), SUN_U = new V3().crossVectors(SUN_R, SUN_DIR).normalize();
+function updateSun(c) {
+  // snap the shadow frustum to whole texels so shadows don't shimmer while moving
+  const tx = (SC.right - SC.left) / sun.shadow.mapSize.x;
+  const a = Math.round(c.dot(SUN_R) / tx) * tx, b = Math.round(c.dot(SUN_U) / tx) * tx, d = c.dot(SUN_DIR);
+  sun.target.position.copy(SUN_R).multiplyScalar(a).addScaledVector(SUN_U, b).addScaledVector(SUN_DIR, d);
+  sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 700);
+}
 
-// sky dome
+// sky dome with a hazy horizon and a sun glow
 const sky = new THREE.Mesh(new THREE.SphereGeometry(20000, 32, 16), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: { sunDir: { value: SUN_DIR } },
   vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader: 'uniform vec3 sunDir; varying vec3 vD; void main(){ float h = max(vD.y,0.0); vec3 hor = vec3(0.79,0.86,0.945); vec3 zen = vec3(0.17,0.39,0.76); vec3 c = mix(hor, zen, pow(h,0.5)); float s = max(dot(normalize(vD),sunDir),0.0); c += vec3(1.0,0.92,0.75)*pow(s,900.0)*3.0 + vec3(1.0,0.88,0.65)*pow(s,10.0)*0.18; if(vD.y<0.0) c = hor; gl_FragColor = vec4(c,1.0); }'
+  fragmentShader: 'uniform vec3 sunDir; varying vec3 vD; void main(){ vec3 d = normalize(vD); float h = max(d.y,0.0); vec3 hor = vec3(0.78,0.85,0.93); vec3 mid = vec3(0.42,0.6,0.86); vec3 zen = vec3(0.13,0.3,0.66); vec3 c = mix(hor, mid, smoothstep(0.0,0.25,h)); c = mix(c, zen, smoothstep(0.2,0.9,h)); float s = max(dot(d,sunDir),0.0); c += vec3(1.0,0.93,0.78)*pow(s,1400.0)*4.0 + vec3(1.0,0.86,0.62)*pow(s,24.0)*0.22 + vec3(1.0,0.9,0.75)*pow(s,4.0)*0.06; if(d.y<0.0) c = hor; gl_FragColor = vec4(c,1.0); }'
 }));
 sky.renderOrder = -1; scene.add(sky);
 
-function makeGrainTexture() {
-  const s = 256, cv = document.createElement('canvas'); cv.width = cv.height = s; const g = cv.getContext('2d');
-  const img = g.createImageData(s, s); const r = mulberry32(5);
-  for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
-    const n = 0.93 + r() * 0.07 + 0.02 * Math.sin((y + perlin(x * 0.05, y * 0.05) * 18) * 0.35);
-    const v = clamp(n * 255, 0, 255), i = (y * s + x) * 4; img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = Math.min(255, v + 2); img.data[i + 3] = 255;
+/* ---------------- Procedural textures ---------------- */
+function tileNoise(S, cells, seed, oct) {
+  const out = new Float32Array(S * S); let amp = 1, tot = 0;
+  for (let o = 0; o < oct; o++) {
+    const g = cells << o, r = mulberry32(seed + o * 131), lat = new Float32Array(g * g);
+    for (let i = 0; i < g * g; i++) lat[i] = r();
+    for (let y = 0; y < S; y++) {
+      const fy = y / S * g, iy = Math.floor(fy), ty = fy - iy, sy = ty * ty * (3 - 2 * ty), y0 = (iy % g) * g, y1 = ((iy + 1) % g) * g;
+      for (let x = 0; x < S; x++) {
+        const fx = x / S * g, ix = Math.floor(fx), tx = fx - ix, sx = tx * tx * (3 - 2 * tx), x0 = ix % g, x1 = (ix + 1) % g;
+        const v = lerp(lerp(lat[y0 + x0], lat[y0 + x1], sx), lerp(lat[y1 + x0], lat[y1 + x1], sx), sy);
+        out[y * S + x] += v * amp;
+      }
+    }
+    tot += amp; amp *= 0.5;
   }
-  g.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+  for (let i = 0; i < out.length; i++) out[i] /= tot;
+  return out;
+}
+function canvasTex(S, fill) {
+  const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); const img = g.createImageData(S, S);
+  fill(img.data); g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = MAX_ANISO; return t;
+}
+function normalTex(h, S, k) {
+  return canvasTex(S, d => {
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const dx = h[y * S + (x + 1) % S] - h[y * S + (x - 1 + S) % S], dy = h[((y + 1) % S) * S + x] - h[((y - 1 + S) % S) * S + x];
+      let nx = -dx * k, ny = dy * k, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+      const i = (y * S + x) * 4; d[i] = (nx * 0.5 + 0.5) * 255; d[i + 1] = (ny * 0.5 + 0.5) * 255; d[i + 2] = (nz * 0.5 + 0.5) * 255; d[i + 3] = 255;
+    }
+  });
+}
+const TEX = {};
+function buildTextures() {
+  const S = Q.tex;
+  // corduroy left by the groomer: 5 cm ribs across a 4 m tile, with the seam between two passes
+  { const n = tileNoise(S, 8, 11, 4), f = tileNoise(S, 64, 12, 2), h = new Float32Array(S * S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const u = x / S, seam = Math.min(u, 1 - u) * S;
+      h[y * S + x] = 0.55 * Math.pow(Math.abs(Math.sin(Math.PI * u * 80 + n[y * S + x] * 2)), 0.6) + 0.25 * n[y * S + x] + 0.12 * f[y * S + x] - 0.9 * Math.exp(-seam * seam / 6);
+    }
+    TEX.groom = normalTex(h, S, 1.1); }
+  // wind ripples on untouched powder
+  { const n = tileNoise(S, 4, 21, 5), h = new Float32Array(S * S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const v = y / S; h[y * S + x] = 0.35 * Math.sin(Math.PI * 2 * (v * 7 + 1.4 * n[y * S + x])) + 0.9 * n[y * S + x]; }
+    TEX.powder = normalTex(h, S, 1.5); }
+  // trafolle: lumps and crossing ski tracks
+  { const n = tileNoise(S, 16, 31, 4), h = new Float32Array(S * S), r = mulberry32(77);
+    for (let i = 0; i < h.length; i++) h[i] = n[i] * 1.6;
+    for (let k = 0; k < 16; k++) {
+      const x0 = r() * S, ang = (r() - 0.5) * 1.2, amp = 10 + r() * 30, fr = 1 + Math.floor(r() * 3);
+      for (let y = 0; y < S; y++) {
+        const cx = x0 + Math.tan(ang) * y * 0.3 + Math.sin(y / S * Math.PI * 2 * fr) * amp;
+        for (const off of [-6, 6]) for (let dx = -3; dx <= 3; dx++) { const x = ((Math.round(cx + off + dx) % S) + S) % S; h[y * S + x] -= 0.55 * (1 - Math.abs(dx) / 4); }
+      }
+    }
+    TEX.crud = normalTex(h, S, 3.2); }
+  // rock: ridged layers + albedo with cracks and lichen
+  { const n = tileNoise(S, 8, 41, 5), m = tileNoise(S, 32, 42, 3), h = new Float32Array(S * S);
+    for (let i = 0; i < h.length; i++) { const r = 1 - Math.abs(n[i] * 2 - 1); h[i] = r * r * 1.4 + m[i] * 0.4; }
+    TEX.rockN = normalTex(h, S, 4);
+    TEX.rockA = canvasTex(S, d => { for (let i = 0; i < h.length; i++) { const v = 0.5 + h[i] * 0.35 - (m[i] < 0.28 ? 0.18 : 0); const lich = n[i] > 0.66 ? 0.06 : 0; d[i * 4] = clamp(v * 196 + lich * 120, 0, 255); d[i * 4 + 1] = clamp(v * 186 + lich * 140, 0, 255); d[i * 4 + 2] = clamp(v * 178, 0, 255); d[i * 4 + 3] = 255; } }); }
+  // fir needles (grey detail, the vertex colour gives green or snow)
+  { const S2 = 128; const n = tileNoise(S2, 8, 51, 3), r = mulberry32(52), h = new Float32Array(S2 * S2).fill(0.8);
+    for (let k = 0; k < 900; k++) { const x = r() * S2, y = r() * S2, len = 4 + r() * 8, a = -0.5 + r() * 1.0; for (let t = 0; t < len; t++) { const px = Math.floor(x + Math.sin(a) * t + S2) % S2, py = Math.floor(y + Math.cos(a) * t + S2) % S2; h[py * S2 + px] = 0.55 + r() * 0.5; } }
+    TEX.needle = canvasTex(S2, d => { for (let i = 0; i < h.length; i++) { const v = clamp((h[i] * 0.8 + n[i] * 0.35) * 255, 60, 255); d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } }); }
 }
 
 function mergeParts(parts) {
   let total = 0;
   const gs = parts.map(p => { const g = p.g.index ? p.g.toNonIndexed() : p.g; if (!g.attributes.normal) g.computeVertexNormals(); total += g.attributes.position.count; return g; });
-  const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), col = new Float32Array(total * 3);
+  const hasUv = gs.every(g => g.attributes.uv);
+  const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), col = new Float32Array(total * 3), uv = hasUv ? new Float32Array(total * 2) : null;
   let o = 0;
   gs.forEach((g, i) => {
     const c = new THREE.Color(parts[i].c), n = g.attributes.position.count;
     pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3);
+    if (uv) uv.set(g.attributes.uv.array, o * 2);
     for (let k = 0; k < n; k++) { col[(o + k) * 3] = c.r; col[(o + k) * 3 + 1] = c.g; col[(o + k) * 3 + 2] = c.b; }
     o += n;
   });
@@ -596,43 +663,251 @@ function mergeParts(parts) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   return geo;
 }
 const lambertVC = (opts = {}) => new THREE.MeshLambertMaterial(Object.assign({ vertexColors: true }, opts));
 
-function buildTerrainMesh() {
-  const pos = new Float32Array(VN * VN * 3), uv = new Float32Array(VN * VN * 2), col = new Float32Array(VN * VN * 3);
-  for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) {
-    const i = iz * VN + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL;
-    pos[i * 3] = x; pos[i * 3 + 1] = heights[i]; pos[i * 3 + 2] = z; uv[i * 2] = x / 7; uv[i * 2 + 1] = z / 7;
+/* ---------------- Terrain material: blended snow surfaces ---------------- */
+function makeTerrainMaterial() {
+  const m = new THREE.MeshPhongMaterial({ vertexColors: true, specular: new THREE.Color(0x4a505a), shininess: 22 });
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, { tNG: { value: TEX.groom }, tNP: { value: TEX.powder }, tNC: { value: TEX.crud }, tNR: { value: TEX.rockN }, tRA: { value: TEX.rockA } });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 aSnow; attribute float aDir; attribute float aSun; attribute float aIce;\nvarying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vSnow = aSnow; vDir = aDir; vSun = aSun; vIce = aIce; vWPos = (modelMatrix * vec4(position, 1.0)).xyz; vWNorm = normalize(mat3(modelMatrix) * normal);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D tNG; uniform sampler2D tNP; uniform sampler2D tNC; uniform sampler2D tNR; uniform sampler2D tRA;
+varying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;
+vec3 tsN(sampler2D t, vec2 uv) { return texture2D(t, uv).xyz * 2.0 - 1.0; }`)
+      .replace('#include <map_fragment>', `
+  vec4 W = vSnow / max(1e-3, vSnow.x + vSnow.y + vSnow.z + vSnow.w);
+  float ca = cos(vDir), sa = sin(vDir);
+  vec2 uvG = vec2(ca * vWPos.x - sa * vWPos.z, sa * vWPos.x + ca * vWPos.z) * 0.25;
+  vec2 uvP = vWPos.xz / 9.0; vec2 uvC = vWPos.xz / 7.0; vec2 uvR = vWPos.xz / 6.0;
+  vec3 rockA = texture2D(tRA, uvR).rgb;
+  diffuseColor.rgb *= vec3(W.x * 0.97 + W.y * 1.0 + W.z * 0.93) + W.w * rockA;`)
+      .replace('#include <specularmap_fragment>', 'float specularStrength = W.x * 0.32 + W.y * 0.2 + W.z * 0.12 + W.w * 0.04 + vIce * 0.9;')
+      .replace('#include <normal_fragment_maps>', `
+  vec3 nW = normalize(vWNorm);
+  vec3 Tx = normalize(vec3(1.0, 0.0, 0.0) - nW * nW.x), Tz = normalize(vec3(0.0, 0.0, 1.0) - nW * nW.z);
+  vec3 TuG = vec3(ca, 0.0, -sa), TvG = vec3(sa, 0.0, ca);
+  vec3 Tgu = normalize(TuG - nW * dot(TuG, nW)), Tgv = normalize(TvG - nW * dot(TvG, nW));
+  vec3 mG = tsN(tNG, uvG); vec3 mO = tsN(tNP, uvP) * W.y + tsN(tNC, uvC) * W.z + tsN(tNR, uvR) * W.w;
+  vec3 wN = (mG.x * Tgu + mG.y * Tgv + mG.z * nW) * W.x + (mO.x * Tx + mO.y * Tz + mO.z * nW);
+  normal = normalize((viewMatrix * vec4(normalize(wN + nW * 0.001), 0.0)).xyz);`)
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n  reflectedLight.directDiffuse *= vSun; reflectedLight.directSpecular *= vSun;')
+      .replace('#include <envmap_fragment>', `#include <envmap_fragment>
+  { vec3 cell = floor(vWPos * 9.0);
+    float hs = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    vec3 vd = normalize(cameraPosition - vWPos);
+    float tw = fract(hs * 57.31 + dot(vd, vec3(5.3, 7.1, 3.7)) * 2.0);
+    float glint = smoothstep(0.986, 1.0, tw) * step(0.55, hs);
+    outgoingLight += vec3(glint) * vSun * (1.0 - W.w) * smoothstep(40.0, 4.0, length(cameraPosition - vWPos)) * 0.9; }`);
+  };
+  return m;
+}
+
+/* sun visibility baked per vertex: march toward the sun over the heightfield (and the far mountains) */
+const farGrid = { o: -7000, step: 100, n: 141, d: null };
+function initFarGrid() {
+  const n = farGrid.n, d = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = farGrid.o + i * farGrid.step, z = farGrid.o + j * farGrid.step; d[j * n + i] = Math.abs(x) < HALF && Math.abs(z) < HALF ? -1e4 : farHeight(x, z); }
+  farGrid.d = d;
+}
+function anyH(x, z) {
+  if (Math.abs(x) < HALF && Math.abs(z) < HALF) return gridH(x, z);
+  const g = farGrid, fx = clamp((x - g.o) / g.step, 0, g.n - 1.001), fz = clamp((z - g.o) / g.step, 0, g.n - 1.001), ix = fx | 0, iz = fz | 0, tx = fx - ix, tz = fz - iz, i = iz * g.n + ix;
+  return lerp(lerp(g.d[i], g.d[i + 1], tx), lerp(g.d[i + g.n], g.d[i + g.n + 1], tx), tz);
+}
+const SUN_H = Math.hypot(SUN_DIR.x, SUN_DIR.z), SUN_HX = SUN_DIR.x / SUN_H, SUN_HZ = SUN_DIR.z / SUN_H, SUN_TAN = SUN_DIR.y / SUN_H;
+function sunVis(x, z, h0) {
+  let maxEx = -1, d = 3;
+  for (let i = 0; i < 46 && d < 4500; i++) {
+    const ex = (anyH(x + SUN_HX * d, z + SUN_HZ * d) - (h0 + 0.5 + d * SUN_TAN)) / d;
+    if (ex > maxEx) maxEx = ex;
+    d = d * 1.14 + 2;
   }
-  const idx = new Uint32Array(N * N * 6); let k = 0;
+  return smoothstep(0.04, -0.015, maxEx);
+}
+
+const sunArr = new Float32Array(VN * VN);
+const groomDir = new Float32Array(VN * VN);
+function buildTerrainMesh() {
+  const pos = new Float32Array(VN * VN * 3), col = new Float32Array(VN * VN * 3), aSnow = new Float32Array(VN * VN * 4), aDir = new Float32Array(VN * VN), aIce = new Float32Array(VN * VN);
+  for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) {
+    const i = iz * VN + ix; pos[i * 3] = -HALF + ix * CELL; pos[i * 3 + 1] = heights[i]; pos[i * 3 + 2] = -HALF + iz * CELL;
+  }
+  // index, minus the triangles that would cover the tunnel tubes and portals
+  const idx = []; const tb = tunnels.map(T => { let a = 1e9, b = -1e9, c = 1e9, d = -1e9; for (let i = Math.max(0, T.i0 - 4); i <= Math.min(T.S.length - 1, T.i1 + 4); i++) { a = Math.min(a, T.S[i].x); b = Math.max(b, T.S[i].x); c = Math.min(c, T.S[i].z); d = Math.max(d, T.S[i].z); } return [a - 20, b + 20, c - 20, d + 20]; });
+  const holed = (a, b, c) => {
+    const cx = (pos[a * 3] + pos[b * 3] + pos[c * 3]) / 3, cz = (pos[a * 3 + 2] + pos[b * 3 + 2] + pos[c * 3 + 2]) / 3;
+    for (let k = 0; k < tunnels.length; k++) {
+      const B = tb[k]; if (cx < B[0] || cx > B[1] || cz < B[2] || cz > B[3]) continue;
+      const T = tunnels[k], tl = tunnelLocal(T, cx, cz, 3);
+      if (!tl || tl.s < -7 || tl.s > T.len + 7 || Math.abs(tl.w) > T.hw + 2.5) continue;
+      const mn = Math.min(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1]);
+      if (mn < tl.y + T.ceil + 2.4) return true;
+    }
+    return false;
+  };
   for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) {
     const a = iz * VN + ix, b = a + 1, c = a + VN, d = c + 1;
-    idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d;
+    if (!holed(a, c, b)) idx.push(a, c, b);
+    if (!holed(b, c, d)) idx.push(b, c, d);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
   geo.computeVertexNormals();
   const nor = geo.attributes.normal.array;
+  // forest floor darkening from tree density
+  const DN = 175, dens = new Float32Array(DN * DN);
+  for (let i = 0; i < trees.x.length; i++) { const gx = Math.floor((trees.x[i] + HALF) / 16), gz = Math.floor((trees.z[i] + HALF) / 16); if (gx >= 0 && gz >= 0 && gx < DN && gz < DN) dens[gz * DN + gx] += 1; }
+  const liftNear = null;
   for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) {
-    const i = iz * VN + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL, ny = nor[i * 3 + 1];
-    const nz = perlin(x * 0.02, z * 0.02) * 0.5 + perlin(x * 0.11, z * 0.11) * 0.5;
-    let r = 0.875 + nz * 0.025, g = 0.91 + nz * 0.022, b = 0.975;
-    const forest = smoothstep(-0.05, 0.3, fbm(x * 0.0042 + 40, z * 0.0042 - 12, 3)) * smoothstep(ALT0 + 640, ALT0 + 480, heights[i] + ALT0 - 0) ;
-    r -= forest * 0.05; g -= forest * 0.04; b -= forest * 0.02;
-    const rock = smoothstep(0.80, 0.6, ny) * (0.65 + 0.35 * (nz + 0.5)) * (1 - groomW[i]);
-    r = lerp(r, 0.38 + nz * 0.05, rock); g = lerp(g, 0.37 + nz * 0.05, rock); b = lerp(b, 0.37 + nz * 0.04, rock);
-    const gw = groomW[i];
-    r = lerp(r, 0.965, gw * 0.85); g = lerp(g, 0.975, gw * 0.85); b = lerp(b, 1.0, gw * 0.85);
-    col[i * 3] = r; col[i * 3 + 1] = g; col[i * 3 + 2] = b;
+    const i = iz * VN + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL, ny = nor[i * 3 + 1], h = heights[i];
+    const gw = groomW[i], off = 1 - gw;
+    const zk = zIdx(x, z), cw = zk >= 0 ? smoothstep(0.35, 0.7, crudAt(x, z, zk, liftNear) + (snowGrid[zk] === SN.TRAFOLLE ? 0.3 : 0)) : 0;
+    const rock = smoothstep(0.8, 0.6, ny) * (0.75 + 0.25 * perlin(x * 0.03, z * 0.03)) * (1 - gw * 0.85);
+    aSnow[i * 4] = gw * (1 - rock); aSnow[i * 4 + 1] = off * (1 - cw) * (1 - rock); aSnow[i * 4 + 2] = off * cw * (1 - rock); aSnow[i * 4 + 3] = rock;
+    aDir[i] = groomDir[i];
+    aIce[i] = gw * smoothstep(0.9, 0.82, ny) + (zk >= 0 && snowGrid[zk] === SN.CULTURE ? 0.3 : 0);
+    sunArr[i] = sunVis(x, z, h);
+    // ambient occlusion: hollows and forest floor slightly darker, a hint of blue in the shade
+    const avg = (gridH(x + 20, z) + gridH(x - 20, z) + gridH(x, z + 20) + gridH(x, z - 20)) / 4;
+    const gx = Math.floor((x + HALF) / 16), gz = Math.floor((z + HALF) / 16);
+    const den = gx >= 0 && gz >= 0 && gx < DN && gz < DN ? dens[gz * DN + gx] : 0;
+    const ao = (1 - clamp((avg - h) * 0.006, 0, 0.1)) * (1 - 0.06 * Math.min(1, den / 3));
+    col[i * 3] = 0.955 * ao; col[i * 3 + 1] = 0.97 * ao; col[i * 3 + 2] = 1.0 * ao;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: makeGrainTexture() }));
-  mesh.receiveShadow = true;
+  geo.setAttribute('aSnow', new THREE.BufferAttribute(aSnow, 4));
+  geo.setAttribute('aDir', new THREE.BufferAttribute(aDir, 1));
+  geo.setAttribute('aIce', new THREE.BufferAttribute(aIce, 1));
+  geo.setAttribute('aSun', new THREE.BufferAttribute(sunArr, 1));
+  const mesh = new THREE.Mesh(geo, terrainMat);
+  mesh.receiveShadow = true; mesh.castShadow = true;
   scene.add(mesh);
+}
+function sunAt(x, z) {
+  let gx = clamp((x + HALF) / CELL, 0, N - 1e-4), gz = clamp((z + HALF) / CELL, 0, N - 1e-4);
+  const ix = gx | 0, iz = gz | 0, fx = gx - ix, fz = gz - iz, i = iz * VN + ix;
+  return lerp(lerp(sunArr[i], sunArr[i + 1], fx), lerp(sunArr[i + VN], sunArr[i + VN + 1], fx), fz);
+}
+let terrainMat = null;
+
+/* ---------------- Mogul fields: fine mesh over the same height grid the physics reads ---------------- */
+function buildMogulMeshes() {
+  for (const p of patches) {
+    const { nx, nz, res, x0, z0 } = p, pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), aSnow = new Float32Array(nx * nz * 4), aDir = new Float32Array(nx * nz), aSun = new Float32Array(nx * nz), aIce = new Float32Array(nx * nz);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, x = x0 + i * res, z = z0 + j * res;
+      pos[k * 3] = x; pos[k * 3 + 1] = gridH(x, z) + p.h[k] + 0.035; pos[k * 3 + 2] = z;
+      col[k * 3] = 0.95; col[k * 3 + 1] = 0.965; col[k * 3 + 2] = 1.0;
+      aSnow[k * 4] = 0.45; aSnow[k * 4 + 2] = 0.55; aDir[k] = p.dir[k]; aSun[k] = sunAt(x, z);
+    }
+    const idx = [];
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+      if (p.wgt[a] + p.wgt[b] + p.wgt[c] + p.wgt[d] < 0.01) continue;
+      idx.push(a, c, b, b, c, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1)); g.computeVertexNormals();
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aSnow', new THREE.BufferAttribute(aSnow, 4)); g.setAttribute('aDir', new THREE.BufferAttribute(aDir, 1)); g.setAttribute('aSun', new THREE.BufferAttribute(aSun, 1)); g.setAttribute('aIce', new THREE.BufferAttribute(aIce, 1));
+    const mat = terrainMat.clone(); mat.onBeforeCompile = terrainMat.onBeforeCompile; mat.polygonOffset = true; mat.polygonOffsetFactor = -1; mat.polygonOffsetUnits = -4;
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.castShadow = true; scene.add(m);
+  }
+}
+
+/* ---------------- Tunnels: tube with coloured light fixtures, portal galleries ---------------- */
+const tunnelFx = [];
+const tunnelUniforms = { uTime: { value: 0 }, uBeat: { value: 0 } };
+const TUN_LIGHT = 8;
+function tunnelHue(k, t) { return ((k * 0.083 + t * 0.12) % 1 + 1) % 1; }
+function buildTunnels() {
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide, fog: false,
+    uniforms: Object.assign({ uLen: { value: 100 } }, tunnelUniforms),
+    vertexShader: 'attribute vec2 aUV; attribute float aKind; varying vec2 vUV; varying float vKind; void main(){ vUV = aUV; vKind = aKind; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uTime; uniform float uBeat; uniform float uLen; varying vec2 vUV; varying float vKind;
+      vec3 hue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        float s = vUV.x, a = vUV.y;
+        float n = 0.6 * hash(floor(vec2(s * 0.7, a * 10.0))) + 0.4 * hash(floor(vec2(s * 5.0, a * 60.0)));
+        vec3 base = vKind < 0.5 ? vec3(0.9, 0.92, 0.95) * (0.96 + 0.04 * hash(floor(vec2(s * 6.0, a * 30.0)))) : vec3(0.52, 0.5, 0.48) * (0.88 + 0.18 * n);
+        if (vKind > 0.5 && abs(fract(s / ${TUN_LIGHT}.0) - 0.5) > 0.47) base *= 0.6;          // segment joints
+        vec3 L = vec3(0.2, 0.19, 0.18) * (vKind < 0.5 ? 1.0 : 0.8 + 0.4 * a * (1.0 - a));
+        float k0 = floor(s / ${TUN_LIGHT}.0);
+        for (int j = -2; j <= 2; j++) {
+          float k = k0 + float(j); float ls = k * ${TUN_LIGHT}.0 + ${TUN_LIGHT / 2}.0; float d = s - ls;
+          float hh = fract(k * 0.083 + uTime * 0.12);
+          float side = vKind < 0.5 ? 0.6 : 1.0;
+          L += hue(hh) * (0.5 + uBeat * 0.7) * side / (1.0 + d * d * 0.16);
+          L += vec3(0.35, 0.33, 0.3) * side / (1.0 + d * d * 0.05);
+        }
+        float day = exp(-max(s, 0.0) / 10.0) + exp(-max(uLen - s, 0.0) / 10.0);
+        L += vec3(0.85, 0.92, 1.0) * min(day, 1.2) * 1.1;
+        gl_FragColor = vec4(base * L, 1.0);
+      }`
+  });
+  const conc = new THREE.MeshLambertMaterial({ color: '#a7a39c' });
+  for (const T of tunnels) {
+    const m = mat.clone(); m.uniforms = Object.assign({ uLen: { value: T.len } }, tunnelUniforms);
+    const rings = [], j0 = Math.max(0, T.i0 - 2), j1 = Math.min(T.S.length - 1, T.i1 + 2);
+    const prof = []; const ARC = 12; prof.push([T.hw, 0, 1]); for (let k = 0; k <= ARC; k++) { const th = k / ARC * Math.PI; prof.push([T.hw * Math.cos(th), 3.0 + (T.ceil - 3.0) * Math.sin(th), 1]); } prof.push([-T.hw, 0, 1]);
+    const pos = [], uv = [], kind = [], idx = [];
+    for (let j = j0; j <= j1; j++) {
+      const hd = pisteHeading(T.piste, j), px = Math.cos(hd), pz = -Math.sin(hd), C = T.S[j], y = T.hs[j], s = (j - T.i0) * 4;
+      // floor: flat strip
+      pos.push(C.x + px * T.hw, y + 0.03, C.z + pz * T.hw, C.x - px * T.hw, y + 0.03, C.z - pz * T.hw); uv.push(s, 0, s, 1); kind.push(0, 0);
+      for (let k = 0; k < prof.length; k++) { const [w, hh] = prof[k]; pos.push(C.x + px * w, y + hh, C.z + pz * w); uv.push(s, k / (prof.length - 1)); kind.push(1); }
+    }
+    const per = 2 + prof.length;
+    for (let j = 0; j < j1 - j0; j++) {
+      const A = j * per, B = (j + 1) * per;
+      idx.push(A, B, A + 1, A + 1, B, B + 1);
+      for (let k = 2; k < per - 1; k++) idx.push(A + k, A + k + 1, B + k, A + k + 1, B + k + 1, B + k);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aUV', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('aKind', new THREE.Float32BufferAttribute(kind, 1)); g.setIndex(idx);
+    const tube = new THREE.Mesh(g, m); tube.frustumCulled = false; scene.add(tube);
+    // shadow caster shell so the sun doesn't light the inside
+    const shell = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })); shell.castShadow = true; shell.frustumCulled = false; scene.add(shell);
+    // light fixtures on both walls
+    const nL = Math.floor(T.len / TUN_LIGHT) + 2, fx = new THREE.InstancedMesh(new THREE.BoxGeometry(0.25, 0.22, 1.6), new THREE.MeshBasicMaterial({ color: '#ffffff' }), nL * 2), o = new THREE.Object3D();
+    const ks = [];
+    for (let k = -1, n = 0; k < nL - 1; k++) for (const sd of [-1, 1]) {
+      const s = k * TUN_LIGHT + TUN_LIGHT / 2, j = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), hd = pisteHeading(T.piste, j), C = T.S[j];
+      o.position.set(C.x + Math.cos(hd) * sd * (T.hw - 0.35), T.hs[j] + 4.4, C.z - Math.sin(hd) * sd * (T.hw - 0.35)); o.rotation.set(0, hd, 0); o.updateMatrix(); fx.setMatrixAt(n, o.matrix); fx.setColorAt(n, new THREE.Color(1, 1, 1)); ks.push(k); n++;
+    }
+    fx.frustumCulled = false; scene.add(fx);
+    tunnelFx.push({ T, fx, ks });
+    // portal galleries
+    for (const [end, dirSign] of [[0, -1], [T.len, 1]]) {
+      const sMid = end + dirSign * 1.5, j = clamp(T.i0 + Math.round(sMid / 4), 0, T.S.length - 1), C = T.S[j], hd = pisteHeading(T.piste, j), y = T.hs[j];
+      const grp = new THREE.Group(); grp.position.set(C.x, y, C.z); grp.rotation.y = hd;
+      const L = 14, W = 2 * T.hw + 2.4;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(W, 1.0, L), conc); roof.position.y = T.ceil + 0.5; grp.add(roof);
+      const snow = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.6, L + 0.4), snowRoofMat); snow.position.y = T.ceil + 1.2; grp.add(snow);
+      for (const sd of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(0.9, T.ceil + 1.0, L), conc); wall.position.set(sd * (T.hw + 0.7), (T.ceil + 1.0) / 2 - 0.5, 0); grp.add(wall); }
+      const front = new THREE.Mesh(new THREE.BoxGeometry(W + 1.2, 2.4, 0.9), conc); front.position.set(0, T.ceil + 0.4, dirSign * L / 2); grp.add(front);
+      const sign = makeLabel(T.name, '#ff5ac8', 'Tunnel · ' + T.len + ' m'); sign.position.set(0, T.ceil + 2.6, dirSign * (L / 2 + 0.6)); sign.scale.set(8, 2.5, 1); grp.add(sign);
+      grp.traverse(q => { if (q.isMesh) { q.castShadow = true; q.receiveShadow = true; } });
+      scene.add(grp);
+    }
+  }
+}
+function updateTunnelFx(time, beat) {
+  tunnelUniforms.uTime.value = time; tunnelUniforms.uBeat.value = beat;
+  const c = new THREE.Color();
+  for (const F of tunnelFx) {
+    F.ks.forEach((k, n) => { c.setHSL(tunnelHue(k, time), 1, 0.55 + beat * 0.25); F.fx.setColorAt(n, c); });
+    F.fx.instanceColor.needsUpdate = true;
+  }
 }
 
 function farHeight(x, z) {
@@ -668,7 +943,7 @@ function buildBackdrop() {
     const nz = perlin(x * 0.003, z * 0.003);
     let c = [0.92, 0.945, 0.985];
     const snowLine = 700 + nz * 160;
-    if (isForest(x, y, z, ny)) c = [0.62, 0.69, 0.69];
+    if (isForest(x, y, z, ny)) c = [0.74, 0.8, 0.8];
     else if (ny < 0.72 || (y < snowLine && ny < 0.86)) { const k = smoothstep(0.86, 0.6, ny); c = [lerp(0.86, 0.36, k), lerp(0.88, 0.35, k), lerp(0.93, 0.36, k)]; }
     col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
   }
@@ -729,7 +1004,7 @@ function placeTrees() {
   // instanced chunks for frustum culling
   const geo = makeFirGeometry();
   geo.boundingSphere = new THREE.Sphere(new V3(0, 0, 0), 420);
-  const mat = lambertVC({ side: THREE.DoubleSide });
+  const mat = lambertVC({ side: THREE.DoubleSide, map: TEX.needle });
   const CH = 350, nc = WORLD / CH, buckets = Array.from({ length: nc * nc }, () => []);
   for (let i = 0; i < trees.x.length; i++) buckets[clamp(Math.floor((trees.x[i] + HALF) / CH), 0, nc - 1) + clamp(Math.floor((trees.z[i] + HALF) / CH), 0, nc - 1) * nc].push(i);
   const dummy = new THREE.Object3D(), tint = new THREE.Color();
@@ -745,7 +1020,7 @@ function placeTrees() {
       dummy.rotation.set((rnd() - 0.5) * 0.06, rnd() * 6.28, (rnd() - 0.5) * 0.06);
       dummy.scale.set(s * (0.9 + rnd() * 0.2), s * (0.95 + rnd() * 0.25), s * (0.9 + rnd() * 0.2));
       dummy.updateMatrix(); mesh.setMatrixAt(k, dummy.matrix);
-      const v = 0.82 + rnd() * 0.3; tint.setRGB(v, v * (0.97 + rnd() * 0.06), v); mesh.setColorAt(k, tint);
+      const v = (0.82 + rnd() * 0.3) * lerp(0.6, 1, sunVis(trees.x[i], trees.z[i], gridH(trees.x[i], trees.z[i]) + 5)); tint.setRGB(v, v * (0.97 + rnd() * 0.06), v); mesh.setColorAt(k, tint);
     });
     mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     scene.add(mesh);
@@ -759,7 +1034,7 @@ function placeRocks() {
     list.push([x, z, 1 + rnd() * 3.5]);
   }
   const geo = new THREE.DodecahedronGeometry(1, 0); geo.computeVertexNormals();
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: '#5b5a5c' }), list.length);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: '#8a8682', map: TEX.rockA }), list.length);
   const d = new THREE.Object3D();
   list.forEach(([x, z, s], i) => { d.position.set(x, gridH(x, z) - s * 0.25, z); d.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); d.scale.set(s * (0.8 + rnd() * 0.6), s * (0.5 + rnd() * 0.4), s * (0.8 + rnd() * 0.6)); d.updateMatrix(); mesh.setMatrixAt(i, d.matrix); });
   mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = true;
@@ -767,40 +1042,78 @@ function placeRocks() {
 }
 
 /* ---------------- Buildings & villages ---------------- */
-// Layout inspired by big French domains: a high purpose-built station, wooden mid-villages, a traditional village at the bottom
+// Styles taken from the reference photos of a large French domain:
+//  · 'station'  stepped concrete "paquebot" with wooden balcony bands and shops at the foot, brown towers, low flat-roofed blocks
+//  · 'bois'     4–5 storey wood-clad residences on a stone arcade, continuous balconies, deep snow on big gables, cross gables, chimneys
+//  · 'hameau' / 'trad'  stone ground floors, timber upper floors with carved balconies, lit windows; altitude restaurant with a deck
 const VILLAGES = [
-  { name: 'Les Granges', style: 'trad', alt: 'village', piste: 'Les Sapins', d: [960, 1130], also: [['Retour Village', 1000, 1130]] },
-  { name: 'Val Haut 1800', style: 'station', piste: 'Les Sapins', d: [24, 170], also: [['Retour Village', 24, 150]], bridge: ['Les Sapins', 92] },
+  { name: 'Les Granges', style: 'trad', piste: 'Les Sapins', d: [960, 1130], also: [['Retour Village', 1000, 1130]] },
+  { name: 'Val Haut 1800', style: 'station', piste: 'Les Sapins', d: [20, 200], also: [['Retour Village', 20, 170]], bridge: ['Les Sapins', 96] },
   { name: 'Les Écureuils', style: 'hameau', piste: 'Les Écureuils', d: [10, 210], also: [] },
-  { name: 'Bellecime 1950', style: 'bois', piste: 'Liaison Snowpark', d: [250, 340], also: [] },
+  { name: 'Bellecime 1950', style: 'bois', piste: 'Liaison Snowpark', d: [240, 340], also: [] },
 ];
+const FLOOR = 2.9, BAY = 3.2;
 const facadeTex = {};
 function makeFacade(kind) {
-  const W = 256, Hh = 256, c = document.createElement('canvas'); c.width = W; c.height = Hh; const g = c.getContext('2d');
-  const r = mulberry32(kind.length * 97);
-  if (kind === 'concrete' || kind === 'woodblock') {
-    g.fillStyle = kind === 'concrete' ? '#cfc6b8' : '#7b5434'; g.fillRect(0, 0, W, Hh);
-    if (kind === 'woodblock') for (let x = 0; x < W; x += 8) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.12})`; g.fillRect(x, 0, 2, Hh); }
-    else for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(80,70,60,${r() * 0.08})`; g.fillRect(r() * W, r() * Hh, 6, 6); }
-    // one floor = 128 px tall, one bay = 128 px wide
-    for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) {
-      const x = bx * 128, y = fy * 128;
-      const lit = r() < 0.3;
-      g.fillStyle = lit ? '#f3c983' : '#2c3644'; g.fillRect(x + 22, y + 26, 84, 64);
-      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(x + 22, y + 26, 84, 8);
-      g.strokeStyle = kind === 'concrete' ? '#efe9df' : '#3a2616'; g.lineWidth = 4; g.strokeRect(x + 22, y + 26, 84, 64); g.beginPath(); g.moveTo(x + 64, y + 26); g.lineTo(x + 64, y + 90); g.stroke();
-      g.fillStyle = kind === 'concrete' ? '#8a5a36' : '#4a2f1b'; g.fillRect(x + 6, y + 98, 116, 10);       // balcony slab
-      for (let k = 0; k < 12; k++) g.fillRect(x + 8 + k * 9.5, y + 90, 3, 10);                       // balusters
-    }
-  } else { // chalet planks
-    g.fillStyle = '#8a5a34'; g.fillRect(0, 0, W, Hh);
-    for (let y = 0; y < Hh; y += 16) { g.fillStyle = `rgba(0,0,0,${0.1 + r() * 0.1})`; g.fillRect(0, y, W, 2); g.fillStyle = `rgba(255,220,180,${r() * 0.06})`; g.fillRect(0, y + 2, W, 6); }
-    for (let i = 0; i < 2; i++) { const x = 40 + i * 120; g.fillStyle = r() < 0.4 ? '#f1c27d' : '#2b3340'; g.fillRect(x, 70, 56, 70); g.strokeStyle = '#3a2412'; g.lineWidth = 6; g.strokeRect(x, 70, 56, 70); g.fillStyle = '#5a2e1c'; g.fillRect(x - 14, 70, 12, 70); g.fillRect(x + 58, 70, 12, 70); }
+  const W = 256, Hh = kind === 'rail' ? 128 : 256, c = document.createElement('canvas'); c.width = W; c.height = Hh; const g = c.getContext('2d');
+  const r = mulberry32(kind.length * 977 + kind.charCodeAt(0));
+  const planks = (col, vertical, step) => { g.fillStyle = col; g.fillRect(0, 0, W, Hh); for (let p = 0; p < (vertical ? W : Hh); p += step) { g.fillStyle = `rgba(0,0,0,${0.12 + r() * 0.1})`; vertical ? g.fillRect(p, 0, 2, Hh) : g.fillRect(0, p, W, 2); g.fillStyle = `rgba(255,225,190,${r() * 0.07})`; vertical ? g.fillRect(p + 2, 0, step - 4, Hh) : g.fillRect(0, p + 2, W, step - 4); } };
+  const stones = (base) => {
+    g.fillStyle = '#5c5955'; g.fillRect(0, 0, W, Hh);
+    for (let y = 0; y < Hh; y += 14 + r() * 6) for (let x = -r() * 20; x < W; ) { const w = 18 + r() * 26, h = 12 + r() * 8, v = 0.75 + r() * 0.35; g.fillStyle = `rgb(${base[0] * v | 0},${base[1] * v | 0},${base[2] * v | 0})`; g.fillRect(x + 1, y + 1, w - 2, h - 2); x += w; }
+  };
+  const window_ = (x, y, w, h, frame, lit) => {
+    g.fillStyle = lit ? '#f6c47a' : '#26303c'; g.fillRect(x, y, w, h);
+    if (!lit) { g.fillStyle = 'rgba(170,200,235,0.25)'; g.fillRect(x, y, w, h * 0.35); }
+    g.strokeStyle = frame; g.lineWidth = 5; g.strokeRect(x, y, w, h); g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w / 2, y + h); g.stroke();
+  };
+  switch (kind) {
+    case 'paquebot': {           // dark concrete, full-width glazing, wooden balcony band on every floor
+      g.fillStyle = '#6e6a64'; g.fillRect(0, 0, W, Hh);
+      for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(30,30,30,${r() * 0.06})`; g.fillRect(r() * W, r() * Hh, 8, 3); }
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) window_(bx * 128 + 10, fy * 128 + 16, 108, 70, '#3c3a38', r() < 0.12);
+      for (let fy = 0; fy < 2; fy++) { g.fillStyle = '#5b3a22'; g.fillRect(0, fy * 128 + 88, W, 30); for (let k = 0; k < W; k += 8) { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(k, fy * 128 + 90, 2, 26); } g.fillStyle = '#3a2616'; g.fillRect(0, fy * 128 + 116, W, 6); }
+      break; }
+    case 'tower': {              // brown-red tower with vertical fins
+      g.fillStyle = '#7d4430'; g.fillRect(0, 0, W, Hh);
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) { window_(bx * 128 + 18, fy * 128 + 22, 92, 66, '#e9e2d6', r() < 0.12); g.fillStyle = '#5b2f20'; g.fillRect(bx * 128 + 4, fy * 128 + 96, 120, 14); }
+      for (let bx = 0; bx < 2; bx++) { g.fillStyle = '#93533b'; g.fillRect(bx * 128, 0, 8, Hh); }
+      break; }
+    case 'block': {              // orange-brown low block, white frames
+      g.fillStyle = '#b4652f'; g.fillRect(0, 0, W, Hh);
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) { window_(bx * 128 + 22, fy * 128 + 26, 84, 60, '#f2efe8', r() < 0.15); g.fillStyle = '#7a3d1a'; g.fillRect(bx * 128 + 12, fy * 128 + 100, 104, 10); }
+      break; }
+    case 'woodres': {            // vertical orange boards, wood-framed windows
+      planks('#b0703a', true, 10);
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) { window_(bx * 128 + 30, fy * 128 + 22, 68, 78, '#5a3418', r() < 0.25); }
+      break; }
+    case 'chaletwood': {         // darker horizontal boards
+      planks('#7c5434', false, 14);
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) if ((fy + bx) % 2 === 0 || r() < 0.5) window_(bx * 128 + 36, fy * 128 + 26, 56, 70, '#3d2412', r() < 0.45);
+      break; }
+    case 'stone': {              // grey stone masonry, deep windows
+      stones([150, 146, 140]);
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) if (r() < 0.7) { g.fillStyle = '#d8cfc0'; g.fillRect(bx * 128 + 34, fy * 128 + 20, 60, 84); window_(bx * 128 + 40, fy * 128 + 26, 48, 72, '#6a4424', r() < 0.55); }
+      break; }
+    case 'arcade': {             // stone ground floor with arched openings and lit shops
+      stones([158, 152, 144]);
+      for (let bx = 0; bx < 2; bx++) for (let fy = 0; fy < 2; fy++) { const x = bx * 128 + 20, y = fy * 128 + 30; g.fillStyle = r() < 0.6 ? '#e9b56c' : '#2a2a2c'; g.beginPath(); g.moveTo(x, y + 98); g.lineTo(x, y + 44); g.arc(x + 44, y + 44, 44, Math.PI, 0); g.lineTo(x + 88, y + 98); g.closePath(); g.fill(); g.strokeStyle = '#d9d0c2'; g.lineWidth = 6; g.stroke(); }
+      break; }
+    case 'shops': {              // storefronts under the paquebot
+      const cols = ['#2f6fe0', '#e0393e', '#2fa84f', '#f2a12c', '#5b4bb5', '#e7e2d8'];
+      g.fillStyle = '#3d3b39'; g.fillRect(0, 0, W, Hh);
+      for (let k = 0; k < 4; k++) { const x = k * 64; g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(x + 4, 20, 56, 22); g.fillStyle = r() < 0.6 ? '#f3d29a' : '#9fc0dd'; g.fillRect(x + 6, 48, 52, 70); g.fillRect(x + 6, 148, 52, 70); g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(x + 4, 120, 56, 22); }
+      break; }
+    case 'rail': {               // wooden balustrade with cut-out balusters
+      g.fillStyle = '#6a4326'; g.fillRect(0, 0, W, Hh);
+      for (let x = 6; x < W; x += 16) { g.fillStyle = '#2a1c12'; g.beginPath(); g.ellipse(x + 4, 64, 3, 22, 0, 0, 7); g.fill(); }
+      g.fillStyle = '#4a2c18'; g.fillRect(0, 0, W, 16); g.fillRect(0, Hh - 14, W, 14);
+      break; }
   }
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = MAX_ANISO; return t;
 }
-// box whose UVs repeat the facade texture per metre (bay = 3.2 m, floor = 2.9 m)
-function facadeBox(w, h, d, bay, floor) {
+// box whose UVs repeat the facade texture per metre (texture = 2 bays × 2 floors)
+function facadeBox(w, h, d, bay = BAY, floor = FLOOR) {
   const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv, n = g.attributes.normal;
   for (let i = 0; i < uv.count; i++) {
     const nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i));
@@ -815,99 +1128,229 @@ function bmat(kind) {
   return buildMats[kind];
 }
 const snowRoofMat = new THREE.MeshLambertMaterial({ color: '#f3f7fc' }), plinthMat = new THREE.MeshLambertMaterial({ color: '#8e8a84' });
+const WOOD = '#6b4528', WOOD_D = '#4a2e1a', SNOWC = '#f4f7fb', CONC = '#8e8a84', STONEC = '#7d7974';
 function groundMin(x, z, w, d, rot) {
   let y = Infinity; const c = Math.cos(rot), s = Math.sin(rot);
-  for (const [ox, oz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2], [0, 0]]) y = Math.min(y, gridH(x + ox * c + oz * s, z - ox * s + oz * c));
+  for (let u = -w / 2; u <= w / 2 + 0.01; u += Math.max(2, w / 6)) for (let v = -d / 2; v <= d / 2 + 0.01; v += Math.max(2, d / 3)) y = Math.min(y, gridH(x + u * c + v * s, z - u * s + v * c));
   return y;
 }
-function placeHouse(x, z, rot, kind) {
-  // kind: 'chalet' (2 floors), 'hameau' (wood, 2-3 floors), 'station' (concrete block 5-7 floors), 'bois' (wood-clad block 4-5 floors)
-  const spec = { chalet: [10, 9, 2, 'chalet', 0.42], hameau: [12, 10, 3, 'woodblock', 0.38], station: [26, 12, 6, 'concrete', 0.12], bois: [20, 12, 4, 'woodblock', 0.3] }[kind];
-  const w = spec[0] * (0.85 + rnd() * 0.3), d = spec[1] * (0.9 + rnd() * 0.2), floors = spec[2] + Math.floor(rnd() * (kind === 'station' ? 3 : 2)), h = floors * 2.9;
-  const y = groundMin(x, z, w, d, rot), top = Math.max(gridH(x, z), y) + 0.5;
-  const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rot;
-  const plinthH = top - y + 1.2;
-  const plinth = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, plinthH, d + 0.4), plinthMat); plinth.position.y = y - 0.6 + plinthH / 2; grp.add(plinth);
-  const body = new THREE.Mesh(facadeBox(w, h, d, 3.2, 2.9), bmat(spec[3])); body.position.y = top + h / 2; grp.add(body);
-  // roof: gable with snow, shallow for big blocks
-  const pitch = spec[4], rh = w / 2 * pitch, rl = Math.hypot(w / 2 + 0.8, rh);
-  for (const sgn of [-1, 1]) {
-    const r = new THREE.Mesh(new THREE.BoxGeometry(rl, 0.45, d + 1.6), snowRoofMat);
-    r.rotation.z = -sgn * Math.atan2(rh, w / 2 + 0.8); r.position.set(sgn * (w / 4 + 0.4), top + h + rh / 2, 0); grp.add(r);
-  }
-  const gable = new THREE.Mesh(new THREE.CylinderGeometry(0, w / 2 * 1.41, rh, 4, 1), bmat(spec[3])); gable.rotation.y = Math.PI / 4; gable.scale.set(1, 1, d / w * 0.98); gable.position.y = top + h + rh / 2 - 0.05;
-  const gw = new THREE.Group(); gw.add(gable); grp.add(gw);
-  grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  scene.add(grp);
-  const r = Math.max(w, d) * 0.5 + 0.6;
-  obstacles.push({ x, z, r: Math.min(w, d) * 0.5 + 0.8 });
-  // long blocks: add extra circles along their length so skiers can't clip the ends
-  if (w > d * 1.4) { const c = Math.cos(rot), s = Math.sin(rot); for (const k of [-1, 1]) obstacles.push({ x: x + c * k * (w / 2 - d / 2), z: z - s * k * (w / 2 - d / 2), r: d * 0.5 + 0.8 }); }
-  rasterSeg(ZR, ZN - 1, x, z, x, z, r + 6, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
-  return { w, d, h, top };
+function groundMax(x, z, w, d, rot) {
+  let y = -Infinity; const c = Math.cos(rot), s = Math.sin(rot);
+  for (let u = -w / 2; u <= w / 2 + 0.01; u += Math.max(2, w / 6)) for (let v = -d / 2; v <= d / 2 + 0.01; v += Math.max(2, d / 3)) y = Math.max(y, gridH(x + u * c + v * s, z - u * s + v * c));
+  return y;
 }
+const toWorld = (x, z, rot, u, v) => [x + u * Math.cos(rot) + v * Math.sin(rot), z - u * Math.sin(rot) + v * Math.cos(rot)];
 function liftDist(x, z) {
   let m = 1e9; for (const L of LIFTS) { const ax = L.b[0], az = L.b[1], bx = L.t[0], bz = L.t[1], dx = bx - ax, dz = bz - az, t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), -0.05, 1.05); m = Math.min(m, Math.hypot(x - ax - dx * t, z - az - dz * t)); }
   return m;
 }
+function footprintOK(x, z, rot, w, d, maxDrop = 6) {
+  if (groundMax(x, z, w, d, rot) - groundMin(x, z, w, d, rot) > maxDrop) return false;
+  for (let u = -w / 2 - 3; u <= w / 2 + 3; u += 4) for (let v = -d / 2 - 3; v <= d / 2 + 3; v += 4) {
+    const [px, pz] = toWorld(x, z, rot, u, v);
+    if (Math.abs(px) > HALF - 40 || Math.abs(pz) > HALF - 40) return false;
+    if (zoneAt(px, pz) >= 0 || liftDist(px, pz) < 14) return false;
+    if (obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + 2)) return false;
+    if (cannons.some(c => Math.hypot(c.x - px, c.z - pz) < 6)) return false;
+    if (tunnels.some(T => { const tl = tunnelLocal(T, px, pz, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 26; })) return false;
+  }
+  return true;
+}
+function claim(x, z, rot, w, d) {
+  // collision: a row of circles along the long side, plus tree clearance
+  const long = w >= d, L = long ? w : d, D = long ? d : w, r = D / 2 + 0.6;
+  for (let u = -L / 2 + D / 2; u <= L / 2 - D / 2 + 0.01; u += Math.max(1, D / 2)) { const [px, pz] = long ? toWorld(x, z, rot, u, 0) : toWorld(x, z, rot, 0, u); obstacles.push({ x: px, z: pz, r }); }
+  if (L <= D) obstacles.push({ x, z, r });
+  for (let u = -w / 2; u <= w / 2; u += 4) for (let v = -d / 2; v <= d / 2; v += 4) { const [px, pz] = toWorld(x, z, rot, u, v); rasterSeg(ZR, ZN - 1, px, pz, px, pz, 9, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); }
+}
+/* ---- geometry helpers (all in building-local metres: x along the length, +z = front) ---- */
+const P_ = (parts, g, c) => { parts.push({ g, c }); return g; };
+function boxP(parts, w, h, d, x, y, z, c) { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); return P_(parts, g, c); }
+// gable roof, ridge along x, eaves at y0; heavy snow slabs with rounded eave pillows, dark fascia and a wooden attic
+function gableRoof(parts, w, d, y0, pitch, ox = 0, oz = 0, alongZ = false) {
+  const local = [], rh = (d / 2 + 0.9) * pitch, hyp = Math.hypot(d / 2 + 0.9, rh), ang = Math.atan(pitch);
+  for (const s of [-1, 1]) {
+    const slab = new THREE.BoxGeometry(w + 1.4, 0.55, hyp); slab.rotateX(s * ang); slab.translate(0, y0 + rh / 2 + 0.32, s * (d / 4 + 0.45)); local.push({ g: slab, c: SNOWC });
+    const fas = new THREE.BoxGeometry(w + 1.5, 0.22, hyp + 0.08); fas.rotateX(s * ang); fas.translate(0, y0 + rh / 2 - 0.05, s * (d / 4 + 0.45)); local.push({ g: fas, c: WOOD_D });
+    const pil = new THREE.CylinderGeometry(0.34, 0.34, w + 1.4, 8); pil.rotateZ(Math.PI / 2); pil.translate(0, y0 - 0.02, s * (d / 2 + 0.95)); local.push({ g: pil, c: SNOWC });
+  }
+  const sh = new THREE.Shape(); sh.moveTo(-d / 2, 0); sh.lineTo(d / 2, 0); sh.lineTo(0, rh * (d / 2) / (d / 2 + 0.9)); sh.closePath();
+  const att = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false }); att.translate(0, 0, -w / 2); att.rotateY(Math.PI / 2); att.translate(0, y0, 0); local.push({ g: att, c: WOOD });
+  for (const q of local) { if (alongZ) q.g.rotateY(Math.PI / 2); q.g.translate(ox, 0, oz); parts.push(q); }
+  return rh;
+}
+function railP(rails, len, x, y, z, alongZ) { const g = new THREE.BoxGeometry(alongZ ? 0.08 : len, 1.0, alongZ ? len : 0.08), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * len / 1.6); g.translate(x, y, z); rails.push({ g, c: '#ffffff' }); }
+function facadeMesh(grp, kind, w, h, d, x, y, z, floor) { const m = new THREE.Mesh(facadeBox(w, h, d, BAY, floor || FLOOR), bmat(kind)); m.position.set(x, y, z); grp.add(m); return m; }
+function finish(grp, parts, rails) {
+  if (parts.length) grp.add(new THREE.Mesh(mergeParts(parts), lambertVC()));
+  if (rails && rails.length) grp.add(new THREE.Mesh(mergeParts(rails), new THREE.MeshLambertMaterial({ vertexColors: true, map: facadeTex.rail || (facadeTex.rail = makeFacade('rail')) })));
+  grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(grp);
+}
+function startGroup(x, z, rot, w, d) {
+  const y0 = groundMin(x, z, w, d, rot), top = groundMax(x, z, w, d, rot) + 0.3;
+  const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rot;
+  const ph = top - y0 + 1.5, pl = new THREE.Mesh(facadeBox(w + 0.6, ph, d + 0.6), bmat('stone')); pl.position.y = y0 - 1.2 + ph / 2; grp.add(pl);
+  return { grp, top };
+}
+/* photo 2: wood-clad residence on a stone arcade, balconies on every floor, cross gables */
+function bldWoodRes(x, z, rot, w, d) {
+  const floors = 3 + (rnd() < 0.5 ? 1 : 0) + (w > 30 ? 1 : 0), gf = 3.4;
+  const { grp, top } = startGroup(x, z, rot, w, d), parts = [], rails = [];
+  facadeMesh(grp, 'arcade', w, gf, d, 0, top + gf / 2, 0, 3.4);
+  const H1 = floors * FLOOR; facadeMesh(grp, 'woodres', w, H1, d, 0, top + gf + H1 / 2, 0);
+  for (let f = 0; f < floors; f++) {
+    const y = top + gf + f * FLOOR;
+    for (const s of [-1, 1]) { boxP(parts, w * 0.92, 0.2, 1.4, 0, y + 0.1, s * (d / 2 + 0.7), WOOD); railP(rails, w * 0.92, 0, y + 0.7, s * (d / 2 + 1.35)); }
+    for (let k = -2; k <= 2; k++) boxP(parts, 0.22, FLOOR, 0.22, k * w * 0.23, y + FLOOR / 2, d / 2 + 1.3, WOOD_D);   // balcony posts
+  }
+  const ye = top + gf + H1;
+  gableRoof(parts, w, d, ye, 0.55);
+  // cross gables on the front, their ridge running toward the piste
+  const ncg = w > 30 ? 2 : 1;
+  for (let k = 0; k < ncg; k++) {
+    const cx = ncg === 1 ? 0 : (k ? w / 4 : -w / 4), cw = 7.5;
+    boxP(parts, cw, 2.4, 3.2, cx, ye + 1.2 - 0.2, d / 2 + 0.2, '#b0703a');
+    gableRoof(parts, 5.2, cw, ye + 0.9, 0.62, cx, d / 2 - 1.2, true);
+  }
+  for (const k of [-0.32, 0.3]) { boxP(parts, 0.9, 3.0, 0.9, k * w, ye + 2.8, -d * 0.18, STONEC); boxP(parts, 1.2, 0.18, 1.2, k * w, ye + 4.35, -d * 0.18, WOOD_D); boxP(parts, 1.0, 0.25, 1.0, k * w, ye + 4.55, -d * 0.18, SNOWC); }
+  finish(grp, parts, rails);
+}
+/* photo 3: stone ground floors, timber upper floors, carved balconies, heavy snow */
+function bldStoneChalet(x, z, rot, w, d, small) {
+  const sf = small ? 1 : 2, wf = small ? 1 : 2;
+  const { grp, top } = startGroup(x, z, rot, w, d), parts = [], rails = [];
+  facadeMesh(grp, 'stone', w, sf * FLOOR, d, 0, top + sf * FLOOR / 2, 0);
+  facadeMesh(grp, 'chaletwood', w - 0.2, wf * FLOOR, d - 0.2, 0, top + sf * FLOOR + wf * FLOOR / 2, 0);
+  for (let f = 1; f < sf + wf; f++) {
+    const y = top + f * FLOOR;
+    boxP(parts, w * 0.85, 0.2, 1.3, 0, y + 0.1, d / 2 + 0.65, WOOD); railP(rails, w * 0.85, 0, y + 0.7, d / 2 + 1.27);
+    for (const k of [-0.42, 0, 0.42]) boxP(parts, 0.2, 0.9, 1.3, k * w * 0.98, y - 0.35, d / 2 + 0.6, WOOD_D);          // brackets
+  }
+  for (const k of [-0.5, 0.5]) boxP(parts, 0.35, (sf + wf) * FLOOR, 0.35, k * (w - 0.3), top + (sf + wf) * FLOOR / 2, d / 2 - 0.1, WOOD_D);  // corner beams
+  const ye = top + (sf + wf) * FLOOR;
+  gableRoof(parts, w, d, ye, 0.6);
+  boxP(parts, 0.9, 2.6, 0.9, w * 0.25, ye + 2.5, -d * 0.15, STONEC); boxP(parts, 1.15, 0.3, 1.15, w * 0.25, ye + 3.9, -d * 0.15, SNOWC);
+  finish(grp, parts, rails);
+  return { grp, top };
+}
+/* photo 1: stepped "paquebot", modules stepping down the slope, terraces at the ends, shops at the foot */
+function bldPaquebot(x, z, rot, w, d) {
+  const n = Math.max(3, Math.round(w / 22)), mw = w / n;
+  const profile = i => { const c = 1 - Math.abs((i + 0.5) / n * 2 - 1); return Math.round(5 + c * 6); };
+  for (let i = 0; i < n; i++) {
+    const u = -w / 2 + (i + 0.5) * mw, [mx, mz] = toWorld(x, z, rot, u, 0);
+    const { grp, top } = startGroup(mx, mz, rot, mw, d), parts = [];
+    const floors = profile(i);
+    facadeMesh(grp, 'shops', mw, 3.4, d + 0.6, 0, top + 1.7, 0.3, 3.4);
+    // tiers of two floors, each one stepping back from the front and narrowing toward the ends
+    let y = top + 3.4;
+    for (let f = 0; f < floors; f += 2) {
+      const k = Math.floor(f / 2), dd = d - k * 1.3, nf = Math.min(2, floors - f), h = nf * FLOOR;
+      facadeMesh(grp, 'paquebot', mw + 0.02, h, dd, 0, y + h / 2, -(d - dd) / 2);
+      for (let q = 0; q < nf; q++) boxP(parts, mw + 0.05, 0.18, 1.0, 0, y + q * FLOOR + 0.1, -(d - dd) / 2 + dd / 2 + 0.5, '#4f3420');   // balcony slabs
+      boxP(parts, mw + 0.1, 0.35, 1.3, 0, y + h + 0.17, -(d - dd) / 2 + dd / 2 - 0.4, SNOWC);                                         // snow on each terrace
+      y += h;
+    }
+    const dTop = d - Math.floor((floors - 1) / 2) * 1.3;
+    boxP(parts, mw + 0.3, 0.5, dTop + 0.3, 0, y + 0.25, -(d - dTop) / 2, SNOWC);
+    boxP(parts, mw * 0.4, 1.6, 3, 0, y + 1.2, -(d - dTop) / 2 - dTop * 0.2, CONC);
+    finish(grp, parts);
+  }
+}
+/* photo 4: brown tower and low flat-roofed blocks */
+function bldTower(x, z, rot, w, d) {
+  const floors = 12 + Math.floor(rnd() * 5), { grp, top } = startGroup(x, z, rot, w, d), parts = [];
+  facadeMesh(grp, 'tower', w, floors * FLOOR, d, 0, top + floors * FLOOR / 2, 0);
+  const yt = top + floors * FLOOR;
+  boxP(parts, w + 0.6, 0.6, d + 0.6, 0, yt + 0.3, 0, SNOWC); boxP(parts, w * 0.4, 2.2, d * 0.4, 0, yt + 1.5, 0, '#5d3424'); boxP(parts, w * 0.42, 0.3, d * 0.42, 0, yt + 2.7, 0, SNOWC);
+  finish(grp, parts);
+}
+function bldBlock(x, z, rot, w, d) {
+  const floors = 3 + Math.floor(rnd() * 3), { grp, top } = startGroup(x, z, rot, w, d), parts = [];
+  facadeMesh(grp, 'block', w, floors * FLOOR, d, 0, top + floors * FLOOR / 2, 0);
+  const yt = top + floors * FLOOR;
+  boxP(parts, w + 1.2, 0.35, d + 1.2, 0, yt + 0.12, 0, '#3e3a36'); boxP(parts, w + 1.1, 0.7, d + 1.1, 0, yt + 0.6, 0, SNOWC);
+  finish(grp, parts);
+}
+function bldRestaurant(x, z, rot) {
+  const w = 22, d = 12, { grp, top } = bldStoneChalet(x, z, rot, w, d, true);
+  // wooden deck terrace in front, with tables and parasols
+  const parts = [], dg = new THREE.Group(); dg.position.copy(grp.position); dg.rotation.y = rot;
+  boxP(parts, w + 8, 0.35, 14, 0, top - 0.1, d / 2 + 7, '#a77b4f');
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) {
+    const tx = -w / 2 + 2 + i * 4.2, tz = d / 2 + 3.5 + j * 5;
+    boxP(parts, 1.4, 0.08, 0.8, tx, top + 0.8, tz, '#4a3524'); boxP(parts, 0.1, 0.75, 0.1, tx, top + 0.42, tz, '#2b2b2b');
+    if (j === 0 && i % 2 === 0) { const pu = new THREE.ConeGeometry(1.5, 0.6, 8); pu.translate(tx, top + 2.6, tz); parts.push({ g: pu, c: i % 4 ? '#c8321f' : '#efe9de' }); boxP(parts, 0.06, 2.4, 0.06, tx, top + 1.4, tz, '#cfcfcf'); }
+  }
+  finish(dg, parts);
+  claim(x, z + 0, rot, w + 8, d + 14);
+}
+const STYLE = {
+  station: () => { const r = rnd(); return r < 0.45 ? { b: bldBlock, w: 26 + rnd() * 10, d: 12 } : { b: bldTower, w: 14, d: 13 }; },
+  bois: () => ({ b: bldWoodRes, w: 24 + rnd() * 14, d: 13, drop: 11 }),
+  hameau: () => rnd() < 0.6 ? { b: (x, z, r, w, d) => bldStoneChalet(x, z, r, w, d, rnd() < 0.5), w: 12 + rnd() * 5, d: 10 } : { b: bldWoodRes, w: 20 + rnd() * 6, d: 12 },
+  trad: () => rnd() < 0.75 ? { b: (x, z, r, w, d) => bldStoneChalet(x, z, r, w, d, rnd() < 0.6), w: 11 + rnd() * 6, d: 10 } : { b: bldWoodRes, w: 22, d: 12 },
+};
+function tryPlace(spec, S, i, hd, side, extra) {
+  const p = S.p, off = S.hw + 5 + spec.d / 2 + extra;
+  const x = S.s[i].x + Math.cos(hd) * off * side, z = S.s[i].z - Math.sin(hd) * off * side, rot = hd - side * Math.PI / 2;
+  if (!footprintOK(x, z, rot, spec.w, spec.d, spec.drop)) return false;
+  claim(x, z, rot, spec.w, spec.d); spec.b(x, z, rot, spec.w, spec.d);
+  return true;
+}
 const villageLabels = [];
 function buildVillages() {
   const byName = n => PISTES.find(p => p.name === n);
+  // the altitude restaurant at the mid-station, with its deck facing the valley
+  restaurant: for (let r = 0; r <= 90; r += 6) for (let a = 0; a < 6.28; a += 0.4) { const x = -236 + Math.cos(a) * r, z = 128 + Math.sin(a) * r; if (footprintOK(x, z, 0.35, 30, 26, 9)) { bldRestaurant(x, z, 0.35); villageLabels.push({ name: 'Restaurant Le Belvédère', x, z, sub: 'Terrasse panoramique' }); break restaurant; } }
   for (const V of VILLAGES) {
-    const kind = V.style === 'trad' ? 'chalet' : V.style;
     const runs = [[V.piste, V.d[0], V.d[1]], ...V.also];
+    let paquebotDone = V.style !== 'station';
     for (const [pn, d0, d1] of runs) {
       const p = byName(pn); if (!p) continue;
-      const S = p.samples, hw = p.w / 2;
-      for (let d = d0; d < Math.min(d1, (S.length - 2) * 4); d += kind === 'station' ? 34 : kind === 'bois' ? 28 : 19) {
+      const S = { p, s: p.samples, hw: p.w / 2 };
+      for (let d = d0; d < Math.min(d1, (S.s.length - 2) * 4); d += 8) {
         const i = Math.floor(d / 4), hd = pisteHeading(p, i);
-        for (const side of [-1, 1]) {
-          if (rnd() < 0.15) continue;
-          const back = (kind === 'station' ? 12 : 7) + rnd() * 8;
-          const off = hw + back;
-          const x = S[i].x + Math.cos(hd) * off * side, z = S[i].z - Math.sin(hd) * off * side;
-          if (zoneAt(x, z) >= 0 || liftDist(x, z) < 18 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 9)) continue;
-          if (tunnels.some(T => { const tl = tunnelLocal(T, x, z, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 30; })) continue;
-          // long side facing the piste
-          placeHouse(x, z, hd + Math.PI / 2 + (rnd() - 0.5) * (kind === 'chalet' ? 0.5 : 0.08), kind);
+        for (const side of [1, -1]) {
+          if (!paquebotDone) { if (tryPlace({ b: bldPaquebot, w: 96, d: 16, drop: 40 }, S, Math.min(S.s.length - 1, i + 12), hd, side, 4)) { paquebotDone = true; continue; } }
+          if (rnd() < 0.45) continue;
+          const spec = STYLE[V.style](); tryPlace(spec, S, i, hd, side, rnd() * 10);
         }
       }
-      villageLabels.push({ name: V.name, x: S[Math.floor((d0 + d1) / 8)].x, z: S[Math.floor((d0 + d1) / 8)].z });
+      villageLabels.push({ name: V.name, x: S.s[Math.floor((d0 + d1) / 8)].x, z: S.s[Math.floor((d0 + d1) / 8)].z });
     }
     if (V.bridge) buildBridge(byName(V.bridge[0]), V.bridge[1]);
   }
-  // traditional village: extra chalets around the base and a church
-  const walls = 0; let placed = 0;
-  for (let i = 0; i < 500 && placed < 14; i++) {
-    const x = -280 + rnd() * 600, z = 1170 + rnd() * 180;
-    if (isClear(x, z) || zoneAt(x, z) >= 0 || liftDist(x, z) < 22) continue;
-    if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 12)) continue;
-    placeHouse(x, z, Math.round(rnd() * 4) * Math.PI / 2 + (rnd() - 0.5) * 0.3, 'chalet'); placed++;
+  // the traditional village fills in around the base, with its church
+  let placed = 0;
+  for (let i = 0; i < 600 && placed < 14; i++) {
+    const x = -280 + rnd() * 600, z = 1170 + rnd() * 180, rot = Math.round(rnd() * 4) * Math.PI / 2 + (rnd() - 0.5) * 0.3, spec = STYLE.trad();
+    if (!footprintOK(x, z, rot, spec.w, spec.d)) continue;
+    claim(x, z, rot, spec.w, spec.d); spec.b(x, z, rot, spec.w, spec.d); placed++;
   }
   buildChurch(-40, 1290);
-  placeHouse(-232, 128, 0.35, 'bois');   // restaurant d'altitude
-  placeHouse(430, 300, -0.4, 'chalet');  // refuge en forêt
+  if (footprintOK(430, 300, -0.4, 12, 10)) { claim(430, 300, -0.4, 12, 10); bldStoneChalet(430, 300, -0.4, 12, 10, true); }   // refuge en forêt
 }
 function buildChurch(x, z) {
-  for (let k = 0; k < 30 && (zoneAt(x, z) >= 0 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 10)); k++) { x += 9; }
+  for (let k = 0; k < 40 && !footprintOK(x, z, 0, 10, 26); k++) { x += 9; }
   const y = groundMin(x, z, 10, 16, 0);
   const grp = new THREE.Group(); grp.position.set(x, y, z);
-  const nave = new THREE.Mesh(new THREE.BoxGeometry(9, 9, 16), new THREE.MeshLambertMaterial({ color: '#e7dccb' })); nave.position.y = 4; grp.add(nave);
+  const nave = new THREE.Mesh(facadeBox(9, 9, 16), bmat('stone')); nave.position.y = 4; grp.add(nave);
   const roof = new THREE.Mesh(new THREE.CylinderGeometry(0, 7.2, 4, 4, 1), snowRoofMat); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 1.75); roof.position.y = 10.4; grp.add(roof);
-  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.2, 18, 4.2), new THREE.MeshLambertMaterial({ color: '#d9cdb9' })); tower.position.set(0, 8, -9); grp.add(tower);
+  const tower = new THREE.Mesh(facadeBox(4.2, 18, 4.2), bmat('stone')); tower.position.set(0, 8, -9); grp.add(tower);
   const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 2.2, 3.2, 8), new THREE.MeshLambertMaterial({ color: '#3b4a3f' })); bell.position.set(0, 18.4, -9); grp.add(bell);
   const spire = new THREE.Mesh(new THREE.ConeGeometry(1.4, 7, 8), new THREE.MeshLambertMaterial({ color: '#2f3b33' })); spire.position.set(0, 23.2, -9); grp.add(spire);
   grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  scene.add(grp); obstacles.push({ x, z, r: 6 }, { x, z: z - 9, r: 3.5 });
-  rasterSeg(ZR, ZN - 1, x, z, x, z, 16, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+  scene.add(grp); claim(x, z - 4, 0, 10, 24);
 }
 function buildBridge(p, d) {
   // covered footbridge spanning the piste between two blocks of the station
   const i = Math.floor(d / 4), S = p.samples, hd = pisteHeading(p, i), y = gridH(S[i].x, S[i].z);
-  const span = p.w + 10, grp = new THREE.Group(); grp.position.set(S[i].x, y + 7.2, S[i].z); grp.rotation.y = hd + Math.PI / 2;
+  const span = p.w + 10, grp = new THREE.Group(); grp.position.set(S[i].x, y + 7.2, S[i].z); grp.rotation.y = hd;
   const deck = new THREE.Mesh(new THREE.BoxGeometry(span, 0.6, 3.2), plinthMat); grp.add(deck);
-  const body = new THREE.Mesh(facadeBox(span, 2.8, 3, 3.2, 2.9), bmat('woodblock')); body.position.y = 1.7; grp.add(body);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(span + 0.6, 0.4, 3.8), snowRoofMat); roof.position.y = 3.3; grp.add(roof);
+  const body = new THREE.Mesh(facadeBox(span, 2.8, 3), bmat('paquebot')); body.position.y = 1.7; grp.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(span + 0.6, 0.45, 3.8), snowRoofMat); roof.position.y = 3.3; grp.add(roof);
   for (const s of [-1, 1]) { const pil = new THREE.Mesh(new THREE.BoxGeometry(1.2, 9, 1.2), plinthMat); pil.position.set(s * span / 2, -3.8, 0); grp.add(pil); obstacles.push({ x: S[i].x + Math.cos(hd) * s * span / 2, z: S[i].z - Math.sin(hd) * s * span / 2, r: 1.2 }); }
   const sign = makeLabel('Val Haut 1800', '#a6dcff', 'Passerelle des Résidences'); sign.position.set(0, 1.7, 1.8); sign.scale.set(7, 2.2, 1); grp.add(sign);
   grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -1188,43 +1631,101 @@ function buildMarkers() {
 }
 
 /* ---------------- Skier ---------------- */
-const skier = (() => {
-  const root = new THREE.Group(), off = new THREE.Group(); off.position.y = -0.9; root.add(off);
-  const lean = new THREE.Group(); off.add(lean);
-  const M = c => new THREE.MeshLambertMaterial({ color: c });
-  const box = (w, h, d, c, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c)); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
-  const JACKET = '#e8562a', PANTS = '#1d2840', DARK = '#1b1f27';
-  const skis = new THREE.Group(); lean.add(skis);
-  for (const s of [-1, 1]) {
-    const ski = box(0.1, 0.03, 1.72, '#d62839', skis, s * 0.13, 0.03, 0.04);
-    const tip = box(0.1, 0.03, 0.2, '#f2f2f2', ski, 0, 0.035, 0.92); tip.rotation.x = -0.4;
-    const tail = box(0.1, 0.03, 0.14, '#f2f2f2', ski, 0, 0.02, -0.9); tail.rotation.x = 0.3;
-    box(0.13, 0.17, 0.32, DARK, skis, s * 0.13, 0.12, 0);
+// Proportions from the 7.5-head adult canon for a 1.78 m skier (1 head ≈ 0.237 m): shoulders ≈ 2 heads wide,
+// thigh ≈ 2 heads, shin + foot ≈ 2 heads, shoulder→elbow = elbow→knuckles. Bodies are lathed profiles, not boxes.
+const skierShade = { value: 1 }, skierTint = { value: new THREE.Color(0, 0, 0) };
+function fabricTex(seed, quilt) {
+  const S = 128, n = tileNoise(S, 32, seed, 2), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let v = 0.86 + n[y * S + x] * 0.1 + ((x + y) % 2 ? 0.02 : -0.02);                 // weave
+    if (quilt && (y % 32 < 2)) v -= 0.16;                                             // quilted down channels
+    if (quilt && (y % 32 > 2 && y % 32 < 9)) v += 0.05;
+    const i = (y * S + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = clamp(v * 255, 0, 255); img.data[i + 3] = 255;
   }
-  const ankle = new THREE.Group(); ankle.position.y = 0.17; lean.add(ankle);
-  for (const s of [-1, 1]) box(0.13, 0.46, 0.15, PANTS, ankle, s * 0.13, 0.23, 0);
-  const knee = new THREE.Group(); knee.position.y = 0.46; ankle.add(knee);
-  for (const s of [-1, 1]) box(0.15, 0.48, 0.17, PANTS, knee, s * 0.13, 0.24, 0);
-  const hip = new THREE.Group(); hip.position.y = 0.48; knee.add(hip);
-  box(0.44, 0.58, 0.27, JACKET, hip, 0, 0.3, 0);
-  box(0.46, 0.08, 0.29, '#f2f2f2', hip, 0, 0.42, 0);
-  const head = new THREE.Group(); head.position.y = 0.74; hip.add(head);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), M('#e2b895')); head.add(face);
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.135, 14, 8, 0, Math.PI * 2, 0, Math.PI / 1.9), M('#f4f6f8')); helm.position.y = 0.01; helm.castShadow = true; head.add(helm);
-  box(0.23, 0.075, 0.07, '#ffb627', head, 0, 0.0, 0.1);
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(s * 0.27, 0.52, 0); hip.add(sh);
-    box(0.11, 0.5, 0.12, JACKET, sh, 0, -0.25, 0);
-    box(0.1, 0.1, 0.1, DARK, sh, 0, -0.52, 0);
-    const pole = new THREE.Group(); pole.position.set(0, -0.52, 0); sh.add(pole);
-    const pm = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 5), M('#c9ced6')); pm.position.y = -0.6; pole.add(pm);
-    const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.01, 8), M(DARK)); basket.position.y = -1.08; pole.add(basket);
-    arms.push({ sh, pole, s });
-  }
+  g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); return t;
+}
+function skMat(color, shininess, map) {
+  const m = shininess ? new THREE.MeshPhongMaterial({ color, shininess, specular: 0x555555, map: map || null }) : new THREE.MeshLambertMaterial({ color, map: map || null });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uShade = skierShade; sh.uniforms.uTint = skierTint;
+    sh.fragmentShader = 'uniform float uShade;\nuniform vec3 uTint;\n' + sh.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', 'outgoingLight = outgoingLight * uShade + diffuseColor.rgb * uTint;\n\tgl_FragColor = vec4( outgoingLight, diffuseColor.a );');
+  };
+  return m;
+}
+const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg);
+let skier = null;
+function buildSkier() {
+  const root = new THREE.Group(), base = new THREE.Group(); base.position.y = -0.95; root.add(base);
+  const mesh = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  const quilt = fabricTex(301, true), weave = fabricTex(302, false);
+  const JACKET = skMat('#c8321f', 14, quilt), YOKE = skMat('#eeeae2', 14, weave), PANTS = skMat('#24314f', 10, weave), DARK = skMat('#1a1d24', 20),
+    BOOT = skMat('#2c3340', 60), BUCKLE = skMat('#c7ccd3', 90), SKI = skMat('#c4263a', 70), SKI2 = skMat('#f4f1ea', 70), HELM = skMat('#f2f4f7', 80),
+    GOG = skMat('#ff9a1f', 160), GOGF = skMat('#20242c', 30), SKIN = skMat('#d6a37f'), BUFF = skMat('#2f4d6b', 6, weave), POLE = skMat('#c9ced6', 90), GLOVE = skMat('#22252c', 25);
+  // skis and boots
+  const feet = [1, -1].map(sd => {
+    const g = new THREE.Group(); g.rotation.order = 'YXZ'; base.add(g);
+    mesh(new THREE.BoxGeometry(0.088, 0.02, 1.62), SKI, g, 0, 0.01, 0.02);
+    mesh(new THREE.BoxGeometry(0.09, 0.004, 1.2), SKI2, g, 0, 0.022, 0.1);                     // top sheet graphic
+    const tip = mesh(new THREE.BoxGeometry(0.088, 0.018, 0.24), SKI2, g, 0, 0.044, 0.92); tip.rotation.x = -0.42;
+    const tail = mesh(new THREE.BoxGeometry(0.088, 0.018, 0.15), SKI2, g, 0, 0.026, -0.85); tail.rotation.x = 0.28;
+    mesh(new THREE.BoxGeometry(0.07, 0.04, 0.12), DARK, g, 0, 0.038, 0.17); mesh(new THREE.BoxGeometry(0.07, 0.05, 0.1), DARK, g, 0, 0.042, -0.16);
+    const shell = mesh(lathe([[0, 0], [0.06, 0.005], [0.062, 0.07], [0.05, 0.1], [0, 0.1]], 12), BOOT, g, 0, 0.035, 0.03); shell.scale.set(1, 1, 2.45);
+    const cuff = mesh(lathe([[0, 0], [0.072, 0], [0.074, 0.12], [0.068, 0.22], [0, 0.22]], 14), BOOT, g, 0, 0.08, -0.03); cuff.rotation.x = 0.2; cuff.scale.z = 1.15;
+    for (const y of [0.13, 0.2, 0.26]) mesh(new THREE.BoxGeometry(0.12, 0.016, 0.03), BUCKLE, g, 0, y, 0.06 - y * 0.12);
+    return { g, sd };
+  });
+  // pelvis + legs (ski pants: full thighs, flared over the boots)
+  const pelvis = new THREE.Group(); pelvis.rotation.order = 'YXZ'; base.add(pelvis);
+  const hips = mesh(lathe([[0, -0.1], [0.12, -0.09], [0.165, -0.02], [0.17, 0.06], [0.155, 0.12], [0, 0.12]], 16), PANTS, pelvis); hips.scale.z = 0.72;
+  const legs = feet.map(f => {
+    const hip = new THREE.Group(); hip.position.set(f.sd * 0.095, -0.05, 0); pelvis.add(hip);
+    const thigh = new THREE.Group(); hip.add(thigh);
+    mesh(lathe([[0, 0.04], [0.08, 0.03], [0.088, -0.08], [0.08, -0.25], [0.066, -0.42], [0.06, -0.47], [0, -0.47]], 14), PANTS, thigh);
+    const knee = new THREE.Group(); knee.position.y = -0.45; thigh.add(knee);
+    mesh(new THREE.SphereGeometry(0.066, 12, 10), PANTS, knee, 0, 0, 0.008);
+    mesh(lathe([[0, 0.02], [0.064, 0.0], [0.06, -0.12], [0.058, -0.3], [0.07, -0.38], [0.082, -0.43], [0, -0.43]], 14), PANTS, knee);
+    return { hip, thigh, knee, foot: f, off: new V3(f.sd * 0.095, -0.05, 0) };
+  });
+  // torso: insulated jacket over the hips, chest wider than waist
+  const spine = new THREE.Group(); spine.rotation.order = 'YXZ'; spine.position.y = 0.05; pelvis.add(spine);
+  const jacket = mesh(lathe([[0, -0.17], [0.175, -0.16], [0.18, -0.05], [0.168, 0.1], [0.19, 0.26], [0.205, 0.38], [0.2, 0.47], [0.16, 0.54], [0.09, 0.58], [0, 0.585]], 20), JACKET, spine); jacket.scale.z = 0.7;
+  const yoke = mesh(lathe([[0.204, 0.4], [0.2, 0.47], [0.16, 0.54], [0.09, 0.58], [0, 0.585]], 20), YOKE, spine); yoke.scale.set(1.012, 1.004, 0.712);
+  mesh(new THREE.BoxGeometry(0.012, 0.66, 0.012), DARK, spine, 0, 0.2, 0.143);                     // zip
+  for (const sd of [-1, 1]) { const pk = mesh(new THREE.BoxGeometry(0.11, 0.012, 0.02), DARK, spine, sd * 0.1, 0.06, 0.125); pk.rotation.z = sd * 0.25; }
+  const collar = mesh(lathe([[0.085, 0], [0.09, 0.08], [0.08, 0.1], [0, 0.1]], 16), BUFF, spine, 0, 0.56, 0); collar.scale.z = 0.95;
+  mesh(new THREE.BoxGeometry(0.25, 0.32, 0.1), DARK, spine, 0, 0.3, -0.155);                       // back protector pack
+  const neck = new THREE.Group(); neck.position.y = 0.62; spine.add(neck);
+  const head = new THREE.Group(); head.position.y = 0.1; neck.add(head);
+  // head: helmet, goggles with frame and strap, neck gaiter over the chin (all a skier shows of the face)
+  const face = mesh(new THREE.SphereGeometry(0.098, 18, 14), SKIN, head, 0, -0.01, 0.005); face.scale.set(0.92, 1.1, 1);
+  mesh(new THREE.SphereGeometry(0.02, 8, 6), SKIN, head, 0, -0.025, 0.1);                          // nose
+  const gaiter = mesh(lathe([[0.088, -0.12], [0.1, -0.05], [0.098, -0.015], [0, -0.015]], 16), BUFF, head, 0, 0, 0.004); gaiter.scale.z = 1.06;
+  mesh(new THREE.SphereGeometry(0.128, 18, 12, 0, Math.PI * 2, 0, Math.PI / 1.8), HELM, head, 0, 0.012, -0.008);
+  for (let k = -1; k <= 1; k++) mesh(new THREE.BoxGeometry(0.012, 0.02, 0.09), DARK, head, k * 0.04, 0.128, -0.01);   // vents
+  mesh(new THREE.CylinderGeometry(0.124, 0.124, 0.074, 18, 1, true, -1.15, 2.3), GOGF, head, 0, 0.012, 0);
+  mesh(new THREE.CylinderGeometry(0.127, 0.127, 0.058, 18, 1, true, -1.05, 2.1), GOG, head, 0, 0.012, 0);
+  const strap = mesh(new THREE.TorusGeometry(0.126, 0.013, 4, 24), DARK, head, 0, 0.012, 0); strap.rotation.x = Math.PI / 2;
+  // arms: puffy sleeves, gloves with a thumb, poles
+  const arms = [1, -1].map(sd => {
+    const sh = new THREE.Group(); sh.position.set(sd * 0.2, 0.49, 0); sh.rotation.order = 'ZXY'; spine.add(sh);
+    mesh(new THREE.SphereGeometry(0.07, 12, 10), JACKET, sh);
+    mesh(lathe([[0, 0.02], [0.064, 0.01], [0.066, -0.1], [0.058, -0.26], [0.052, -0.3], [0, -0.3]], 12), JACKET, sh);
+    const el = new THREE.Group(); el.position.y = -0.29; sh.add(el);
+    mesh(new THREE.SphereGeometry(0.052, 10, 8), JACKET, el);
+    mesh(lathe([[0, 0.01], [0.053, 0], [0.052, -0.12], [0.046, -0.22], [0.056, -0.25], [0, -0.25]], 12), JACKET, el);
+    const hand = new THREE.Group(); hand.position.y = -0.27; el.add(hand);
+    mesh(lathe([[0, 0.03], [0.052, 0.03], [0.05, -0.01], [0, -0.01]], 10), GLOVE, hand, 0, 0.02, 0);      // gauntlet cuff
+    const palm = mesh(new THREE.BoxGeometry(0.07, 0.095, 0.075), GLOVE, hand, 0, -0.03, 0.005); palm.geometry.translate(0, 0, 0);
+    const thumb = mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.05, 6), GLOVE, hand, -sd * 0.035, -0.02, 0.035); thumb.rotation.set(0.6, 0, sd * 0.7);
+    const pole = new THREE.Group(); hand.add(pole);
+    mesh(new THREE.CylinderGeometry(0.0105, 0.008, 1.14, 6), POLE, pole, 0, -0.57, 0);
+    mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.01, 12), DARK, pole, 0, -1.04, 0);
+    mesh(new THREE.CylinderGeometry(0.02, 0.017, 0.15, 8), DARK, pole, 0, 0.02, 0);
+    return { sd, sh, el, hand, pole };
+  });
   scene.add(root);
-  return { root, off, lean, skis, ankle, knee, hip, head, arms };
-})();
+  skier = { root, base, feet, pelvis, legs, spine, head, arms };
+}
 
 /* ---------------- Particles ---------------- */
 const SPRAY = 600;
@@ -1381,7 +1882,7 @@ function stepSki(dt) {
   groundBasis(P.pos.x, P.pos.z);
   _g.set(0, -9.81, 0); _g.addScaledVector(_n, -_g.dot(_n));
   const drag = lerp(S.drag, S.drag * 0.48, P.tuck);
-  const resist = S.res * (1 - smoothstep(3, 13, speed));          // deep snow: the skis plough until they plane
+  const resist = S.res * (1 - smoothstep(3, 13, speed)) * (tuck && speed < 6.5 ? 0.35 : 1);   // deep snow: the skis plough until they plane
   const brakeDec = braking ? (speed > 5 ? 5.8 : 3.2) * (st === SN.GLACEE ? 0.75 : st === SN.POUDREUSE ? 1.25 : 1) : 0;
   P.vel.addScaledVector(_g, dt);
   speed = P.vel.length();
@@ -1518,6 +2019,7 @@ function land(n) {
   if (impact < -15.5) fail = 'Réception trop violente';
   if (fail) { crash(fail); return; }
   P.vel.addScaledVector(n, -impact);
+  P.compress = Math.min(1, (P.compress || 0) + Math.max(0, -impact) * 0.07);
   if (sp > 2) { const vy = Math.atan2(vhx, vhz); P.yaw = align >= 0 ? vy : vy + Math.PI; }
   let sketchy = a.t > 0.3 && Math.abs(align) < 0.85;
   if (sketchy) P.vel.multiplyScalar(0.72);
@@ -1672,63 +2174,161 @@ function respawnNearestLift() {
 }
 function teleportLift(i) { const L = LIFTS[i]; P.pos.set(L.board.x, 0, L.board.z); respawnNearestLift(); }
 
-/* ---------------- Visual sync ---------------- */
-const _mat = new THREE.Matrix4(), _quat = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _e = new THREE.Euler();
-const AX_X = new V3(1, 0, 0), AX_Y = new V3(0, 1, 0);
-let crashRot = 0;
-function updateSkier(dt, t) {
-  const S = skier; const sp = P.vel.length();
+/* ---------------- Visual sync: pose targets, smoothing, leg IK ---------------- */
+const _mat = new THREE.Matrix4(), _quat = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _qa = new THREE.Quaternion();
+const AX_X = new V3(1, 0, 0), AX_Y = new V3(0, 1, 0), DOWN = new V3(0, -1, 0);
+const _ik = new V3(), _hip = new V3(), _ank = new V3(), _rootP = new V3();
+const mkFoot = sd => ({ x: sd * 0.11, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0 });
+const mkArm = () => ({ p: -0.45, o: 0.22, e: -0.75, pole: 0.35 });
+const mkPose = () => ({ pelH: 0.97, pelX: 0, pelZ: -0.05, pelRoll: 0, pelPitch: 0.1, pelYaw: 0, spPitch: 0.18, spRoll: 0, spYaw: 0, headP: 0, baseYaw: 0, sink: 0, fL: mkFoot(1), fR: mkFoot(-1), aL: mkArm(), aR: mkArm() });
+const pose = mkPose(), tgt = mkPose();
+const susp = { ys: 0, vs: 0, init: false };
+const plant = { t: 1, sd: 1 };
+let lastEdgeSign = 0, skatePh = 0, crashRot = 0, rootInit = false, tunnelBlend = 0;
+const ease = (r, dt) => 1 - Math.exp(-r * dt);
+function resetTarget(T) {
+  Object.assign(T, { pelH: 0.97, pelX: 0, pelZ: -0.05, pelRoll: 0, pelPitch: 0.1, pelYaw: 0, spPitch: 0.18, spRoll: 0, spYaw: 0, headP: -0.2, baseYaw: 0, sink: 0 });
+  Object.assign(T.fL, mkFoot(1)); Object.assign(T.fR, mkFoot(-1)); Object.assign(T.aL, mkArm()); Object.assign(T.aR, mkArm());
+}
+function blendPose(dt) {
+  const kb = ease(10, dt), kf = ease(18, dt), ka = ease(9, dt);
+  for (const k of ['pelH', 'pelX', 'pelZ', 'pelRoll', 'pelPitch', 'pelYaw', 'spPitch', 'spRoll', 'spYaw', 'headP', 'baseYaw', 'sink']) pose[k] += (tgt[k] - pose[k]) * kb;
+  for (const f of ['fL', 'fR']) for (const k in pose[f]) pose[f][k] += (tgt[f][k] - pose[f][k]) * kf;
+  for (const a of ['aL', 'aR']) for (const k in pose[a]) pose[a][k] += (tgt[a][k] - pose[a][k]) * ka;
+}
+function solveLeg(L) {
+  const S = skier, f = L.foot.g;
+  _ank.set(0, 0.2, -0.02).applyQuaternion(f.quaternion).add(f.position);                 // ankle, base frame
+  _hip.copy(L.off).applyQuaternion(S.pelvis.quaternion).add(S.pelvis.position);          // hip joint, base frame
+  _ik.copy(_ank).sub(_hip).applyQuaternion(_qi.copy(S.pelvis.quaternion).invert());       // hip → ankle, pelvis frame
+  const A = 0.45, B = 0.42; let d = clamp(_ik.length(), 0.25, A + B - 0.002);
+  _ik.normalize();
+  const alpha = Math.acos(clamp((A * A + d * d - B * B) / (2 * A * d), -1, 1));
+  const knee = Math.PI - Math.acos(clamp((A * A + B * B - d * d) / (2 * A * B), -1, 1));
+  L.thigh.quaternion.setFromUnitVectors(DOWN, _ik).multiply(_qa.setFromAxisAngle(AX_X, -alpha));
+  L.knee.rotation.set(knee, 0, 0);
+}
+function updateSkier(dt, time) {
+  if (!skier) return;
+  const S = skier, T = tgt, sp = P.vel.length();
   S.root.visible = !(P.state === 'lift' && P.lift && P.lift.type === 'gondola');
-  let crouch = 0.25, torso = 0.25, armX = -0.55, armSpread = 0.0, leanZ = 0, sit = false, tail = false;
+  resetTarget(T);
+  let rate = 14;
+  if (P.compress > 0) P.compress = Math.max(0, P.compress - dt * 2.5);
   if (P.state === 'ski') {
     groundBasis(P.pos.x, P.pos.z);
-    _mat.makeBasis(_l, _n, _f); S.root.quaternion.setFromRotationMatrix(_mat);
-    S.root.position.copy(P.pos).addScaledVector(_n, 0.9);
-    crouch = P.charge > 0 ? 0.35 + P.charge * 0.55 : lerp(0.22 + Math.abs(P.edge) * 0.25, 0.85, P.tuck);
-    torso = lerp(0.28, 0.85, P.tuck);
-    armX = lerp(-0.55, -1.2, P.tuck);
-    leanZ = -P.edge * Math.min(1, sp / 10) * 0.55;
-    if (P.brake > 0.1 && sp > 2) S.lean.rotation.y = lerp(S.lean.rotation.y, (P.edge >= 0 ? 1 : -1) * 0.75 * P.brake, Math.min(1, dt * 10));
-    else S.lean.rotation.y = lerp(S.lean.rotation.y, 0, Math.min(1, dt * 10));
+    _mat.makeBasis(_l, _n, _f); _quat.setFromRotationMatrix(_mat);
+    _rootP.copy(P.pos).addScaledVector(_n, 0.95);
+    // suspension: the body follows a smoothed ground line, the legs take the difference (moguls, landings)
+    if (!susp.init) { susp.ys = P.pos.y; susp.vs = 0; susp.init = true; }
+    for (let n = Math.ceil(dt / 0.008), h = dt / n, i = 0; i < n; i++) { susp.vs += ((P.pos.y - susp.ys) * 75 - susp.vs * 13) * h; susp.ys += susp.vs * h; }
+    const absorb = clamp(P.pos.y - susp.ys, -0.12, 0.38);
+    const along = P.vel.dot(_f), sw = along < -0.5;
+    const incl = clamp(Math.atan2((P.yawRate || 0) * sp, 9.81), -0.95, 0.95) * smoothstep(1, 6, sp);
+    const crouch = Math.max(P.tuck * 0.9, P.charge * 0.8, Math.abs(P.edge) * 0.2 + 0.06, Math.min(0.5, P.compress));
+    T.pelH = (lerp(0.97, 0.6, crouch) - absorb) * lerp(1, Math.cos(incl), 0.8) - Math.abs(P.jolt) * 0.06;
+    T.pelX = Math.sin(incl) * 0.75;
+    T.pelRoll = -incl * 0.7; T.spRoll = incl * 0.45 + P.jolt * 0.08;
+    T.pelZ = -0.05 - P.tuck * 0.1 - P.charge * 0.05;
+    T.pelPitch = 0.1 + P.tuck * 0.25 + crouch * 0.2; T.spPitch = 0.18 + P.tuck * 0.55 + P.charge * 0.25;
+    T.headP = -(T.pelPitch + T.spPitch) * 0.7;
+    const fall = Math.hypot(_n.x, _n.z) > 0.05 ? Math.atan2(_n.x, _n.z) : P.yaw;
+    T.spYaw = clamp(wrapPi(fall - P.yaw - (sw ? Math.PI : 0)) * 0.3, -0.45, 0.45);
+    const stance = 0.11 + Math.abs(incl) * 0.035;
+    T.fL.x = stance; T.fR.x = -stance; T.fL.roll = T.fR.roll = -incl * 0.95;
+    if (incl > 0.1) T.fL.z = 0.07; else if (incl < -0.1) T.fR.z = 0.07;          // inside ski leads a little
+    if (P.brake > 0.3 && sp > 5) {                                               // hockey stop: skis across the slope
+      const sd = P.edge >= 0 ? 1 : -1;
+      T.baseYaw = sd * 1.1 * P.brake; T.fL.roll = T.fR.roll = sd * 0.45; T.pelX = -sd * 0.18; T.pelRoll = sd * 0.25; T.spYaw = -sd * 0.7;
+      T.pelH = Math.min(T.pelH, 0.8);
+    } else if (P.brake > 0.3) {                                                  // snowplough
+      T.fL.x = 0.24; T.fR.x = -0.24; T.fL.yaw = -0.32; T.fR.yaw = 0.32; T.fL.roll = 0.22; T.fR.roll = -0.22; T.pelH = Math.min(T.pelH, 0.86);
+    }
+    if (P.skating && sp > 0.2) {                                                 // skating: push off one ski then the other
+      skatePh += dt * (4 + sp * 0.7); const s1 = Math.sin(skatePh);
+      T.fL.x = 0.13 + 0.24 * Math.max(0, s1); T.fR.x = -(0.13 + 0.24 * Math.max(0, -s1));
+      T.fL.yaw = 0.3; T.fR.yaw = -0.3; T.fL.y = 0.1 * Math.max(0, -s1); T.fR.y = 0.1 * Math.max(0, s1);
+      T.fL.roll = -0.15 * Math.max(0, s1); T.fR.roll = 0.15 * Math.max(0, -s1);
+      T.pelX = -0.1 * s1; T.pelRoll = 0.08 * s1; T.spPitch = 0.45; T.pelH = 0.84;
+      T.aL.p = -0.45 - 0.55 * s1; T.aR.p = -0.45 + 0.55 * s1; T.aL.pole = 0.6 + 0.5 * s1; T.aR.pole = 0.6 - 0.5 * s1;
+    }
+    if (P.tuck > 0.5 && !P.skating) { for (const a of [T.aL, T.aR]) { a.p = -1.1; a.e = -1.15; a.o = 0.12; a.pole = 1.45; } }
+    else if (!P.skating) { T.aL.o = 0.24 + Math.max(0, incl) * 0.35; T.aR.o = 0.24 + Math.max(0, -incl) * 0.35; }
+    // pole plant at each turn transition, on the new inside
+    const es = Math.abs(P.edge) > 0.35 ? Math.sign(P.edge) : 0;
+    if (es && es !== lastEdgeSign && sp > 5 && P.tuck < 0.5) { plant.t = 0; plant.sd = es; }
+    if (es) lastEdgeSign = es;
+    T.sink = P.sinkT || 0;
   } else if (P.state === 'air' || P.state === 'rail') {
-    _quat.setFromAxisAngle(AX_Y, P.yaw); _q3.setFromAxisAngle(AX_X, P.pitch); S.root.quaternion.copy(_quat).multiply(_q3);
-    S.root.position.copy(P.pos); S.root.position.y += 0.9;
-    const g = P.air && (input.grab || input.tail);
-    crouch = g ? 1 : 0.55; torso = g ? 0.9 : 0.35; armX = g ? -1.35 : -0.8; tail = P.air && input.tail;
-    S.lean.rotation.y = 0;
+    rate = 24;
+    _quat.setFromAxisAngle(AX_Y, P.yaw); _q3.setFromAxisAngle(AX_X, P.pitch); _quat.multiply(_q3);
+    _rootP.copy(P.pos); _rootP.y += 0.95;
+    susp.ys = P.pos.y; susp.vs = P.vel.y;
+    T.pelH = 0.74; T.spPitch = 0.38; T.headP = -0.3;
+    for (const a of [T.aL, T.aR]) { a.p = -0.75; a.o = 0.7; a.e = -0.45; a.pole = 0.55; }
+    if (P.state === 'rail') { T.pelH = 0.86; for (const a of [T.aL, T.aR]) a.o = 1.0; }
+    const spin = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    if (P.air && spin) { T.spYaw = spin * 0.45; T.aL.o = T.aR.o = 0.35; }
+    if (P.air && input.grab) { T.pelH = 0.58; T.spPitch = 0.95; T.aR.p = -1.55; T.aR.e = -0.15; T.aR.o = 0.08; T.headP = -0.45; T.aL.o = 0.9; }
+    if (P.air && input.tail) { T.pelH = 0.62; T.spPitch = 0.6; T.aL.p = 0.95; T.aL.e = -0.1; T.spYaw = 0.35; }
   } else if (P.state === 'crash') {
+    rate = 8;
     crashRot += dt * Math.max(0, P.crashT - 0.6) * 9;
-    S.root.position.copy(P.pos); S.root.position.y += 0.35;
-    _quat.setFromAxisAngle(AX_Y, P.yaw); _q3.setFromAxisAngle(P.crashAxis || AX_X, crashRot + 1.3); S.root.quaternion.copy(_quat).multiply(_q3);
-    crouch = 0.6; armX = -2.2; armSpread = 0.6;
+    _rootP.copy(P.pos); _rootP.y += 0.4;
+    _quat.setFromAxisAngle(AX_Y, P.yaw); _q3.setFromAxisAngle(P.crashAxis || AX_X, crashRot + 1.3); _quat.multiply(_q3);
+    T.pelH = 0.78; T.spPitch = 0.6;
+    T.aL.p = -1.2 + Math.sin(time * 11) * 1.0; T.aR.p = -1.2 + Math.cos(time * 9) * 1.0; T.aL.o = T.aR.o = 1.1;
+    T.fL.x = 0.25; T.fR.x = -0.2; T.fL.yaw = 0.5; T.fR.yaw = -0.3;
   } else if (P.state === 'lift') {
     const L = P.lift; L.up.pointAt(P.liftS, _t);
+    _quat.setFromAxisAngle(AX_Y, L.yaw); rate = 30;
     if (L.type === 'chair') {
-      sit = true;
-      S.root.quaternion.setFromAxisAngle(AX_Y, L.yaw);
-      S.root.position.set(0, -2.02, 0.56).applyQuaternion(S.root.quaternion).add(_t);
+      T.pelH = 0.47; T.pelZ = -0.42; T.pelPitch = -0.15; T.spPitch = -0.08; T.headP = 0.05;
+      T.fL.z = T.fR.z = 0.04; T.fL.pitch = T.fR.pitch = 0.25;
+      for (const a of [T.aL, T.aR]) { a.p = -0.95; a.e = -0.55; a.o = 0.18; a.pole = 1.2; }
+      _rootP.set(0, -2.32 + 0.47, 0.12 + 0.42).applyQuaternion(_quat).add(_t);
       L.own.position.copy(_t); L.own.rotation.set(0, L.yaw, 0);
     } else if (L.type === 'tbar') {
       const gh = H(_t.x, _t.z);
-      S.root.quaternion.setFromAxisAngle(AX_Y, L.yaw); S.root.position.set(_t.x, gh + 0.9, _t.z);
-      crouch = 0.15; torso = -0.1; armX = -2.6;
+      _rootP.set(_t.x, gh + 0.95, _t.z);
+      T.pelH = 0.9; T.pelZ = -0.12; T.pelPitch = -0.05; T.spPitch = -0.06;
+      T.aR.p = -2.75; T.aR.e = 0; T.aR.o = 0.05; T.aR.pole = 3.2; T.aL.p = -0.3; T.aL.pole = 0.2;
       L.own.position.copy(_t); L.own.rotation.set(0, L.yaw, 0); L.own.scale.set(1, clamp((_t.y - gh - 0.95) / 4.6, 0.3, 2), 1);
-    } else {
-      L.own.position.copy(_t); L.own.rotation.set(0, L.yaw, 0);
-      S.root.position.copy(_t);
-    }
+    } else { L.own.position.copy(_t); L.own.rotation.set(0, L.yaw, 0); _rootP.copy(_t); }
   }
-  const a = 0.12 + crouch * 0.55;
-  if (sit) { S.ankle.rotation.x = 0.1; S.knee.rotation.x = -Math.PI / 2; S.hip.rotation.x = Math.PI / 2 - 0.15; armX = -0.9; }
-  else { S.ankle.rotation.x = a; S.knee.rotation.x = -a * 2; S.hip.rotation.x = a + torso; }
-  S.lean.rotation.z = lerp(S.lean.rotation.z, leanZ, Math.min(1, dt * 8));
-  for (const A of S.arms) {
-    A.sh.rotation.x = tail && A.s > 0 ? 1.2 : armX; A.sh.rotation.z = A.s * (0.12 + armSpread);
-    A.pole.rotation.x = (P.state === 'ski' ? 0.9 : 0.4) - (armX + 0.55);
-  }
+  // pole plant overlay
+  plant.t = Math.min(1, plant.t + dt / 0.5);
+  if (plant.t < 1 && P.state === 'ski') { const k = Math.sin(Math.PI * plant.t), A = plant.sd > 0 ? T.aL : T.aR; A.p -= 0.5 * k; A.e -= 0.25 * k; A.pole -= 0.85 * k; }
+  // root: exact position, smoothed orientation (no snapping on facets)
+  S.root.position.copy(_rootP);
+  if (!rootInit || camSnap) { S.root.quaternion.copy(_quat); rootInit = true; } else S.root.quaternion.slerp(_quat, ease(rate, dt));
+  blendPose(dt);
+  // apply
+  S.base.position.y = -0.95 - pose.sink; S.base.rotation.y = pose.baseYaw;
+  S.feet.forEach(f => { const q = f.sd > 0 ? pose.fL : pose.fR; f.g.position.set(q.x, q.y, q.z); f.g.rotation.set(q.pitch, q.yaw, q.roll); });
+  S.pelvis.position.set(pose.pelX, pose.pelH, pose.pelZ); S.pelvis.rotation.set(pose.pelPitch, pose.pelYaw, pose.pelRoll);
+  S.spine.rotation.set(pose.spPitch, pose.spYaw, pose.spRoll); S.head.rotation.x = pose.headP;
+  S.arms.forEach(A => { const q = A.sd > 0 ? pose.aL : pose.aR; A.sh.rotation.set(q.p, 0, A.sd * q.o); A.el.rotation.x = q.e; A.pole.rotation.x = q.pole - q.p - q.e - pose.spPitch - pose.pelPitch; A.pole.rotation.z = -A.sd * q.o * 0.6; });
+  S.legs.forEach(solveLeg);
+  // tunnel light on the skier
+  tunnelBlend += ((P.tunnel ? 1 : 0) - tunnelBlend) * ease(4, dt);
+  skierShade.value = lerp(1, 0.3, tunnelBlend);
+  if (P.tunnel && tunnelBlend > 0.01) { const tl = tunnelLocal(P.tunnel, P.pos.x, P.pos.z, 2); if (tl) skierTint.value.setHSL(tunnelHue(Math.round((tl.s - TUN_LIGHT / 2) / TUN_LIGHT), time), 1, 0.5).multiplyScalar(0.55 * tunnelBlend); }
+  else skierTint.value.setRGB(0, 0, 0);
 }
 
 /* ---------------- Camera ---------------- */
+function clampCamera(c) {
+  if (P.tunnel) {
+    const T = P.tunnel, tl = tunnelLocal(T, c.x, c.z, 2);
+    if (tl && tl.s > -8 && tl.s < T.len + 8 && Math.abs(tl.w) < T.hw + 2) {
+      const lim = T.hw - 0.8; if (Math.abs(tl.w) > lim) { const dw = Math.sign(tl.w) * lim - tl.w; c.x += tl.px * dw; c.z += tl.pz * dw; }
+      c.y = clamp(c.y, tl.y + 0.9, tl.y + T.ceil - 0.7); return;
+    }
+  }
+  const gh = H(c.x, c.z) + 1.1; if (c.y < gh) c.y = gh;
+}
+let photoCam = null;
 let camMode = 0, camSnap = false; // 0 chase, 1 far, 2 first person
 const camDir = new V3(0, 0, 1), camPos = new V3(), camLook = new V3(), _cd = new V3();
 function updateCamera(dt, snap) {
@@ -1753,14 +2353,15 @@ function updateCamera(dt, snap) {
   if (P.state === 'lift') _q.addScaledVector(P.lift.side, P.lift.type === 'tbar' ? 4 : 3);   // look past the hanger
   const kp = snap ? 1 : 1 - Math.exp(-dt * 7);
   camPos.lerp(_q, kp);
-  const gh = H(camPos.x, camPos.z) + 1.1; if (camPos.y < gh) camPos.y = gh;
+  clampCamera(camPos);
   camLook.copy(target).addScaledVector(camDir, 4); camLook.y += 1.0;
   camera.position.copy(camPos); camera.lookAt(camLook);
 }
 
 /* ---------------- Audio ---------------- */
 const sfx = (() => {
-  let ctx = null, wind, windF, carve, carveF, hum, master, on = true;
+  let ctx = null, wind, windF, carve, carveF, hiss, hum, master, on = true;
+  let mus = null;
   function init() {
     if (ctx) return; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     try { ctx = new AC(); } catch (e) { return; }
@@ -1768,30 +2369,76 @@ const sfx = (() => {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
     const mk = (type, f, q) => { const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(master); src.start(); return [g, fl]; };
-    [wind, windF] = mk('lowpass', 400, 0.7); [carve, carveF] = mk('bandpass', 2000, 1.2);
+    [wind, windF] = mk('lowpass', 400, 0.7); [carve, carveF] = mk('bandpass', 2000, 1.2); [hiss] = mk('highpass', 2500, 0.5);
     const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 52; const lf = ctx.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = 180; hum = ctx.createGain(); hum.gain.value = 0; o.connect(lf); lf.connect(hum); hum.connect(master); o.start();
     sfx.buf = buf;
+    // tunnel music bus: dry + a long synthetic reverb, faded in near the tunnels
+    const bus = ctx.createGain(); bus.gain.value = 0; bus.connect(master);
+    const conv = ctx.createConvolver(), L = ctx.sampleRate * 2.4, ir = ctx.createBuffer(2, L, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < L; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / L, 3); }
+    conv.buffer = ir; const wet = ctx.createGain(); wet.gain.value = 0.45; const dry = ctx.createGain(); dry.gain.value = 0.8;
+    const inp = ctx.createGain(); inp.connect(dry); inp.connect(conv); conv.connect(wet); dry.connect(bus); wet.connect(bus);
+    mus = { bus, inp, next: 0, step: 0, lastKick: -10, playing: false };
   }
-  function burst(freq, dur, vol) {
+  function burst(freq, dur, vol, dest) {
     if (!ctx || !on) return; const s = ctx.createBufferSource(); s.buffer = sfx.buf; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq; const g = ctx.createGain();
-    const t = ctx.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05);
+    const t = ctx.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(f); f.connect(g); g.connect(dest || master); s.start(t); s.stop(t + dur + 0.05);
+  }
+  // a small 124 bpm loop: kick, hats, clap, bass and an arpeggio over Am–F–C–G
+  const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+  const CH = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], ROOT = [45, 41, 48, 43];
+  function voice(type, f, t, dur, vol, cut) {
+    const o = ctx.createOscillator(), g = ctx.createGain(), fl = ctx.createBiquadFilter(); o.type = type; o.frequency.setValueAtTime(f, t);
+    fl.type = 'lowpass'; fl.frequency.value = cut; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(fl); fl.connect(g); g.connect(mus.inp); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noiseHit(t, dur, vol, type, f) {
+    const s = ctx.createBufferSource(); s.buffer = sfx.buf; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(fl); fl.connect(g); g.connect(mus.inp); s.start(t, Math.random()); s.stop(t + dur + 0.02);
+  }
+  function step(i, t) {
+    const bar = Math.floor(i / 16) % 4, q = i % 16;
+    if (q % 4 === 0) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32); o.connect(g); g.connect(mus.inp); o.start(t); o.stop(t + 0.35); mus.kicks = (mus.kicks || []).concat(t).slice(-8); }
+    if (q % 4 === 2) noiseHit(t, 0.05, 0.22, 'highpass', 7500); else if (q % 2 === 1) noiseHit(t, 0.03, 0.07, 'highpass', 9000);
+    if (q === 4 || q === 12) noiseHit(t, 0.16, 0.35, 'bandpass', 1500);
+    if (q % 2 === 0) voice('sawtooth', midi(ROOT[bar] + (q % 8 === 6 ? 12 : 0)), t, 0.2, 0.22, 420);
+    const ch = CH[bar], note = ch[[0, 1, 2, 1][q % 4]] + 12 + (q >= 8 ? 12 : 0);
+    voice('square', midi(note), t, 0.12, 0.05, 2600);
   }
   return {
     init, burst,
     pop() { burst(900, 0.15, 0.25); },
     land(k) { burst(260, 0.3, 0.25 + k * 0.5); },
     toggle() { on = !on; if (master) master.gain.value = on ? 0.9 : 0; return on; },
+    beat() { if (!mus || !mus.kicks) return 0; const now = ctx.currentTime; let b = 0; for (const k of mus.kicks) if (k <= now) b = Math.max(b, Math.exp(-(now - k) * 7)); return mus.playing ? b : 0; },
     update() {
-      if (!ctx) return; const t = ctx.currentTime, sp = P.vel.length();
+      if (!ctx) return; const t = ctx.currentTime, sp = P.vel.length(), st = P.snow;
       const air = P.state === 'air';
       wind.gain.setTargetAtTime(Math.min(0.5, Math.pow(sp / 30, 2) * 0.45 + (air ? 0.05 : 0)), t, 0.1);
       windF.frequency.setTargetAtTime(250 + sp * 35, t, 0.1);
-      const c = P.state === 'ski' ? Math.min(0.32, sp / 28 * (Math.abs(P.edge) * 0.35 + P.brake * 0.8 + (P.offPiste ? 0.3 : 0.05))) : P.state === 'rail' ? 0.18 : 0;
-      carve.gain.setTargetAtTime(c, t, 0.06); carveF.frequency.setTargetAtTime(P.brake > 0.5 ? 1100 : P.offPiste ? 700 : P.state === 'rail' ? 3200 : 2200, t, 0.1);
+      // glide sound per snow type: hard scrape on ice, soft hush in powder, chatter in crud
+      const S = SNOW[st] || SNOW[0];
+      const base = st === SN.GLACEE ? 0.25 : st === SN.POUDREUSE ? 0.2 : st === SN.TRAFOLLE ? 0.22 : st === SN.BOSSES ? 0.12 : 0.05;
+      let c = P.state === 'ski' ? Math.min(0.36, sp / 28 * (Math.abs(P.edge) * 0.35 + P.brake * 0.8 + P.skid * 0.4 + base)) : P.state === 'rail' ? 0.18 : 0;
+      if (st === SN.TRAFOLLE) c *= 0.7 + 0.6 * Math.abs(P.jolt);
+      carve.gain.setTargetAtTime(c, t, 0.05);
+      carveF.frequency.setTargetAtTime(P.state === 'rail' ? 3200 : st === SN.GLACEE ? 3600 : st === SN.POUDREUSE ? 520 : st === SN.TRAFOLLE ? 900 : P.brake > 0.5 ? 1100 : 2200, t, 0.1);
       hum.gain.setTargetAtTime(P.state === 'lift' ? 0.05 : 0, t, 0.3);
+      const dc = nearestCannon(P.pos.x, P.pos.z);
+      hiss.gain.setTargetAtTime(0.16 * smoothstep(90, 8, dc), t, 0.3);
+      // tunnel music: on inside, fading with distance to the nearest portal
+      let mix = P.tunnel ? 1 : 0;
+      for (const T of tunnels) for (const i of [T.i0, T.i1]) { const q = T.S[i]; mix = Math.max(mix, smoothstep(80, 12, Math.hypot(q.x - P.pos.x, q.z - P.pos.z))); }
+      mus.bus.gain.setTargetAtTime(mix * 0.5, t, 0.25);
+      if (mix > 0.01) {
+        if (!mus.playing) { mus.playing = true; mus.next = t + 0.05; }
+        const spb = 60 / 124 / 4;
+        while (mus.next < t + 0.15) { step(mus.step, mus.next); mus.next += spb; mus.step = (mus.step + 1) % 64; }
+      } else mus.playing = false;
     }
   };
 })();
+const musicBeat = () => sfx.beat();
 
 /* ---------------- Maps ---------------- */
 function buildMapImage() {
@@ -1824,6 +2471,13 @@ function buildMapImage() {
     for (const [x, y] of [[ax, ay], [bx, by]]) { g.fillStyle = '#11161d'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 1.8, 0, 7); g.fill(); }
   });
   obstacles.forEach(o => { const [x, y] = tp(o.x, o.z); g.fillStyle = '#6b4428'; g.fillRect(x - 2, y - 2, 4, 4); });
+  tunnels.forEach(T => {   // tunnels: dashed dark line with portal marks
+    g.save(); g.setLineDash([3, 3]); g.strokeStyle = '#11161d'; g.lineWidth = 3.5; g.beginPath();
+    for (let i = T.i0; i <= T.i1; i++) { const [x, y] = tp(T.S[i].x, T.S[i].z); i === T.i0 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); g.restore();
+    for (const i of [T.i0, T.i1]) { const [x, y] = tp(T.S[i].x, T.S[i].z); g.fillStyle = '#ff5ac8'; g.fillRect(x - 3, y - 3, 6, 6); }
+  });
+  patches.forEach(pt => { const pp = pt.piste; for (let d = pp.moguls[0]; d < pp.moguls[1]; d += 24) { const q = pp.samples[Math.floor(d / 4)]; if (!q) break; const [x, y] = tp(q.x, q.z); g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); } });
+  cannons.forEach(c => { const [x, y] = tp(c.x, c.z); g.fillStyle = '#2bb6d6'; g.fillRect(x - 1.2, y - 1.2, 2.4, 2.4); });
   minimapImg = cv;
 }
 const mini = $('mini'), mctx = mini.getContext('2d');
@@ -1847,6 +2501,11 @@ function drawBigMap() {
   g.font = '700 22px "Barlow Condensed", "Arial Narrow", sans-serif'; g.textBaseline = 'middle';
   LIFTS.forEach(L => { const [x, y] = tp(L.board.x, L.board.z); const t = L.code + ' ' + L.name.split(' ').slice(-1)[0]; g.lineWidth = 5; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(t, x + 10, y); g.fillStyle = '#0d1520'; g.fillText(t, x + 10, y); });
   g.font = '600 19px "Barlow Condensed", "Arial Narrow", sans-serif';
+  g.font = '800 24px "Barlow Condensed", "Arial Narrow", sans-serif';
+  const seenV = new Set(); villageLabels.forEach(v => { if (seenV.has(v.name)) return; seenV.add(v.name); const [x, y] = tp(v.x, v.z); g.fillStyle = '#6b4428'; g.fillRect(x - 5, y - 5, 10, 10); g.lineWidth = 5; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(v.name.toUpperCase(), x - 40, y - 14); g.fillStyle = '#3b2412'; g.fillText(v.name.toUpperCase(), x - 40, y - 14); });
+  g.font = '600 18px "Barlow Condensed", "Arial Narrow", sans-serif';
+  tunnels.forEach(T => { const q = T.S[Math.floor((T.i0 + T.i1) / 2)]; const [x, y] = tp(q.x, q.z); g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(T.name, x + 8, y + 18); g.fillStyle = '#a3127a'; g.fillText(T.name, x + 8, y + 18); });
+  g.font = '600 19px "Barlow Condensed", "Arial Narrow", sans-serif';
   PISTES.forEach(p => { if (p.hidden) return; const s = p.samples[Math.floor(p.samples.length * 0.45)]; const [x, y] = tp(s.x, s.z); g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(p.name, x + 8, y); g.fillStyle = p.lvl === 'noire' ? '#0f1216' : p.color; g.fillText(p.name, x + 8, y); });
   const [px, py] = tp(P.pos.x, P.pos.z); drawArrow(g, px, py, headingAngle(), 20);
 }
@@ -1860,6 +2519,22 @@ let mapOpen = false;
 function toggleMap(v) { mapOpen = v === undefined ? !mapOpen : v; $('mapOv').hidden = !mapOpen; if (mapOpen) drawBigMap(); else canvas.focus(); }
 
 /* ---------------- HUD ---------------- */
+let lastVillage = null;
+function updateVillageBanner() {
+  let near = null, sub = ''; for (const v of villageLabels) if (Math.hypot(v.x - P.pos.x, v.z - P.pos.z) < 110) { near = v.name; sub = v.sub || 'Vous traversez le village'; break; }
+  if (near && near !== lastVillage && P.state !== 'lift') showTrick(near, sub);
+  if (near) lastVillage = near;
+  else if (!villageLabels.some(v => v.name === lastVillage && Math.hypot(v.x - P.pos.x, v.z - P.pos.z) < 220)) lastVillage = null;
+}
+function fillFacts() {
+  const vis = PISTES.filter(p => !p.hidden), n = l => vis.filter(p => p.lvl === l).length;
+  const pl = (k, a, b) => k + ' ' + (k > 1 ? b : a);
+  const items = [['verte', pl(n('verte'), 'verte', 'vertes')], ['bleue', pl(n('bleue'), 'bleue', 'bleues')], ['rouge', pl(n('rouge'), 'rouge', 'rouges')], ['noire', pl(n('noire'), 'noire', 'noires')], ['park', 'Snowpark']];
+  $('facts').innerHTML = items.map(([l, t]) => '<span><i class="dot' + (l === 'noire' ? ' noire' : '') + '" style="background:var(--' + l + ')"></i>' + t + '</span>').join('') +
+    '<span>' + LIFTS.length + ' remontées</span><span>' + pl(tunnels.length, 'tunnel', 'tunnels') + '</span><span>' + pl(VILLAGES.length, 'village', 'villages') + '</span><span>' + cannons.length + ' canons à neige</span>';
+  const alts = LIFTS.flatMap(L => [L.board.y, L.up.pts[L.up.pts.length - 1].y - 7]).map(y => y + ALT0);
+  $('eyebrow').textContent = 'Domaine ouvert · ' + fmt(Math.min(...alts)) + ' – ' + fmt(Math.max(...alts)) + ' m';
+}
 let trickTimer = 0;
 function showTrick(t, s) { $('trickT').textContent = t; $('trickS').textContent = s || ''; $('trick').classList.add('show'); trickTimer = 2.4; }
 let hudAcc = 0;
@@ -1869,10 +2544,12 @@ function updateHud(dt) {
   const sp = P.state === 'lift' ? P.lift.speed * ((input.grab || input.up) ? 4 : 1) : P.vel.length();
   $('spd').textContent = Math.round(sp * 3.6);
   $('alt').textContent = fmt(P.pos.y + ALT0 - (P.state === 'lift' && P.lift.type !== 'tbar' ? 9 : 0));
-  const z = P.state === 'ski' || P.state === 'crash' ? zoneAt(P.pos.x, P.pos.z) : P.zone;
+  const z = P.tunnel ? P.tunnel.piste.idx : P.state === 'ski' || P.state === 'crash' ? zoneAt(P.pos.x, P.pos.z) : P.zone;
   const dot = $('zDot'), zn = $('zName');
+  $('snow').textContent = P.state === 'lift' ? '—' : P.state === 'air' ? 'En vol' : (SNOW[P.snow] || SNOW[0]).label;
+  updateVillageBanner();
   if (P.state === 'lift') { zn.textContent = P.lift.code + ' · ' + P.lift.name.split(' ').slice(1).join(' '); dot.style.background = '#a6dcff'; dot.className = 'dot'; }
-  else if (z >= 0) { const p = PISTES[z]; zn.textContent = p.name; dot.style.background = p.color; dot.className = 'dot' + (p.lvl === 'noire' ? ' noire' : ''); }
+  else if (z >= 0) { const p = PISTES[z]; zn.textContent = P.tunnel ? P.tunnel.name : p.name; dot.style.background = p.color; dot.className = 'dot' + (p.lvl === 'noire' ? ' noire' : ''); }
   else { zn.textContent = 'Hors-piste'; dot.style.background = 'repeating-linear-gradient(45deg,#ffcf3a 0 3px,#11161d 3px 6px)'; dot.className = 'dot'; }
   let st = 'À l\'arrêt';
   const along = P.vel.x * Math.sin(P.yaw) + P.vel.z * Math.cos(P.yaw);
@@ -1883,7 +2560,6 @@ function updateHud(dt) {
   else if (sp > 0.6) {
     st = P.brake > 0.5 ? (sp > 6 ? 'Dérapage' : 'Chasse-neige') : P.tuck > 0.5 ? (sp < 6.5 ? 'Pas de patineur' : 'Schuss') : Math.abs(P.edge) > 0.5 && sp > 7 ? 'Carving' : 'Glisse';
     if (along < -0.8) st = 'Switch · ' + st;
-    if (P.offPiste && sp > 2) st += ' · poudreuse';
   }
   $('st').textContent = st;
   $('pts').textContent = fmt(P.score);
@@ -1944,17 +2620,23 @@ function frame(now) {
   }
   updateLiftAnim(clock);
   updateSkier(dt, clock);
-  updateSpray(dt);
+  updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
   if (running) { updateCamera(dt, camSnap); camSnap = false; }
   else {
     introT += dt;
-    const a = 0.5 + introT * 0.03, c = new V3(P.pos.x, P.pos.y, P.pos.z);
-    camera.position.set(c.x + Math.sin(a) * 18, c.y + 5.5, c.z - Math.cos(a) * 18 - 4);
-    const gh = H(camera.position.x, camera.position.z) + 2; if (camera.position.y < gh) camera.position.y = gh;
-    camera.lookAt(c.x, c.y + 1, c.z + 30);
+    // start screen: a slow turntable around the skier, framed on the right of the panel
+    const a = 2.6 + introT * 0.22, c = new V3(P.pos.x, P.pos.y + 1.05, P.pos.z), wide = window.innerWidth > 760;
+    camera.position.set(c.x + Math.sin(a) * 3.4, c.y + 0.25, c.z + Math.cos(a) * 3.4);
+    const gh = H(camera.position.x, camera.position.z) + 0.6; if (camera.position.y < gh) camera.position.y = gh;
+    const fw = c.clone().sub(camera.position).normalize(), rt = fw.clone().cross(AX_Y).normalize();
+    camera.lookAt(c.x - rt.x * (wide ? 1.15 : 0), c.y - 0.15, c.z - rt.z * (wide ? 1.15 : 0));
+  }
+  if (photoCam) {   // debug: close 3/4 view of the skier
+    const c = skier.root.position, a = P.yaw + photoCam.a;
+    camera.position.set(c.x + Math.sin(a) * photoCam.d, c.y + photoCam.h, c.z + Math.cos(a) * photoCam.d); camera.position.y = Math.max(camera.position.y, H(camera.position.x, camera.position.z) + 2); camera.lookAt(c.x, c.y - 0.1 + (photoCam.ly || 0), c.z);
   }
   sky.position.copy(camera.position);
-  sun.target.position.copy(P.pos); sun.position.copy(P.pos).addScaledVector(SUN_DIR, 400);
+  updateSun(P.pos);
   renderer.render(scene, camera);
   if (running) { updateHud(dt); sfx.update(); }
 }
@@ -1991,10 +2673,11 @@ const steps = [
     });
     genCannons(); genSnowGrid();
   }],
-  ['Construction du terrain…', () => { buildTerrainMesh(); buildBackdrop(); }],
+  ['Textures de neige…', () => { buildTextures(); initFarGrid(); terrainMat = makeTerrainMaterial(); buildSkier(); }],
   ['Construction des villages…', () => { buildVillages(); buildCannonMeshes(); initPlumes(); }],
   ['Plantation des sapins…', () => { placeTrees(); placeRocks(); }],
-  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); }],
+  ['Calcul de l\'ensoleillement…', () => { buildTerrainMesh(); buildMogulMeshes(); buildTunnels(); buildBackdrop(); }],
+  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); fillFacts(); }],
 ];
 function boot(i) {
   if (i >= steps.length) {
@@ -2012,8 +2695,9 @@ window.__ski = {
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
   teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
-  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY,
+  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
+  photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
   clear() { for (const k in input) input[k] = false; },
   ready: false
 };
