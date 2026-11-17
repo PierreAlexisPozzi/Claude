@@ -1054,7 +1054,7 @@ const VILLAGES = [
   { name: 'Les Granges', style: 'trad', piste: 'Les Sapins', d: [960, 1130], also: [['Retour Village', 1000, 1130]] },
   { name: 'Val Haut 1800', style: 'station', piste: 'Les Sapins', d: [20, 200], also: [['Retour Village', 20, 170]], bridge: ['Les Sapins', 96] },
   { name: 'Les Écureuils', style: 'hameau', piste: 'Les Écureuils', d: [10, 210], also: [] },
-  { name: 'Bellecime 1950', style: 'bois', piste: 'Liaison Snowpark', d: [240, 340], also: [] },
+  { name: 'Bellecime 1950', style: 'bois', piste: 'Le Balcon', d: [300, 520], also: [] },
 ];
 const FLOOR = 2.9, BAY = 3.2;
 const facadeTex = {};
@@ -2642,7 +2642,19 @@ function frame(now) {
   sky.position.copy(camera.position);
   updateSun(P.pos);
   renderer.render(scene, camera);
-  if (running) { updateHud(dt); sfx.update(); }
+  if (running) { updateHud(dt); sfx.update(); autoQuality(dt); }
+}
+// steps quality down if frames are slow on this device: resolution first, then shadow detail
+const perf = { t: 0, n: 0, stage: 0 };
+function autoQuality(dt) {
+  perf.t += dt; perf.n++;
+  if (perf.t < 4) return;
+  const ms = perf.t / perf.n * 1000; perf.t = 0; perf.n = 0;
+  if (ms < 36 || perf.stage >= 2) return;
+  perf.stage++;
+  if (perf.stage === 1) renderer.setPixelRatio(Math.min(1, Q.pr));
+  else { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  resize();
 }
 function resize() { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 window.addEventListener('resize', resize);
