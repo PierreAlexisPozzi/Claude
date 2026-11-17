@@ -15,3 +15,4 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
   résidences bois sur arcades, hameau pierre et bois, village du bas avec église, restaurant d'altitude.
 - Canons à neige (perches et ventilateurs) avec panaches ; tunnels éclairés avec musique synthétisée.
 - Skieur articulé (cinématique inverse des jambes), inclinaison, angulation, absorption, plantés de bâton.
+- Skis twin-tip à double rocker ; figures au sol : nose / tail press, butters, nollie / ollie, presses sur box et rails.

@@ -124,6 +124,7 @@ body.touch #tools,body.touch .ctrls{display:none}
     <span class="k"><span class="key">↓</span></span><span>Freiner, déraper · backflip (ou S)</span>
     <span class="k"><span class="key">Espace</span></span><span>Maintenir puis relâcher : saut</span>
     <span class="k"><span class="key">⇧</span><span class="key">F</span></span><span>Grab (mute / tail)</span>
+    <span class="k"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span><span>Au sol : nose / tail press, + ←→ butter</span>
     <span class="k"><span class="key">X</span></span><span>Demi-tour : skier en arrière</span>
     <span class="k"><span class="key">E</span></span><span>Prendre la remontée</span>
     <span class="k"><span class="key">R</span></span><span>Retour à la remontée la plus proche</span>
@@ -161,7 +162,7 @@ body.touch #tools,body.touch .ctrls{display:none}
   <div class="inner">
     <div class="eyebrow" id="eyebrow">Domaine ouvert</div>
     <h1>Val des<span>Sapins</span></h1>
-    <p class="lede">Un domaine entier à parcourir librement. La pente décide : pour remonter, il faut prendre la télécabine, les télésièges ou les tire-fesses. Pistes damées, murs glacés, champs de bosses, poudreuse et trafolle entre les sapins, tunnels sous les crêtes et villages à traverser.</p>
+    <p class="lede">Un domaine entier à parcourir librement. La pente décide : pour remonter, il faut prendre la télécabine, les télésièges ou les tire-fesses. Pistes damées, murs glacés, champs de bosses, poudreuse et trafolle entre les sapins, tunnels sous les crêtes et villages à traverser. Skis twin-tip à double rocker.</p>
     <div class="facts" id="facts"></div>
     <div class="ctrls">
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>Carres, virages</div>
@@ -171,6 +172,7 @@ body.touch #tools,body.touch .ctrls{display:none}
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>En l'air : 180, 360, 540…</div>
       <div><span class="ks"><span class="key">↑</span><span class="key">↓</span></span>En l'air : front / backflip</div>
       <div><span class="ks"><span class="key">⇧</span><span class="key">F</span></span>Grabs</div>
+      <div><span class="ks"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span>Nose / tail press, butters</div>
       <div><span class="ks"><span class="key">X</span></span>Passer en switch</div>
       <div><span class="ks"><span class="key">E</span></span>Monter dans la remontée</div>
       <div><span class="ks"><span class="key">M</span></span>Plan, téléportation</div>
@@ -306,6 +308,8 @@ const SNOW = [
   { id: 'culture', label: 'Neige de culture', mu: 0.031, drag: 0.0040, res: 0, aLat: 17, rMin: 9, gripCarve: 11, gripSkid: 4.2, pivot: 1, sink: 0, rough: 0.07, takeoff: 1 },
   { id: 'tunnel', label: 'Tunnel', mu: 0.034, drag: 0.0040, res: 0, aLat: 20, rMin: 8.5, gripCarve: 14, gripSkid: 6, pivot: 1, sink: 0, rough: 0, takeoff: 1 },
 ];
+// Twin-tip skis with double rocker: easier pivots and butters, more float in deep snow, a little less hold on hard snow
+const SKI = { name: 'Twin-tip double rocker', pivot: 1.3, float: 0.72, grip: 0.93 };
 const SN = { DAMEE: 0, GLACEE: 1, BOSSES: 2, POUDREUSE: 3, TRAFOLLE: 4, PARK: 5, CULTURE: 6, TUNNEL: 7 };
 
 /* zone grid (4 m): piste id per cell, tree clearance, distance to pistes, snow type */
@@ -1657,22 +1661,42 @@ function skMat(color, shininess, map) {
   };
   return m;
 }
+/* twin-tip ski with double rocker: flat underfoot, both ends rising early and symmetrically, sidecut, centre mount */
+function makeSkiGeo() {
+  const n = 48, L = 0.87, th = 0.016, pos = [], col = [], idx = [];
+  const prof = z => { const a = Math.abs(z); return a < 0.48 ? 0 : 0.085 * Math.pow((a - 0.48) / (L - 0.48), 2.1); };
+  const width = z => { const a = Math.abs(z); return a < 0.72 ? 0.098 + 0.026 * Math.pow(a / 0.72, 2) : Math.max(0.03, 0.124 * Math.sqrt(Math.max(0, 1 - Math.pow((a - 0.72) / 0.155, 2)))); };
+  const top = z => { const a = Math.abs(z); if (a > 0.6) return a > 0.8 ? [0.12, 0.13, 0.15] : [0.95, 0.94, 0.9]; if (a < 0.1) return [0.12, 0.13, 0.15]; return Math.abs(z * 10 % 2) < 1 ? [0.77, 0.15, 0.23] : [0.86, 0.22, 0.26]; };
+  for (let i = 0; i <= n; i++) {
+    const z = -L + (2 * L) * i / n, y = prof(z), w = width(z) / 2, c = top(z);
+    for (const [x, yy, cc] of [[-w, y + th, c], [w, y + th, c], [w, y, [0.08, 0.08, 0.09]], [-w, y, [0.08, 0.08, 0.09]]]) { pos.push(x, yy, z); col.push(...cc); }
+  }
+  for (let i = 0; i < n; i++) {
+    const a = i * 4, b = a + 4;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);              // top
+    idx.push(a + 3, a + 2, b + 3, a + 2, b + 2, b + 3);  // base
+    idx.push(a + 1, b + 1, a + 2, a + 2, b + 1, b + 2);  // right edge
+    idx.push(a, a + 3, b, a + 3, b + 3, b);              // left edge
+  }
+  const e = n * 4; idx.push(0, 1, 2, 0, 2, 3, e, e + 2, e + 1, e, e + 3, e + 2);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+let SKI_GEO = null, SKI_MAT = null;
 const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg);
 let skier = null;
 function buildSkier() {
   const root = new THREE.Group(), base = new THREE.Group(); base.position.y = -0.95; root.add(base);
   const mesh = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  SKI_GEO = makeSkiGeo(); SKI_MAT = skMat('#ffffff', 80); SKI_MAT.vertexColors = true; SKI_MAT.side = THREE.DoubleSide;
   const quilt = fabricTex(301, true), weave = fabricTex(302, false);
   const JACKET = skMat('#c8321f', 14, quilt), YOKE = skMat('#eeeae2', 14, weave), PANTS = skMat('#24314f', 10, weave), DARK = skMat('#1a1d24', 20),
-    BOOT = skMat('#2c3340', 60), BUCKLE = skMat('#c7ccd3', 90), SKI = skMat('#c4263a', 70), SKI2 = skMat('#f4f1ea', 70), HELM = skMat('#f2f4f7', 80),
+    BOOT = skMat('#2c3340', 60), BUCKLE = skMat('#c7ccd3', 90), HELM = skMat('#f2f4f7', 80),
     GOG = skMat('#ff9a1f', 160), GOGF = skMat('#20242c', 30), SKIN = skMat('#d6a37f'), BUFF = skMat('#2f4d6b', 6, weave), POLE = skMat('#c9ced6', 90), GLOVE = skMat('#22252c', 25);
   // skis and boots
   const feet = [1, -1].map(sd => {
     const g = new THREE.Group(); g.rotation.order = 'YXZ'; base.add(g);
-    mesh(new THREE.BoxGeometry(0.088, 0.02, 1.62), SKI, g, 0, 0.01, 0.02);
-    mesh(new THREE.BoxGeometry(0.09, 0.004, 1.2), SKI2, g, 0, 0.022, 0.1);                     // top sheet graphic
-    const tip = mesh(new THREE.BoxGeometry(0.088, 0.018, 0.24), SKI2, g, 0, 0.044, 0.92); tip.rotation.x = -0.42;
-    const tail = mesh(new THREE.BoxGeometry(0.088, 0.018, 0.15), SKI2, g, 0, 0.026, -0.85); tail.rotation.x = 0.28;
+    mesh(SKI_GEO, SKI_MAT, g, 0, 0, 0);
     mesh(new THREE.BoxGeometry(0.07, 0.04, 0.12), DARK, g, 0, 0.038, 0.17); mesh(new THREE.BoxGeometry(0.07, 0.05, 0.1), DARK, g, 0, 0.042, -0.16);
     const shell = mesh(lathe([[0, 0], [0.06, 0.005], [0.062, 0.07], [0.05, 0.1], [0, 0.1]], 12), BOOT, g, 0, 0.035, 0.03); shell.scale.set(1, 1, 2.45);
     const cuff = mesh(lathe([[0, 0], [0.072, 0], [0.074, 0.12], [0.068, 0.22], [0, 0.22]], 14), BOOT, g, 0, 0.08, -0.03); cuff.rotation.x = 0.2; cuff.scale.z = 1.15;
@@ -1783,7 +1807,7 @@ const P = {
   pos: new V3(), vel: new V3(), yaw: 0, pitch: 0, state: 'ski', edge: 0, charge: 0, prevJump: false,
   air: null, crashT: 0, crashMsg: '', lift: null, liftS: 0, rail: null, railS: 0, railV: 0, railT: 0, railKind: '', railCool: 0,
   revertT: 0, revertDir: 1, brake: 0, tuck: 0, offPiste: false, zone: -1, score: 0, best: '', stillT: 0, lastLand: 0,
-  tunnel: null, snow: SN.DAMEE, skid: 0, jolt: 0, yawRate: 0, sinkT: 0, compress: 0, skating: false
+  tunnel: null, snow: SN.DAMEE, skid: 0, jolt: 0, yawRate: 0, sinkT: 0, compress: 0, skating: false, press: null, pressV: 0
 };
 const STEP = 1 / 120;
 const _n = new V3(), _f = new V3(), _l = new V3(), _g = new V3(), _t = new V3();
@@ -1859,7 +1883,13 @@ function stepSki(dt) {
   let speed = P.vel.length();
   const along = P.vel.dot(_f);
   const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-  const braking = input.down, tuck = input.up && !braking;
+  // Shift + ↑ / ↓ on the ground: nose press (tails up) / tail press (tips up); with ← / → it becomes a butter
+  const pressDir = input.grab && speed > 0.5 ? (input.up ? 1 : input.down ? -1 : 0) : 0;
+  P.pressV += (pressDir - P.pressV) * Math.min(1, dt * 9);
+  if (pressDir) { if (P.press && P.press.dir !== pressDir) endPress(); if (!P.press) P.press = { dir: pressDir, t: 0, spin: 0, sw: along < -0.5 }; P.press.t += dt; }
+  else if (P.press) endPress();
+  const butter = !!P.press && steer !== 0;
+  const braking = input.down && !pressDir, tuck = input.up && !braking && !pressDir;
   P.brake = lerp(P.brake, braking ? 1 : 0, Math.min(1, dt * 10));
   P.tuck = lerp(P.tuck, tuck ? 1 : 0, Math.min(1, dt * 6));
   P.edge += (steer - P.edge) * Math.min(1, dt * (st === SN.POUDREUSE ? 4.5 : 7));
@@ -1869,17 +1899,18 @@ function stepSki(dt) {
   P.jolt = bump * S.rough * Math.min(1, speed / 12);
   let dYaw = 0, carveRate = 0, skidRate = 0;
   if (P.revertT > 0) { const r = Math.min(P.revertT, dt); dYaw = P.revertDir * Math.PI * r / 0.32; P.revertT -= dt; }
+  else if (butter) { dYaw = steer * 4.2 * SKI.pivot * dt; P.press.spin += dYaw; }
   else {
-    const pivot = 2.0 * S.pivot * (1 - smoothstep(2, 7, speed));
+    const pivot = 2.0 * S.pivot * SKI.pivot * (1 - smoothstep(2, 7, speed));
     const wanted = P.edge * Math.max(pivot, Math.min(speed / S.rMin, 2.4)) * (braking ? 1.25 : 1);
-    const lim = S.aLat / Math.max(speed, 0.5);
+    const lim = S.aLat * (P.offPiste ? 1 : SKI.grip) / Math.max(speed, 0.5);
     carveRate = clamp(wanted, -lim, lim); skidRate = wanted - carveRate;
     dYaw = wanted * dt + P.jolt * 0.9 * dt;
   }
   P.yaw += dYaw;
   P.yawRate = lerp(P.yawRate || 0, dYaw / dt, Math.min(1, dt * 10));
   const carving = Math.abs(P.edge) > 0.15 && !braking && P.revertT <= 0;
-  if (speed > 0.05 && P.revertT <= 0) {
+  if (speed > 0.05 && P.revertT <= 0 && !butter) {
     if (speed < 5) P.vel.applyAxisAngle(_n, dYaw * 0.6);
     else P.vel.applyAxisAngle(_n, carveRate * dt * (carving ? 0.985 : 0.7) + skidRate * dt * 0.4);
   }
@@ -1887,12 +1918,12 @@ function stepSki(dt) {
   groundBasis(P.pos.x, P.pos.z);
   _g.set(0, -9.81, 0); _g.addScaledVector(_n, -_g.dot(_n));
   const drag = lerp(S.drag, S.drag * 0.48, P.tuck);
-  const resist = S.res * (1 - smoothstep(3, 13, speed)) * (tuck && speed < 6.5 ? 0.35 : 1);   // deep snow: the skis plough until they plane
+  const resist = S.res * SKI.float * (1 - smoothstep(3, 13, speed)) * (tuck && speed < 6.5 ? 0.35 : 1);   // deep snow: the skis plough until they plane
   const brakeDec = braking ? (speed > 5 ? 5.8 : 3.2) * (st === SN.GLACEE ? 0.75 : st === SN.POUDREUSE ? 1.25 : 1) : 0;
   P.vel.addScaledVector(_g, dt);
   speed = P.vel.length();
   if (speed > 0.001) {
-    const dec = (S.mu * 9.81 * _n.y + drag * speed * speed + resist + brakeDec + Math.abs(P.jolt) * 1.2) * dt;
+    const dec = (S.mu * 9.81 * _n.y + drag * speed * speed + resist + brakeDec + Math.abs(P.jolt) * 1.2 + (P.press ? 0.35 : 0)) * dt;
     if (dec >= speed) P.vel.set(0, 0, 0); else P.vel.multiplyScalar((speed - dec) / speed);
   }
   if (tuck && speed < 6.5) {
@@ -1902,7 +1933,7 @@ function stepSki(dt) {
     P.vel.addScaledVector(_f, dirSign * 2.4 * k * dt);
     P.skating = true;
   } else P.skating = false;
-  if (P.revertT <= 0) {
+  if (P.revertT <= 0 && !butter) {
     const lat = P.vel.dot(_l);
     const grip = braking ? S.gripSkid * 0.4 : carving ? S.gripCarve : speed < 2 ? 20 : S.gripSkid;
     P.vel.addScaledVector(_l, -lat * (1 - Math.exp(-grip * dt)));
@@ -1911,7 +1942,7 @@ function stepSki(dt) {
   speed = P.vel.length();
   if (speed > 42) P.vel.multiplyScalar(42 / speed);
   if (speed < 0.3 && !tuck && Math.abs(_g.dot(_f)) < S.mu * 9.81 * _n.y + resist * 0.5 + 0.25) P.vel.set(0, 0, 0);
-  P.sinkT = S.sink * (1 - smoothstep(3, 18, speed) * 0.75);
+  P.sinkT = S.sink * SKI.float * (1 - smoothstep(3, 18, speed) * 0.75);
   if (input.jump) P.charge = Math.min(1, P.charge + dt / 0.55);
   if (!input.jump && P.prevJump) { doJump(); return; }
   sprayFor(st, speed, braking);
@@ -1958,19 +1989,34 @@ function moveOnGround(dt, along, st) {
   if (collideObstacles()) return;
   checkRails();
 }
+function pressName(dir, spin, sw) {
+  const deg = Math.round(Math.abs(spin) / Math.PI) * 180;
+  return (sw ? 'Switch ' : '') + (dir > 0 ? 'Nose ' : 'Tail ') + (deg >= 180 ? 'Butter ' + deg : 'Press');
+}
+function endPress() {
+  const pr = P.press; P.press = null;
+  if (!pr || pr.t < 0.45 || P.state !== 'ski') return;
+  const deg = Math.round(Math.abs(pr.spin) / Math.PI) * 180;
+  const pts = Math.round((40 + Math.min(pr.t, 4) * 60 + deg / 180 * 150) * (pr.sw ? 1.2 : 1) / 10) * 10;
+  P.score += pts; if (!P.best || pts > P.bestPts) { P.best = pressName(pr.dir, pr.spin, pr.sw); P.bestPts = pts; }
+  showTrick(pressName(pr.dir, pr.spin, pr.sw), '+' + fmt(pts) + ' · ' + pr.t.toFixed(1) + ' s');
+}
 function startAir(sw) {
   P.state = 'air'; P.pitch = 0;
   P.air = { t: 0, spin: 0, flip: 0, grab: null, grabT: 0, startSwitch: !!sw, y0: P.pos.y };
 }
 function doJump() {
   const along = P.vel.dot(_f);
-  const pop = 2.8 + P.charge * 2.8; P.charge = 0;
+  const pr = P.press, popName = pr && pr.t > 0.15 ? (pr.dir > 0 ? 'Nollie' : 'Ollie') : null;
+  const pop = 2.8 + P.charge * 2.8 + (popName ? 0.9 : 0); P.charge = 0; P.press = null;   // snapping off the loaded tip or tail pops higher
   P.vel.addScaledVector(_n, pop); P.pos.addScaledVector(_n, 0.06);
   startAir(along < -0.5);
+  P.air.pop = popName;
   sfx.pop();
 }
 function stepAir(dt) {
   const a = P.air; a.t += dt;
+  P.pressV += (0 - P.pressV) * Math.min(1, dt * 6);
   P.vel.y -= 9.81 * dt;
   const sp = P.vel.length(); P.vel.multiplyScalar(1 - 0.0025 * sp * dt);
   const spinIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
@@ -2001,13 +2047,15 @@ function trickName(a, landedSwitch) {
   const flips = Math.round(Math.abs(a.flip) / (2 * Math.PI));
   const parts = [];
   if (a.startSwitch && (spins || flips)) parts.push('Switch');
+  if (a.pop && (spins || flips)) parts.push(a.pop);
   if (flips) parts.push((flips === 2 ? 'Double ' : flips >= 3 ? 'Triple ' : '') + (a.flip > 0 ? 'Frontflip' : 'Backflip'));
   if (spins >= 180) parts.push(String(spins));
   const grab = a.grab && a.grabT > 0.22 ? a.grab : null;
   if (grab) parts.push(grab);
   let pts = spins / 180 * 120 + flips * 450 + (grab ? 80 + 120 * Math.min(a.grabT, 1.5) : 0) + a.t * 40;
   if (a.startSwitch && (spins || flips)) pts *= 1.25;
-  if (!parts.length) { if (a.t < 0.75) return null; parts.push(a.t > 1.6 ? 'Gros air' : 'Air'); pts = a.t * 60; }
+  if (a.pop) pts += 60;
+  if (!parts.length) { if (a.pop && a.t > 0.4) { parts.push(a.pop); pts = 50 + a.t * 60; } else { if (a.t < 0.75) return null; parts.push(a.t > 1.6 ? 'Gros air' : 'Air'); pts = a.t * 60; } }
   return { name: parts.join(' '), pts: Math.round(pts / 10) * 10, sub: landedSwitch ? 'Réception switch' : '' };
 }
 function land(n) {
@@ -2043,7 +2091,7 @@ function land(n) {
 function crash(msg) {
   P.state = 'crash'; P.crashT = 2.3; P.crashMsg = msg;
   P.crashAxis = new V3(Math.random() - 0.5, Math.random() * 0.4, Math.random() - 0.5).normalize();
-  P.air = null; P.rail = null; P.charge = 0; P.revertT = 0;
+  P.air = null; P.rail = null; P.charge = 0; P.revertT = 0; P.press = null;
   showTrick('Chute !', msg + ' · R pour rejoindre une remontée');
   sfx.land(1); _t.set(0, 2, 0); emit(P.pos, _t, 40, 4);
 }
@@ -2126,6 +2174,8 @@ function checkRails() {
 }
 function stepRail(dt) {
   const r = P.rail; P.railT += dt;
+  if (input.grab && (input.up || input.down)) { P.railKind = input.up ? 'Nose Press' : 'Tail Press'; P.pressV += ((input.up ? 1 : -1) - P.pressV) * Math.min(1, dt * 9); }
+  else P.pressV += (0 - P.pressV) * Math.min(1, dt * 9);
   P.railV += (-9.81 * r.d3.y) * dt - Math.sign(P.railV) * 0.7 * dt;
   P.railS += P.railV * dt;
   P.pos.copy(r.a).addScaledVector(r.d3, P.railS);
@@ -2213,6 +2263,16 @@ function solveLeg(L) {
   L.thigh.quaternion.setFromUnitVectors(DOWN, _ik).multiply(_qa.setFromAxisAngle(AX_X, -alpha));
   L.knee.rotation.set(knee, 0, 0);
 }
+// nose press (v > 0): skis pivot on the tips, tails lifted, body over the front; tail press mirrors it
+function pressPose(T, v) {
+  const th = 0.3 * v, lift = (v > 0 ? 0.86 : 0.84) * Math.sin(Math.abs(th));
+  for (const f of [T.fL, T.fR]) { f.pitch = th; f.y += lift; f.z += v > 0 ? -0.04 : 0.04; f.roll *= 0.3; }
+  T.fL.x = 0.12; T.fR.x = -0.12;
+  T.pelZ += 0.24 * v; T.pelH = Math.min(T.pelH, 0.86 + lift * 0.6);
+  T.spPitch = 0.2 + Math.max(0, v) * 0.55 - Math.max(0, -v) * 0.15; T.pelPitch = 0.1 + Math.max(0, v) * 0.25;
+  T.headP = -(T.spPitch + T.pelPitch) * 0.7;
+  for (const a of [T.aL, T.aR]) { a.o = 0.55 + Math.max(0, -v) * 0.3; a.p = v > 0 ? -0.95 : -0.35; a.e = -0.5; a.pole = 0.8; }
+}
 function updateSkier(dt, time) {
   if (!skier) return;
   const S = skier, T = tgt, sp = P.vel.length();
@@ -2264,6 +2324,7 @@ function updateSkier(dt, time) {
     if (es && es !== lastEdgeSign && sp > 5 && P.tuck < 0.5) { plant.t = 0; plant.sd = es; }
     if (es) lastEdgeSign = es;
     T.sink = P.sinkT || 0;
+    if (Math.abs(P.pressV) > 0.02) pressPose(T, P.pressV);
   } else if (P.state === 'air' || P.state === 'rail') {
     rate = 24;
     _quat.setFromAxisAngle(AX_Y, P.yaw); _q3.setFromAxisAngle(AX_X, P.pitch); _quat.multiply(_q3);
@@ -2271,7 +2332,7 @@ function updateSkier(dt, time) {
     susp.ys = P.pos.y; susp.vs = P.vel.y;
     T.pelH = 0.74; T.spPitch = 0.38; T.headP = -0.3;
     for (const a of [T.aL, T.aR]) { a.p = -0.75; a.o = 0.7; a.e = -0.45; a.pole = 0.55; }
-    if (P.state === 'rail') { T.pelH = 0.86; for (const a of [T.aL, T.aR]) a.o = 1.0; }
+    if (P.state === 'rail') { T.pelH = 0.86; for (const a of [T.aL, T.aR]) a.o = 1.0; if (Math.abs(P.pressV) > 0.02) pressPose(T, P.pressV); }
     const spin = (input.left ? 1 : 0) - (input.right ? 1 : 0);
     if (P.air && spin) { T.spYaw = spin * 0.45; T.aL.o = T.aR.o = 0.35; }
     if (P.air && input.grab) { T.pelH = 0.58; T.spPitch = 0.95; T.aR.p = -1.55; T.aR.e = -0.15; T.aR.o = 0.08; T.headP = -0.45; T.aL.o = 0.9; }
@@ -2564,6 +2625,7 @@ function updateHud(dt) {
   else if (P.state === 'crash') st = 'Chute';
   else if (sp > 0.6) {
     st = P.brake > 0.5 ? (sp > 6 ? 'Dérapage' : 'Chasse-neige') : P.tuck > 0.5 ? (sp < 6.5 ? 'Pas de patineur' : 'Schuss') : Math.abs(P.edge) > 0.5 && sp > 7 ? 'Carving' : 'Glisse';
+    if (P.press) st = pressName(P.press.dir, P.press.spin, false);
     if (along < -0.8) st = 'Switch · ' + st;
   }
   $('st').textContent = st;
