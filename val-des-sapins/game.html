@@ -31,6 +31,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 .meta.snow{color:var(--ice);font-weight:600;letter-spacing:.02em}
 .flake{font-size:12px}
 #score{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);padding:6px 14px;font:600 14px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
+#score .chal{margin-left:14px;padding-left:12px;border-left:1px solid var(--line)}
 #score b{color:var(--gold);font-size:18px;font-variant-numeric:tabular-nums;margin-left:6px}
 #miniWrap{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 14px);padding:6px;border-radius:12px}
 #mini{display:block;width:170px;height:170px;border-radius:8px}
@@ -58,6 +59,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 .plist div{display:flex;align-items:center;gap:8px}
 .lbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:500 13.5px var(--body);color:var(--ink);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:7px;padding:7px 9px;cursor:pointer}
 .lbtn:hover{background:rgba(166,220,255,.16)}
+.lrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;font:500 13px var(--body)}
+.lrow .lname{display:flex;gap:6px;align-items:center;min-width:0}
+.lrow .lock{grid-column:1/-1;font-size:12px;color:var(--gold)}
+.lrow .lbtn{width:auto;padding:5px 9px}
+.chl{display:flex;gap:8px;align-items:flex-start;font:500 12.5px/1.35 var(--body);color:var(--ink-dim)}
+.chl b{color:var(--ink)}
+.chl em{display:block;font-style:normal;color:var(--gold);font-size:12px}
+.chl.ok .tick{color:#5fd38a}
 .lbtn code{font:700 12px var(--display);letter-spacing:.08em;color:var(--ice);min-width:2.4em}
 
 /* Start screen */
@@ -110,19 +119,21 @@ body.touch #tools,body.touch .ctrls{display:none}
     <div class="meta"><span><b id="alt">0</b> m</span><span id="st">À l'arrêt</span></div>
     <div class="meta snow"><span class="flake" aria-hidden="true">❄</span><span id="snow">Damée</span></div>
   </div>
-  <div id="score" class="panel">Freestyle<b id="pts">0</b></div>
+  <div id="score" class="panel">Freestyle<b id="pts">0</b><span class="chal">Défis <b id="chal">0/6</b></span></div>
   <div id="miniWrap" class="panel"><canvas id="mini" width="340" height="340"></canvas><div class="cap"><span>Plan</span><span>M · carte</span></div></div>
   <div id="trick"><div class="t" id="trickT"></div><div class="s" id="trickS"></div></div>
   <div id="prompt" class="panel" hidden></div>
   <div id="help" class="panel">
     <span class="k"><span class="key">←</span><span class="key">→</span></span><span>Carres · vrilles en l'air (ou Q / D)</span>
-    <span class="k"><span class="key">↑</span></span><span>Schuss, patiner · frontflip (ou Z)</span>
-    <span class="k"><span class="key">↓</span></span><span>Freiner, déraper · backflip (ou S)</span>
+    <span class="k"><span class="key">↑</span></span><span>Schuss, patiner (ou Z)</span>
+    <span class="k"><span class="key">↓</span></span><span>Freiner, déraper (ou S)</span>
+    <span class="k"><span class="key">Espace</span><span class="key">↑</span><span class="key">↓</span></span><span>En l'air : front / backflip</span>
     <span class="k"><span class="key">Espace</span></span><span>Maintenir puis relâcher : saut</span>
     <span class="k"><span class="key">⇧</span><span class="key">F</span></span><span>Grab (mute / tail)</span>
     <span class="k"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span><span>Au sol : nose / tail press, + ←→ butter</span>
     <span class="k"><span class="key">X</span></span><span>Demi-tour : skier en arrière</span>
     <span class="k"><span class="key">E</span></span><span>Prendre la remontée</span>
+    <span class="k"><span class="key">V</span></span><span>Appeler / quitter la motoneige</span>
     <span class="k"><span class="key">R</span></span><span>Retour à la remontée la plus proche</span>
     <span class="k"><span class="key">C</span><span class="key">M</span></span><span>Caméra · carte</span>
     <span class="k"><span class="key">H</span></span><span>Masquer l'aide</span>
@@ -138,6 +149,7 @@ body.touch #tools,body.touch .ctrls{display:none}
       <div><h3>Pistes</h3><div class="plist" id="plist"></div></div>
       <div><h3>Repères</h3><div class="plist"><div><span class="dot" style="background:#6b4428"></span>Villages</div><div><span class="dot" style="background:#ff5ac8"></span>Entrées de tunnel</div><div><span class="dot" style="background:#2bb6d6"></span>Canons à neige</div><div><span class="dot" style="background:#fff"></span>Champs de bosses</div></div></div>
       <div><h3>Aller à une remontée</h3><div class="plist" id="llist"></div></div>
+      <div><h3>Défis</h3><div class="plist" id="clist"></div></div>
       <button class="tbtn" id="closeMap" type="button">Fermer (M)</button>
     </div>
   </div>
@@ -149,7 +161,7 @@ body.touch #tools,body.touch .ctrls{display:none}
     <button class="tb big" data-k="right" type="button" aria-label="Droite">▶</button>
   </div>
   <div class="grp rcol">
-    <div class="row"><button class="tb sm" data-a="map" type="button">Carte</button><button class="tb sm" data-a="revert" type="button">180°</button><button class="tb sm" data-a="action" type="button">Monter</button><button class="tb sm" data-k="grab" type="button">Grab</button></div>
+    <div class="row"><button class="tb sm" data-a="map" type="button">Carte</button><button class="tb sm" data-a="revert" type="button">180°</button><button class="tb sm" data-a="action" type="button">Monter</button><button class="tb sm" data-a="sled" type="button">Moto</button><button class="tb sm" data-k="grab" type="button">Grab</button></div>
     <div class="row"><div class="col"><button class="tb" data-k="up" type="button">Schuss</button><button class="tb" data-k="down" type="button">Frein</button></div><button class="tb big" data-k="jump" type="button">Saut</button></div>
   </div>
 </div>
@@ -166,12 +178,13 @@ body.touch #tools,body.touch .ctrls{display:none}
       <div><span class="ks"><span class="key">↓</span></span>Freiner, déraper</div>
       <div><span class="ks"><span class="key">Espace</span></span>Saut (maintenir)</div>
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>En l'air : 180, 360, 540…</div>
-      <div><span class="ks"><span class="key">↑</span><span class="key">↓</span></span>En l'air : front / backflip</div>
+      <div><span class="ks"><span class="key">Espace</span><span class="key">↑</span><span class="key">↓</span></span>En l'air : front / backflip</div>
       <div><span class="ks"><span class="key">⇧</span><span class="key">F</span></span>Grabs</div>
       <div><span class="ks"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span>Nose / tail press, butters</div>
       <div><span class="ks"><span class="key">X</span></span>Passer en switch</div>
       <div><span class="ks"><span class="key">E</span></span>Monter dans la remontée</div>
       <div><span class="ks"><span class="key">M</span></span>Plan, téléportation</div>
+      <div><span class="ks"><span class="key">V</span></span>Motoneige</div>
     </div>
     <button id="go" type="button" disabled>Chausser les skis</button>
     <div id="loadmsg">Génération du domaine…</div>
@@ -856,7 +869,7 @@ function buildTunnels() {
         }
         float day = exp(-max(s, 0.0) / 10.0) + exp(-max(uLen - s, 0.0) / 10.0);
         L += vec3(0.85, 0.92, 1.0) * min(day, 1.2) * 1.1;
-        gl_FragColor = vec4(base * L, 1.0);
+        gl_FragColor = gl_FrontFacing ? vec4(vec3(0.3, 0.29, 0.28) * (0.8 + 0.3 * n), 1.0) : vec4(base * L, 1.0);
       }`
   });
   const conc = new THREE.MeshLambertMaterial({ color: '#a7a39c' });
@@ -1545,6 +1558,248 @@ function updateLiftAnim(time) {
   }
 }
 
+/* ---------------- Other skiers ---------------- */
+// Kinematic skiers: they weave down the pistes, queue at the lift, ride a real chair / T-bar / cabin, and go again.
+const NPC_N = IS_TOUCH ? 24 : 60;
+const npcs = [], npcMesh = {};
+const JACKETS = ['#d6332a', '#2f6fe0', '#f2a12c', '#2fa84f', '#7a3fb0', '#ece8df', '#151a22', '#e0398a', '#14a3a3', '#f2d22c', '#ff6b2c', '#5a7d2a'];
+function npcGeos() {
+  const B = (parts, w, h, d, x, y, z, c, rx = 0) => { const g = new THREE.BoxGeometry(w, h, d); if (rx) g.rotateX(rx); g.translate(x, y, z); parts.push({ g, c }); };
+  const S = (parts, r, x, y, z, c, half) => { const g = new THREE.SphereGeometry(r, 10, 8, 0, Math.PI * 2, 0, half ? Math.PI / 1.9 : Math.PI); g.translate(x, y, z); parts.push({ g, c }); };
+  const PANTS = '#232a3c', DARK = '#1a1d24';
+  // standing, flexed, origin between the feet, facing +z
+  const sb = [], sj = [];
+  for (const s of [-1, 1]) {
+    const ski = new THREE.BoxGeometry(0.1, 0.02, 1.7); ski.translate(s * 0.12, 0.012, 0.03); sb.push({ g: ski, c: '#2b3a55' });
+    B(sb, 0.1, 0.02, 0.18, s * 0.12, 0.06, 0.86, '#e8e4dc', -0.45); B(sb, 0.1, 0.02, 0.18, s * 0.12, 0.06, -0.8, '#e8e4dc', 0.45);
+    B(sb, 0.12, 0.2, 0.3, s * 0.12, 0.12, 0, DARK);
+    B(sb, 0.13, 0.46, 0.14, s * 0.12, 0.4, 0.09, PANTS, 0.35);
+    B(sb, 0.15, 0.46, 0.17, s * 0.11, 0.78, 0.07, PANTS, -0.45);
+    B(sj, 0.11, 0.48, 0.12, s * 0.25, 1.22, 0.27, '#ffffff', -0.75);
+    B(sb, 0.02, 1.15, 0.02, s * 0.3, 0.55, 0.1, '#b9bec6', -0.35);
+  }
+  B(sj, 0.42, 0.58, 0.27, 0, 1.22, 0.12, '#ffffff', 0.38);
+  S(sb, 0.105, 0, 1.6, 0.27, '#d6a37f'); S(sb, 0.128, 0, 1.61, 0.26, '#f2f2f2', true); B(sb, 0.2, 0.06, 0.05, 0, 1.6, 0.37, '#ff9a1f');
+  // seated on a chair, origin at the seat, facing +z
+  const cb = [], cj = [];
+  for (const s of [-1, 1]) {
+    B(cb, 0.15, 0.16, 0.46, s * 0.11, 0.06, 0.22, PANTS);
+    B(cb, 0.13, 0.46, 0.14, s * 0.12, -0.18, 0.45, PANTS);
+    B(cb, 0.12, 0.2, 0.3, s * 0.12, -0.45, 0.5, DARK);
+    const ski = new THREE.BoxGeometry(0.1, 0.02, 1.7); ski.rotateX(0.35); ski.translate(s * 0.12, -0.6, 0.55); cb.push({ g: ski, c: '#2b3a55' });
+    B(cj, 0.11, 0.42, 0.12, s * 0.25, 0.42, 0.18, '#ffffff', -0.9);
+  }
+  B(cj, 0.42, 0.56, 0.27, 0, 0.36, 0, '#ffffff');
+  S(cb, 0.105, 0, 0.78, 0.02, '#d6a37f'); S(cb, 0.128, 0, 0.79, 0.01, '#f2f2f2', true);
+  return { sb: mergeParts(sb), sj: mergeParts(sj), cb: mergeParts(cb), cj: mergeParts(cj) };
+}
+const npcSpeed = { verte: [5.5, 8.5], bleue: [7.5, 11.5], rouge: [9, 13.5], noire: [10, 15], park: [7, 10] };
+const skiPistes = () => PISTES.filter(p => !p.hidden);
+function npcStartOn(n, p, s) {
+  const r = npcSpeed[p.lvl] || [7, 10];
+  Object.assign(n, { mode: 'ski', p, s, v: lerp(r[0], r[1], n.skill), phase: rnd() * 6.28, turn: 11 + rnd() * 12, amp: (p.w / 2 - 2.5) * (0.35 + rnd() * 0.5) });
+}
+function initNPCs() {
+  const g = npcGeos(), mk = (geo, vc) => { const m = new THREE.InstancedMesh(geo, lambertVC(), NPC_N); m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
+  npcMesh.sb = mk(g.sb); npcMesh.sj = mk(g.sj); npcMesh.cb = mk(g.cb); npcMesh.cj = mk(g.cj);
+  const list = skiPistes(), c = new THREE.Color();
+  for (let i = 0; i < NPC_N; i++) {
+    const n = { skill: rnd(), x: 0, y: 0, z: 0, yaw: 0, roll: 0, show: 'ski' };
+    const p = list[Math.floor(rnd() * list.length)];
+    npcStartOn(n, p, rnd() * (p.samples.length - 4) * 4);
+    c.set(JACKETS[i % JACKETS.length]); npcMesh.sj.setColorAt(i, c); npcMesh.cj.setColorAt(i, c);
+    npcs.push(n);
+  }
+  npcMesh.sj.instanceColor.needsUpdate = true; npcMesh.cj.instanceColor.needsUpdate = true;
+}
+function nearestLiftFrom(x, z, r) {
+  let best = null, bd = r; for (const L of LIFTS) { const d = Math.hypot(L.board.x - x, L.board.z - z); if (d < bd) { bd = d; best = L; } } return best;
+}
+function pistesStartingNear(x, z, r, not) { return skiPistes().filter(p => p !== not && Math.hypot(p.samples[0].x - x, p.samples[0].z - z) < r); }
+function npcNext(n) {
+  const S = n.p.samples, e = S[S.length - 1];
+  const L = nearestLiftFrom(e.x, e.z, 170), cont = pistesStartingNear(e.x, e.z, 70, n.p);
+  if (cont.length && (!L || rnd() < 0.35)) { npcStartOn(n, cont[Math.floor(rnd() * cont.length)], 0); return; }
+  if (L) { Object.assign(n, { mode: 'walk', L, tx: L.board.x - L.dir.x * (2 + rnd() * 4) + L.side.x * (rnd() - 0.5) * 3, tz: L.board.z - L.dir.z * (2 + rnd() * 4) + L.side.z * (rnd() - 0.5) * 3 }); return; }
+  const list = skiPistes(), p = list[Math.floor(rnd() * list.length)]; npcStartOn(n, p, 0);
+}
+function chairU(L, i, time) { return (time * L.speed + i * L.spacing) % (2 * L.total); }
+function updateNPCs(dt, time) {
+  if (!npcMesh.sb) return;
+  for (let k = 0; k < npcs.length; k++) {
+    const n = npcs[k];
+    if (n.mode === 'ski') {
+      const p = n.p, S = p.samples, len = (S.length - 1) * 4;
+      let v = n.v; if (mogulWeight(n.x, n.z) > 0.3) v *= 0.6; else if (snowAt(n.x, n.z) === SN.GLACEE) v *= 0.8;
+      n.s += v * dt; n.phase += v * dt / n.turn * Math.PI;
+      if (n.s >= len - 6) { npcNext(n); continue; }
+      const i = Math.floor(n.s / 4), t = n.s / 4 - i, a = S[i], b = S[i + 1];
+      const dx = (b.x - a.x) / 4, dz = (b.z - a.z) / 4, px = dz, pz = -dx;
+      const inT = p.tr && i >= p.tr[0] - 11 && i <= p.tr[1] + 11;
+      const amp = inT ? Math.min(n.amp, 3) : n.amp, w = amp * Math.sin(n.phase), dw = amp * Math.cos(n.phase) * Math.PI / n.turn;
+      n.x = lerp(a.x, b.x, t) + px * w; n.z = lerp(a.z, b.z, t) + pz * w;
+      n.y = p.tr && i >= p.tr[0] - 1 && i <= p.tr[1] ? lerp(p.hs[i], p.hs[i + 1], t) : H(n.x, n.z);
+      n.yaw = Math.atan2(dx + px * dw, dz + pz * dw);
+      const curv = -amp * Math.pow(Math.PI / n.turn, 2) * Math.sin(n.phase);
+      n.roll = clamp(Math.atan(v * v * curv / 9.81), -0.8, 0.8); n.show = 'ski';
+    } else if (n.mode === 'walk') {
+      const dx = n.tx - n.x, dz = n.tz - n.z, d = Math.hypot(dx, dz);
+      if (d < 0.6) { n.mode = 'queue'; continue; }
+      const st = Math.min(d, 3 * dt); n.x += dx / d * st; n.z += dz / d * st; n.y = H(n.x, n.z); n.yaw = Math.atan2(dx, dz); n.roll = 0; n.show = 'ski';
+    } else if (n.mode === 'queue') {
+      // board the next chair / T-bar / cabin passing the loading point
+      const L = n.L, A = liftAnim.find(q => q.L === L);
+      n.yaw = L.yaw; n.show = 'ski';
+      const taken = new Set(npcs.filter(o => o.mode === 'lift' && o.L === L).map(o => o.chair));
+      for (let c = 0; A && c < A.count; c++) { const u = chairU(L, c, time); if (Math.abs(u - L.s0) < L.speed * dt * 1.5 + 0.05 && !taken.has(c)) { n.mode = 'lift'; n.chair = c; break; } }
+    } else if (n.mode === 'lift') {
+      const L = n.L, u = chairU(L, n.chair, time);
+      if (u > L.total - L.endS || u < L.s0 - 1) {
+        const ex = L.exit[0] + (rnd() - 0.5) * 6, ez = L.exit[1] + (rnd() - 0.5) * 6, opts = pistesStartingNear(ex, ez, 160);
+        const p = opts.length ? opts[Math.floor(rnd() * opts.length)] : skiPistes()[0];
+        npcStartOn(n, p, 0); n.x = ex; n.z = ez; n.y = H(ex, ez); continue;
+      }
+      L.up.pointAt(u, _q); n.yaw = L.yaw; n.roll = 0;
+      if (L.type === 'tbar') { n.x = _q.x; n.z = _q.z; n.y = H(_q.x, _q.z); n.show = 'ski'; }
+      else if (L.type === 'chair') { const c = Math.cos(L.yaw), s = Math.sin(L.yaw), lx = ((n.chair * 7 + k) % 3 - 1) * 0.6; n.x = _q.x + c * lx + s * 0.12; n.z = _q.z - s * lx + c * 0.12; n.y = _q.y - 2.3; n.show = 'sit'; }
+      else { n.x = _q.x; n.z = _q.z; n.y = _q.y; n.show = 'none'; }
+    }
+  }
+  // instance matrices
+  const o = _m, nrm = new V3();
+  for (let k = 0; k < npcs.length; k++) {
+    const n = npcs[k];
+    o.position.set(n.x, n.y, n.z); o.scale.set(1, 1, 1);
+    if (n.show === 'ski' && n.mode === 'ski') { normalAt(n.x, n.z, nrm); o.quaternion.setFromAxisAngle(AX_Y, n.yaw); _qa.setFromUnitVectors(AX_Y, nrm); o.quaternion.premultiply(_qa); _q3.setFromAxisAngle(new V3(0, 0, 1), -n.roll); o.quaternion.multiply(_q3); }
+    else o.quaternion.setFromAxisAngle(AX_Y, n.yaw);
+    o.updateMatrix();
+    const ski = n.show === 'ski', sit = n.show === 'sit';
+    npcMesh.sb.setMatrixAt(k, ski ? o.matrix : ZERO_M); npcMesh.sj.setMatrixAt(k, ski ? o.matrix : ZERO_M);
+    npcMesh.cb.setMatrixAt(k, sit ? o.matrix : ZERO_M); npcMesh.cj.setMatrixAt(k, sit ? o.matrix : ZERO_M);
+  }
+  for (const m of ['sb', 'sj', 'cb', 'cj']) npcMesh[m].instanceMatrix.needsUpdate = true;
+}
+const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
+// bumping into another skier
+function npcHit(r) {
+  for (const n of npcs) {
+    if (n.show !== 'ski') continue;
+    const dx = P.pos.x - n.x, dz = P.pos.z - n.z;
+    if (dx * dx + dz * dz < r * r && Math.abs(P.pos.y - n.y) < 1.5) return n;
+  }
+  return null;
+}
+
+/* ---------------- Snowmobile ---------------- */
+const sled = { mesh: null, x: 0, y: 0, z: 0, yaw: 0, parked: false, air: false, q: new THREE.Quaternion(), engine: 0 };
+function buildSled() {
+  const parts = [], B = (w, h, d, x, y, z, c, rx = 0) => { const g = new THREE.BoxGeometry(w, h, d); if (rx) g.rotateX(rx); g.translate(x, y, z); parts.push({ g, c }); };
+  const RED = '#d7232e', DARK = '#1c1f25', GREY = '#8a9099';
+  B(1.02, 0.34, 2.1, 0, 0.5, -0.1, RED);                     // tunnel / chassis
+  B(0.96, 0.36, 0.95, 0, 0.74, 0.72, RED, 0.38);            // hood
+  B(0.9, 0.12, 0.5, 0, 0.62, 1.2, DARK, 0.5);               // nose
+  B(0.56, 0.2, 1.15, 0, 0.8, -0.5, DARK);                   // seat
+  B(0.6, 0.35, 1.55, 0, 0.24, -0.55, '#24272d');            // track housing
+  for (let k = 0; k < 9; k++) B(0.56, 0.05, 0.08, 0, 0.06, -1.25 + k * 0.17, '#3a3e46');   // track lugs
+  for (const s of [-1, 1]) {
+    B(0.14, 0.04, 1.05, s * 0.48, 0.03, 1.0, DARK); B(0.14, 0.04, 0.22, s * 0.48, 0.1, 1.55, DARK, -0.6);   // skis
+    B(0.05, 0.42, 0.05, s * 0.48, 0.25, 1.0, GREY);                                                         // struts
+    B(0.24, 0.05, 0.62, s * 0.4, 0.42, -0.05, DARK);                                                        // footrests
+    B(0.06, 0.06, 0.08, s * 0.38, 1.04, 0.22, DARK);                                                        // grips
+  }
+  B(0.82, 0.04, 0.04, 0, 1.02, 0.22, GREY);                 // handlebar
+  B(0.5, 0.1, 0.05, 0, 0.72, 1.18, '#fff6c8', 0.5);         // headlight
+  B(0.42, 0.1, 0.05, 0, 0.62, -1.15, '#ff3b3b');            // tail light
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(mergeParts(parts), lambertVC()));
+  const ws = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.42, 0.02), new THREE.MeshPhongMaterial({ color: '#9fc3e0', transparent: true, opacity: 0.45, shininess: 90 }));
+  ws.position.set(0, 1.12, 0.38); ws.rotation.x = -0.55; g.add(ws);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.visible = false; scene.add(g); sled.mesh = g;
+}
+function toggleSled() {
+  if (P.state === 'sled') {                                 // get off, park it beside you
+    if (P.vel.length() > 5) { showTrick('Arrêtez-vous', 'Freinez (↓) pour descendre de la motoneige'); return; }
+    sled.x = P.pos.x; sled.z = P.pos.z; sled.yaw = P.yaw; sled.parked = true;
+    const sx = Math.cos(P.yaw) * 1.6, sz = -Math.sin(P.yaw) * 1.6;
+    P.pos.x += sx; P.pos.z += sz; P.pos.y = groundY(P.pos.x, P.pos.z);
+    P.state = 'ski'; P.vel.set(0, 0, 0); camSnap = true; skierSkis(true);
+    showTrick('À skis', 'V pour reprendre la motoneige');
+    return;
+  }
+  if (P.state !== 'ski' && P.state !== 'crash') return;
+  const near = sled.parked && Math.hypot(sled.x - P.pos.x, sled.z - P.pos.z) < 25;
+  if (!near) { sled.yaw = P.yaw; }                           // it drives up to you
+  P.state = 'sled'; P.vel.set(0, 0, 0); P.yaw = near ? sled.yaw : P.yaw; P.air = null; P.press = null; P.charge = 0; sled.air = false;
+  if (near) { P.pos.x = sled.x; P.pos.z = sled.z; }
+  P.pos.y = groundY(P.pos.x, P.pos.z); sled.parked = false; camSnap = true; skierSkis(false);
+  showTrick(near ? 'Motoneige' : 'Motoneige appelée', '↑ gaz · ↓ frein / marche arrière · V pour descendre');
+}
+function skierSkis(on) { if (!skier) return; skier.feet.forEach(f => f.g.children.forEach((c, i) => { if (i <= 2) c.visible = on; })); skier.arms.forEach(a => { a.pole.visible = on; }); }
+function stepSled(dt) {
+  const speed = P.vel.length();
+  groundBasis(P.pos.x, P.pos.z);
+  const along = P.vel.dot(_f), steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const thr = input.up ? 1 : 0, brk = input.down ? 1 : 0;
+  sled.engine = lerp(sled.engine, thr, Math.min(1, dt * 4));
+  if (!sled.air) {
+    const turn = steer * Math.min(1.7, 0.45 + Math.abs(along) * 0.12) * (along < -0.3 ? -1 : 1);
+    P.yaw += turn * dt; P.vel.applyAxisAngle(_n, turn * dt * 0.9);
+    groundBasis(P.pos.x, P.pos.z);
+    _g.set(0, -9.81, 0); _g.addScaledVector(_n, -_g.dot(_n));
+    P.vel.addScaledVector(_g, dt);
+    const fwd = P.vel.dot(_f);
+    if (thr) P.vel.addScaledVector(_f, 8 * Math.max(0, 1 - Math.max(0, fwd) / 22) * dt);              // ~75 km/h top speed, climbs up to ~40°
+    // brake; once stopped it holds on the slope, keep holding ↓ to reverse
+    sled.hold = brk && fwd < 0.6 ? (sled.hold || 0) + dt : 0;
+    if (brk && fwd > 0.6) P.vel.addScaledVector(_f, -9 * dt);
+    else if (brk && sled.hold < 0.9) P.vel.set(0, 0, 0);
+    else if (brk) P.vel.addScaledVector(_f, -3.2 * Math.max(0, 1 + fwd / 4.5) * dt);
+    const sp = P.vel.length(), dec = (0.07 * 9.81 * _n.y + 0.0022 * sp * sp) * dt;
+    if (sp > 0) P.vel.multiplyScalar(Math.max(0, sp - dec) / sp);
+    const lat = P.vel.dot(_l); P.vel.addScaledVector(_l, -lat * (1 - Math.exp(-9 * dt)));
+    P.vel.addScaledVector(_n, -P.vel.dot(_n));
+    if (P.vel.length() < 0.15 && !thr && !brk && Math.abs(_g.dot(_f)) < 0.9) P.vel.set(0, 0, 0);
+    if (thr && speed > 2 && Math.random() < 0.8) { _t.copy(_f).multiplyScalar(-speed * 0.35); _t.y += 2.2; emit(_t.clone().multiplyScalar(0).add(P.pos).addScaledVector(_f, -1.3), _t, 3, 2.2); }
+  } else { P.vel.y -= 9.81 * dt; }
+  P.pos.addScaledVector(P.vel, dt); clampWorld(); updateTunnel();
+  const gh = groundY(P.pos.x, P.pos.z);
+  if (sled.air) {
+    if (P.pos.y <= gh) { P.pos.y = gh; groundN(P.pos.x, P.pos.z, _t); const imp = P.vel.dot(_t); P.vel.addScaledVector(_t, -imp); if (imp < -10) P.vel.multiplyScalar(0.6); sled.air = false; sfx.land(Math.min(1, -imp / 12)); }
+  } else {
+    groundN(P.pos.x, P.pos.z, _t);
+    const vh = Math.hypot(P.vel.x, P.vel.z);
+    if (vh > 6) { const g1 = groundY(P.pos.x + P.vel.x / vh * 0.8, P.pos.z + P.vel.z / vh * 0.8); if ((P.vel.y / vh - (g1 - gh) / 0.8) * vh > 3.5) sled.air = true; }
+    if (!sled.air) { P.pos.y = gh; const s0 = P.vel.length(), sep = P.vel.dot(_t); P.vel.addScaledVector(_t, -sep); const s1 = P.vel.length(); if (s1 > 1e-4) P.vel.multiplyScalar(s0 / s1); }
+  }
+  sledCollide();
+}
+function sledCollide() {
+  const sp = P.vel.length(), R = 1.2;
+  const push = (ox, oz, r) => {
+    const ex = P.pos.x - ox, ez = P.pos.z - oz, d = Math.hypot(ex, ez); if (d >= r) return false;
+    const nx = ex / (d || 1), nz = ez / (d || 1); P.pos.x = ox + nx * r; P.pos.z = oz + nz * r;
+    const vr = P.vel.x * nx + P.vel.z * nz; if (vr < 0) { P.vel.x -= vr * nx * 1.3; P.vel.z -= vr * nz * 1.3; }
+    if (sp > 9) { P.vel.multiplyScalar(0.3); showTrick('Choc !', 'Attention aux obstacles'); sfx.land(1); }
+    return true;
+  };
+  if (P.tunnel) return;
+  const cx = Math.floor((P.pos.x + HALF) / TC), cz = Math.floor((P.pos.z + HALF) / TC);
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const l = trees.grid.get(cx + dx + (cz + dz) * 1000); if (l) for (const i of l) if (push(trees.x[i], trees.z[i], 0.45 * trees.s[i] + R)) return; }
+  for (const o of obstacles) if (push(o.x, o.z, o.r + R * 0.6)) return;
+  const n = npcHit(1.6); if (n && sp > 2) { push(n.x, n.z, 1.6); showTrick('Attention aux skieurs !', 'Roulez au pas sur les pistes'); }
+}
+function placeSledMesh(dt) {
+  const m = sled.mesh; if (!m) return;
+  if (P.state === 'sled') {
+    groundBasis(P.pos.x, P.pos.z); _mat.makeBasis(_l, _n, _f); _quat.setFromRotationMatrix(_mat);
+    if (sled.air) _quat.setFromAxisAngle(AX_Y, P.yaw);
+    sled.q.slerp(_quat, 1 - Math.exp(-dt * 10)); m.quaternion.copy(sled.q); m.position.copy(P.pos); m.visible = true;
+  } else if (sled.parked) {
+    normalAt(sled.x, sled.z, _n); m.position.set(sled.x, H(sled.x, sled.z), sled.z); m.quaternion.setFromAxisAngle(AX_Y, sled.yaw); _qa.setFromUnitVectors(AX_Y, _n); m.quaternion.premultiply(_qa); m.visible = true;
+  } else m.visible = false;
+}
+
 /* ---------------- Park features ---------------- */
 function pisteFrame(p, dist) {
   const S = p.samples, i = clamp(Math.round(dist / 4), 1, S.length - 2);
@@ -1828,14 +2083,20 @@ function groundN(x, z, out) {
 function updateTunnel() {
   if (P.tunnel) {
     const T = P.tunnel, tl = tunnelLocal(T, P.pos.x, P.pos.z, 2);
-    if (!tl || tl.s < -7.5 || tl.s > T.len + 7.5) { P.tunnel = null; return; }
+    if (!tl || tl.s < -7.5 || tl.s > T.len + 7.5) { if (tl && P.tunnelIn != null && (P.tunnelIn < T.len / 2) !== (tl.s < T.len / 2)) completeChallenge('tunnel'); P.tunnel = null; return; }
     // walls and ceiling of the tube (and of the portal galleries)
     const lim = T.hw - 0.45;
     if (Math.abs(tl.w) > lim) {
       const sg = Math.sign(tl.w), dw = sg * lim - tl.w;
       P.pos.x += tl.px * dw; P.pos.z += tl.pz * dw;
-      const vl = P.vel.x * tl.px + P.vel.z * tl.pz;
-      if (vl * sg > 0) { P.vel.x -= tl.px * vl; P.vel.z -= tl.pz * vl; P.vel.multiplyScalar(0.985); }
+      // the wall acts as a guide rail: velocity follows the tube and the skis turn with it
+      const sp = P.vel.length(), va = P.vel.x * tl.ux + P.vel.z * tl.uz, dir = va >= 0 ? 1 : -1;
+      if (P.state !== 'air') { P.vel.x = tl.ux * dir * sp * 0.97; P.vel.z = tl.uz * dir * sp * 0.97; }
+      else { const vl = P.vel.x * tl.px + P.vel.z * tl.pz; if (vl * sg > 0) { P.vel.x -= tl.px * vl; P.vel.z -= tl.pz * vl; } }
+      if (P.state === 'ski' || P.state === 'sled') {
+        const fwd = Math.sin(P.yaw) * tl.ux + Math.cos(P.yaw) * tl.uz >= 0 ? 0 : Math.PI;
+        const want = Math.atan2(tl.ux, tl.uz) + fwd; P.yaw += wrapPi(want - P.yaw) * 0.12;
+      }
     }
     const top = tl.y + T.ceil - 1.9;
     if (P.pos.y > top) { P.pos.y = top; if (P.vel.y > 0) P.vel.y = 0; }
@@ -1843,13 +2104,30 @@ function updateTunnel() {
   }
   for (const T of tunnels) {
     const tl = tunnelLocal(T, P.pos.x, P.pos.z, 2);
-    if (tl && tl.s > -6 && tl.s < T.len + 6 && Math.abs(tl.w) < T.hw && P.pos.y < tl.y + T.ceil - 0.5) { P.tunnel = T; return; }
+    if (!tl || tl.s < -7 || tl.s > T.len + 7 || P.pos.y > tl.y + T.ceil + 2.4) continue;
+    const aw = Math.abs(tl.w);
+    if (aw < T.hw + 0.8) { P.tunnel = T; P.tunnelIn = tl.s; updateTunnel(); return; }
+    const inbound = (P.vel.x * tl.ux + P.vel.z * tl.uz) * (tl.s < T.len / 2 ? 1 : -1) > 0.5;
+    if (aw < T.hw + 2.8 && inbound && (tl.s < 0 || tl.s > T.len)) {
+      // approach funnel: the edges of the cutting lead into the opening
+      const sg = Math.sign(tl.w), mv = Math.min(aw - (T.hw + 0.5), 0.05);
+      P.pos.x -= tl.px * sg * mv; P.pos.z -= tl.pz * sg * mv;
+      const vl = P.vel.x * tl.px + P.vel.z * tl.pz; if (vl * sg > 0) { P.vel.x -= tl.px * vl; P.vel.z -= tl.pz * vl; }
+      return;
+    }
+    if (aw < T.hw + 2.8) {
+      const sg = Math.sign(tl.w), dw = sg * (T.hw + 2.8) - tl.w;
+      P.pos.x += tl.px * dw; P.pos.z += tl.pz * dw;
+      const vl = P.vel.x * tl.px + P.vel.z * tl.pz; if (vl * sg < 0) { P.vel.x -= tl.px * vl; P.vel.z -= tl.pz * vl; }
+      return;
+    }
   }
 }
 function stepSim(dt) {
   for (const a of queued) {
     if (a === 'respawn') respawnNearestLift();
     else if (a === 'action') tryBoard();
+    else if (a === 'sled') toggleSled();
     else if (a === 'revert' && P.state === 'ski' && P.revertT <= 0) { P.revertT = 0.32; P.revertDir = P.edge >= 0 ? 1 : -1; }
   }
   queued.clear();
@@ -1860,6 +2138,7 @@ function stepSim(dt) {
     case 'lift': stepLift(dt); break;
     case 'crash': stepCrash(dt); break;
     case 'rail': stepRail(dt); break;
+    case 'sled': stepSled(dt); break;
   }
   P.prevJump = input.jump;
   if (!isFinite(P.pos.x + P.pos.y + P.pos.z + P.vel.x + P.vel.y + P.vel.z)) respawnNearestLift();
@@ -1939,8 +2218,11 @@ function stepSki(dt) {
   if (speed > 42) P.vel.multiplyScalar(42 / speed);
   if (speed < 0.3 && !tuck && Math.abs(_g.dot(_f)) < S.mu * 9.81 * _n.y + resist * 0.5 + 0.25) P.vel.set(0, 0, 0);
   P.sinkT = S.sink * SKI.float * (1 - smoothstep(3, 18, speed) * 0.75);
-  if (input.jump) P.charge = Math.min(1, P.charge + dt / 0.55);
-  if (!input.jump && P.prevJump) { doJump(); return; }
+  if (P.eatJump && !input.jump) { P.eatJump = false; }
+  else if (!P.eatJump) {
+    if (input.jump) P.charge = Math.min(1, P.charge + dt / 0.55);
+    if (!input.jump && P.prevJump) { doJump(); return; }
+  }
   sprayFor(st, speed, braking);
   P.stillT = speed < 0.4 ? P.stillT + dt : 0;
   moveOnGround(dt, along, st);
@@ -1996,6 +2278,7 @@ function endPress() {
   const pts = Math.round((40 + Math.min(pr.t, 4) * 60 + deg / 180 * 150) * (pr.sw ? 1.2 : 1) / 10) * 10;
   P.score += pts; if (!P.best || pts > P.bestPts) { P.best = pressName(pr.dir, pr.spin, pr.sw); P.bestPts = pts; }
   showTrick(pressName(pr.dir, pr.spin, pr.sw), '+' + fmt(pts) + ' · ' + pr.t.toFixed(1) + ' s');
+  if (deg >= 360) completeChallenge('butter');
 }
 function startAir(sw) {
   P.state = 'air'; P.pitch = 0;
@@ -2016,7 +2299,8 @@ function stepAir(dt) {
   P.vel.y -= 9.81 * dt;
   const sp = P.vel.length(); P.vel.multiplyScalar(1 - 0.0025 * sp * dt);
   const spinIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-  const flipIn = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+  // flips need Space held with ↑ / ↓, so holding ↑ to tuck over an unexpected bump does not start a frontflip
+  const flipIn = input.jump ? (input.up ? 1 : 0) - (input.down ? 1 : 0) : 0;
   if (spinIn) { const d = spinIn * 6.3 * dt; P.yaw += d; a.spin += d; }
   else {
     const vh = Math.hypot(P.vel.x, P.vel.z);
@@ -2073,10 +2357,11 @@ function land(n) {
   let sketchy = a.t > 0.3 && Math.abs(align) < 0.85;
   if (sketchy) P.vel.multiplyScalar(0.72);
   if (impact < -9) P.vel.multiplyScalar(0.9);
-  P.pitch = 0; P.state = 'ski'; P.charge = 0;
+  P.pitch = 0; P.state = 'ski'; P.charge = 0; P.eatJump = input.jump;
   P.edge *= 0.3; P.lastLand = performance.now();
   if (a.t > 0.25) { sfx.land(Math.min(1, -impact / 12)); _t.set(0, 1.6, 0); emit(P.pos, _t, Math.min(40, 8 + a.t * 14), 3.5); }
   const tr = a.t > 0.3 ? trickName(a, align < 0) : null;
+  if (!sketchy && Math.round(Math.abs(a.spin) / Math.PI) * 180 >= 360) completeChallenge('spin360');
   if (tr) {
     if (sketchy) tr.pts = Math.round(tr.pts * 0.5 / 10) * 10;
     P.score += tr.pts; if (!P.best || tr.pts > P.bestPts) { P.best = tr.name; P.bestPts = tr.pts; }
@@ -2118,8 +2403,13 @@ function standUp() {
   }
 }
 function collideObstacles() {
-  if (P.tunnel) return false;   // trees and chalets above the tube are not in the way
   const sp = P.vel.length();
+  const other = npcHit(0.9);
+  if (other && P.state !== 'crash') {
+    if (sp > 9) { P.vel.multiplyScalar(0.25); crash('Collision avec un skieur'); return true; }
+    const ex = P.pos.x - other.x, ez = P.pos.z - other.z, d = Math.hypot(ex, ez) || 1; P.pos.x = other.x + ex / d * 0.9; P.pos.z = other.z + ez / d * 0.9; P.vel.multiplyScalar(0.7);
+  }
+  if (P.tunnel) return false;   // trees and chalets above the tube are not in the way
   const cx = Math.floor((P.pos.x + HALF) / TC), cz = Math.floor((P.pos.z + HALF) / TC);
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     const l = trees.grid.get(cx + dx + (cz + dz) * 1000); if (!l) continue;
@@ -2188,6 +2478,7 @@ function stepRail(dt) {
 function tryBoard() {
   if (P.state !== 'ski') return;
   const L = nearLift(12); if (!L) return;
+  const lk = lockOf(L); if (lk) { showTrick('Remontée fermée', 'Défi « ' + lk.title + ' » : ' + lk.goal); return; }
   P.state = 'lift'; P.lift = L; P.liftS = L.s0; P.vel.set(0, 0, 0); P.edge = 0; P.charge = 0;
   L.own.visible = true;
   showTrick(L.name, L.type === 'tbar' ? 'Tenez la perche · ⇧ ou ↑ pour accélérer' : 'Bonne montée · ⇧ ou ↑ pour accélérer');
@@ -2220,10 +2511,17 @@ function respawnNearestLift() {
   for (const L of LIFTS) { const d = Math.hypot(P.pos.x - L.board.x, P.pos.z - L.board.z); if (d < bd) { bd = d; best = L; } }
   const p = best.board.clone().addScaledVector(best.dir, -7);
   P.pos.set(p.x, H(p.x, p.z), p.z); P.vel.set(0, 0, 0); P.yaw = best.yaw; P.pitch = 0;
+  if (P.state === 'sled') { sled.x = P.pos.x; sled.z = P.pos.z; sled.yaw = P.yaw; sled.parked = true; skierSkis(true); }
   P.state = 'ski'; P.lift = null; P.air = null; P.rail = null; P.edge = 0; P.charge = 0; P.revertT = 0; P.tunnel = null; camSnap = true;
   showTrick(best.name, 'Appuyez sur E pour monter');
 }
 function teleportLift(i) { const L = LIFTS[i]; P.pos.set(L.board.x, 0, L.board.z); respawnNearestLift(); }
+function teleportLiftTop(i) {
+  const L = LIFTS[i];
+  P.pos.set(L.board.x, 0, L.board.z); respawnNearestLift();          // resets state, parks the snowmobile
+  P.pos.set(L.exit[0], 0, L.exit[1]); P.pos.y = H(P.pos.x, P.pos.z); P.yaw = L.exitYaw; P.vel.set(0, 0, 0); camSnap = true;
+  showTrick('Arrivée · ' + fmt(P.pos.y + ALT0) + ' m', L.name);
+}
 
 /* ---------------- Visual sync: pose targets, smoothing, leg IK ---------------- */
 const _mat = new THREE.Matrix4(), _quat = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _qa = new THREE.Quaternion();
@@ -2333,6 +2631,14 @@ function updateSkier(dt, time) {
     if (P.air && spin) { T.spYaw = spin * 0.45; T.aL.o = T.aR.o = 0.35; }
     if (P.air && input.grab) { T.pelH = 0.58; T.spPitch = 0.95; T.aR.p = -1.55; T.aR.e = -0.15; T.aR.o = 0.08; T.headP = -0.45; T.aL.o = 0.9; }
     if (P.air && input.tail) { T.pelH = 0.62; T.spPitch = 0.6; T.aL.p = 0.95; T.aL.e = -0.1; T.spYaw = 0.35; }
+  } else if (P.state === 'sled') {
+    // seated astride, feet on the footrests, hands on the bars, leaning into the turn
+    rate = 30; _quat.copy(sled.q);
+    _rootP.set(0, 1.37, -0.1).applyQuaternion(_quat).add(P.pos);
+    const st = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    T.pelH = 0.42; T.pelZ = -0.4; T.pelPitch = 0.12; T.spPitch = 0.3 + sled.engine * 0.15; T.headP = -0.32; T.spRoll = st * 0.25; T.pelX = st * 0.08;
+    T.fL.x = 0.36; T.fR.x = -0.36; T.fL.z = T.fR.z = 0.05;
+    for (const a of [T.aL, T.aR]) { a.p = -1.1; a.e = -0.45; a.o = 0.3; a.pole = 0; }
   } else if (P.state === 'crash') {
     rate = 8;
     crashRot += dt * Math.max(0, P.crashT - 0.6) * 9;
@@ -2383,7 +2689,7 @@ function updateSkier(dt, time) {
 function clampCamera(c) {
   if (P.tunnel) {
     const T = P.tunnel, tl = tunnelLocal(T, c.x, c.z, 2);
-    if (tl && tl.s > -8 && tl.s < T.len + 8 && Math.abs(tl.w) < T.hw + 2) {
+    if (tl && tl.s > -8 && tl.s < T.len + 8) {
       const lim = T.hw - 0.8; if (Math.abs(tl.w) > lim) { const dw = Math.sign(tl.w) * lim - tl.w; c.x += tl.px * dw; c.z += tl.pz * dw; }
       c.y = clamp(c.y, tl.y + 0.9, tl.y + T.ceil - 0.7); return;
     }
@@ -2398,6 +2704,8 @@ function updateCamera(dt, snap) {
   if (P.state === 'lift') {
     const L = P.lift; _cd.copy(L.dir);
     if (L.type !== 'tbar') target.y -= 2;
+  } else if (P.state === 'sled') {
+    _cd.set(Math.sin(P.yaw), 0, Math.cos(P.yaw));
   } else {
     const vh = Math.hypot(P.vel.x, P.vel.z);
     if (vh > 1.5 && P.state !== 'crash') _cd.set(P.vel.x / vh, 0, P.vel.z / vh); else if (P.state !== 'crash') _cd.set(Math.sin(P.yaw), 0, Math.cos(P.yaw)); else _cd.copy(camDir);
@@ -2410,7 +2718,7 @@ function updateCamera(dt, snap) {
     camLook.copy(camPos).addScaledVector(camDir, 10); camLook.y -= 2.2;
     camera.position.copy(camPos); camera.lookAt(camLook); return;
   }
-  const dist = camMode === 1 ? 15 : P.state === 'lift' ? 10 : 6.6, hgt = camMode === 1 ? 6.5 : P.state === 'lift' ? 3.5 : 2.5;
+  const dist = camMode === 1 ? 15 : P.state === 'lift' ? 10 : P.state === 'sled' ? 7.5 : 6.6, hgt = camMode === 1 ? 6.5 : P.state === 'lift' ? 3.5 : P.state === 'sled' ? 3 : 2.5;
   _q.copy(target).addScaledVector(camDir, -dist); _q.y += hgt;
   if (P.state === 'lift') _q.addScaledVector(P.lift.side, P.lift.type === 'tbar' ? 4 : 3);   // look past the hanger
   const kp = snap ? 1 : 1 - Math.exp(-dt * 7);
@@ -2431,6 +2739,7 @@ const sfx = (() => {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
     const mk = (type, f, q) => { const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(master); src.start(); return [g, fl]; };
+    { const o = ctx.createOscillator(), f = ctx.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = 40; f.type = 'lowpass'; f.frequency.value = 600; sfx.eng = ctx.createGain(); sfx.eng.gain.value = 0; sfx.engO = o; o.connect(f); f.connect(sfx.eng); sfx.eng.connect(master); o.start(); }
     [wind, windF] = mk('lowpass', 400, 0.7); [carve, carveF] = mk('bandpass', 2000, 1.2); [hiss] = mk('highpass', 2500, 0.5);
     const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 52; const lf = ctx.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = 180; hum = ctx.createGain(); hum.gain.value = 0; o.connect(lf); lf.connect(hum); hum.connect(master); o.start();
     sfx.buf = buf;
@@ -2481,11 +2790,12 @@ const sfx = (() => {
       // glide sound per snow type: hard scrape on ice, soft hush in powder, chatter in crud
       const S = SNOW[st] || SNOW[0];
       const base = st === SN.GLACEE ? 0.25 : st === SN.POUDREUSE ? 0.2 : st === SN.TRAFOLLE ? 0.22 : st === SN.BOSSES ? 0.12 : 0.05;
-      let c = P.state === 'ski' ? Math.min(0.36, sp / 28 * (Math.abs(P.edge) * 0.35 + P.brake * 0.8 + P.skid * 0.4 + base)) : P.state === 'rail' ? 0.18 : 0;
+      let c = P.state === 'sled' ? 0 : P.state === 'ski' ? Math.min(0.36, sp / 28 * (Math.abs(P.edge) * 0.35 + P.brake * 0.8 + P.skid * 0.4 + base)) : P.state === 'rail' ? 0.18 : 0;
       if (st === SN.TRAFOLLE) c *= 0.7 + 0.6 * Math.abs(P.jolt);
       carve.gain.setTargetAtTime(c, t, 0.05);
       carveF.frequency.setTargetAtTime(P.state === 'rail' ? 3200 : st === SN.GLACEE ? 3600 : st === SN.POUDREUSE ? 520 : st === SN.TRAFOLLE ? 900 : P.brake > 0.5 ? 1100 : 2200, t, 0.1);
       hum.gain.setTargetAtTime(P.state === 'lift' ? 0.05 : 0, t, 0.3);
+      sfx.eng.gain.setTargetAtTime(P.state === 'sled' ? 0.07 + sled.engine * 0.06 : 0, t, 0.15); sfx.engO.frequency.setTargetAtTime(38 + sp * 4 + sled.engine * 34, t, 0.1);
       const dc = nearestCannon(P.pos.x, P.pos.z);
       hiss.gain.setTargetAtTime(0.16 * smoothstep(90, 8, dc), t, 0.3);
       // tunnel music: on inside, fading with distance to the nearest portal
@@ -2573,12 +2883,60 @@ function drawBigMap() {
 }
 function fillMapLists() {
   const pl = $('plist');
-  PISTES.filter(p => !p.hidden).forEach(p => { const d = document.createElement('div'); d.innerHTML = '<span class="dot' + (p.lvl === 'noire' ? ' noire' : '') + '" style="background:' + p.color + '"></span>' + p.name; pl.appendChild(d); });
-  const ll = $('llist');
-  LIFTS.forEach((L, i) => { const b = document.createElement('button'); b.className = 'lbtn'; b.type = 'button'; b.innerHTML = '<code>' + L.code + '</code>' + L.name; b.onclick = () => { teleportLift(i); toggleMap(false); }; ll.appendChild(b); });
+  if (!pl.dataset.done) PISTES.filter(p => !p.hidden).forEach(p => { const d = document.createElement('div'); d.innerHTML = '<span class="dot' + (p.lvl === 'noire' ? ' noire' : '') + '" style="background:' + p.color + '"></span>' + p.name; pl.appendChild(d); });
+  pl.dataset.done = '1';
+  const ll = $('llist'); ll.innerHTML = '';
+  LIFTS.forEach((L, i) => {
+    const row = document.createElement('div'); row.className = 'lrow';
+    const lk = lockOf(L);
+    row.innerHTML = '<span class="lname"><code>' + L.code + '</code>' + L.name + '</span>' + (lk ? '<span class="lock">🔒 ' + lk.goal + '</span>' : '');
+    if (!lk) for (const [label, fn] of [['Bas', teleportLift], ['Haut', teleportLiftTop]]) { const b = document.createElement('button'); b.className = 'lbtn'; b.type = 'button'; b.textContent = label; b.onclick = () => { fn(i); toggleMap(false); }; row.appendChild(b); }
+    ll.appendChild(row);
+  });
+  const cl = $('clist'); cl.innerHTML = '';
+  CHALLENGES.forEach(c => { const d = document.createElement('div'); d.className = 'chl' + (progress.done[c.id] ? ' ok' : ''); d.innerHTML = '<span class="tick">' + (progress.done[c.id] ? '✔' : '○') + '</span><span><b>' + c.title + '</b> · ' + c.goal + (c.unlocks ? '<em>Débloque : ' + c.unlocks + '</em>' : '') + '</span>'; cl.appendChild(d); });
+  updateChallengeChip();
 }
 let mapOpen = false;
 function toggleMap(v) { mapOpen = v === undefined ? !mapOpen : v; $('mapOv').hidden = !mapOpen; if (mapOpen) drawBigMap(); else canvas.focus(); }
+
+/* ---------------- Challenges: some lifts open only once a challenge is done ---------------- */
+const CHALLENGES = [
+  { id: 'speed', title: 'Pleine vitesse', goal: 'Atteindre 80 km/h sur une piste', unlocks: 'Télésiège de la Forêt' },
+  { id: 'spin360', title: 'Premier 360', goal: 'Poser un 360 ou plus en l\'air (snowpark ou bosse)', unlocks: 'Téléski du Snowpark' },
+  { id: 'tunnel', title: 'Sous la montagne', goal: 'Traverser un tunnel de bout en bout' },
+  { id: 'butter', title: 'Beurre doux', goal: 'Réussir un Nose ou Tail Butter 360' },
+  { id: 'powder', title: 'Faire la trace', goal: 'Parcourir 300 m en poudreuse hors-piste' },
+  { id: 'couloir', title: 'Le Couloir sans faute', goal: 'Descendre Le Couloir de haut en bas sans tomber' },
+];
+const progress = { done: {}, powder: 0, run: null };
+try { const s = JSON.parse(localStorage.getItem('valdessapins.challenges') || '{}'); if (s && s.done) progress.done = s.done; } catch (e) { /* storage unavailable: progress lasts for this visit */ }
+function saveProgress() { try { localStorage.setItem('valdessapins.challenges', JSON.stringify({ done: progress.done })); } catch (e) {} }
+function liftLocked(L) { const c = CHALLENGES.find(c => c.unlocks === L.name); return !!(c && !progress.done[c.id]); }
+function lockOf(L) { return CHALLENGES.find(c => c.unlocks === L.name && !progress.done[c.id]); }
+function completeChallenge(id) {
+  if (progress.done[id]) return;
+  const c = CHALLENGES.find(q => q.id === id); if (!c) return;
+  progress.done[id] = true; saveProgress();
+  P.score += 500;
+  setTimeout(() => showTrick('Défi réussi : ' + c.title, c.unlocks ? c.unlocks + ' débloqué' : '+500 · ' + c.goal), 1300);
+  updateChallengeChip(); if (typeof fillMapLists === 'function' && $('llist').childElementCount) fillMapLists();
+}
+function updateChallengeChip() { const n = Object.keys(progress.done).length; $('chal').textContent = n + '/' + CHALLENGES.length; }
+// called a few times a second from the HUD
+function trackChallenges(dt) {
+  const sp = P.vel.length();
+  if (P.state === 'ski' && zoneAt(P.pos.x, P.pos.z) >= 0 && sp * 3.6 >= 80) completeChallenge('speed');
+  if (P.state === 'ski' && P.snow === SN.POUDREUSE && sp > 2) { progress.powder += sp * dt; if (progress.powder >= 300) completeChallenge('powder'); }
+  // Le Couloir from the top to the bottom without a fall
+  const cp = PISTES.find(p => p.name === 'Le Couloir');
+  if (cp && P.state !== 'lift') {
+    const S = cp.samples, near = (i, r) => Math.hypot(S[i].x - P.pos.x, S[i].z - P.pos.z) < r;
+    if (P.state === 'ski' && near(2, 25)) progress.run = 'couloir';
+    if (progress.run === 'couloir' && near(S.length - 3, 30)) { progress.run = null; completeChallenge('couloir'); }
+    if (P.state === 'crash' || P.state === 'sled') progress.run = null;
+  }
+}
 
 /* ---------------- HUD ---------------- */
 let lastVillage = null;
@@ -2602,7 +2960,7 @@ function showTrick(t, s) { $('trickT').textContent = t; $('trickS').textContent 
 let hudAcc = 0;
 function updateHud(dt) {
   if (trickTimer > 0) { trickTimer -= dt; if (trickTimer <= 0) $('trick').classList.remove('show'); }
-  hudAcc += dt; if (hudAcc < 0.1) return; hudAcc = 0;
+  hudAcc += dt; if (hudAcc < 0.1) return; trackChallenges(hudAcc); hudAcc = 0;
   const sp = P.state === 'lift' ? P.lift.speed * ((input.grab || input.up) ? 4 : 1) : P.vel.length();
   $('spd').textContent = Math.round(sp * 3.6);
   $('alt').textContent = fmt(P.pos.y + ALT0 - (P.state === 'lift' && P.lift.type !== 'tbar' ? 9 : 0));
@@ -2616,6 +2974,7 @@ function updateHud(dt) {
   let st = 'À l\'arrêt';
   const along = P.vel.x * Math.sin(P.yaw) + P.vel.z * Math.cos(P.yaw);
   if (P.state === 'lift') st = P.lift.type === 'tbar' ? 'Au téléski' : 'En remontée';
+  else if (P.state === 'sled') st = 'Motoneige';
   else if (P.state === 'air') st = 'En l\'air';
   else if (P.state === 'rail') st = 'Grind';
   else if (P.state === 'crash') st = 'Chute';
@@ -2628,7 +2987,7 @@ function updateHud(dt) {
   $('pts').textContent = fmt(P.score);
   const pr = $('prompt');
   const L = nearLift(12);
-  if (L && P.state === 'ski') { pr.innerHTML = '<span class="key">E</span> Monter · ' + L.code + ' ' + L.name; pr.hidden = false; }
+  if (L && P.state === 'ski') { const lk = lockOf(L); pr.innerHTML = lk ? '🔒 ' + L.code + ' ' + L.name + ' · défi : ' + lk.goal.toLowerCase() : '<span class="key">E</span> Monter · ' + L.code + ' ' + L.name; pr.hidden = false; }
   else if (P.state === 'ski' && P.stillT > 5 && P.offPiste) { pr.innerHTML = '<span class="key">R</span> Bloqué ? Rejoindre la remontée la plus proche'; pr.hidden = false; }
   else pr.hidden = true;
   drawMini();
@@ -2654,6 +3013,7 @@ window.addEventListener('keydown', e => {
     case 'm': toggleMap(); break;
     case 'Escape': if (mapOpen) toggleMap(false); break;
     case 'h': helpTouched = true; $('help').hidden = !$('help').hidden; break;
+    case 'v': queued.add('sled'); break;
     case 'n': $('muteBtn').textContent = 'Son : ' + (sfx.toggle() ? 'oui' : 'non'); break;
   }
 });
@@ -2681,7 +3041,7 @@ function frame(now) {
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
     if (n === 12) acc = 0;
   }
-  updateLiftAnim(clock);
+  updateLiftAnim(clock); updateNPCs(dt, clock); placeSledMesh(dt);
   updateSkier(dt, clock);
   updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
   if (running) { updateCamera(dt, camSnap); camSnap = false; }
@@ -2753,7 +3113,7 @@ const steps = [
   ['Construction des villages…', () => { buildVillages(); buildCannonMeshes(); initPlumes(); }],
   ['Plantation des sapins…', () => { placeTrees(); placeRocks(); }],
   ['Calcul de l\'ensoleillement…', () => { buildTerrainMesh(); buildMogulMeshes(); buildTunnels(); buildBackdrop(); }],
-  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); fillFacts(); }],
+  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); initNPCs(); buildSled(); fillFacts(); }],
 ];
 function boot(i) {
   if (i >= steps.length) {
@@ -2771,7 +3131,9 @@ window.__ski = {
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
   teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
-  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, get obstacles() { return obstacles.length; },
+  tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, npcs, sled,
+  advance(dt) { clock += dt; updateNPCs(dt, clock); },
+  track: trackChallenges, tunnelLocal, progress, CHALLENGES, unlockAll() { CHALLENGES.forEach(c => { progress.done[c.id] = true; }); fillMapLists(); }, resetChallenges() { progress.done = {}; saveProgress(); fillMapLists(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
   clear() { for (const k in input) input[k] = false; },

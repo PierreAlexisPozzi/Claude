@@ -16,3 +16,6 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
 - Canons à neige (perches et ventilateurs) avec panaches ; tunnels éclairés avec musique synthétisée.
 - Skieur articulé (cinématique inverse des jambes), inclinaison, angulation, absorption, plantés de bâton.
 - Skis twin-tip à double rocker ; figures au sol : nose / tail press, butters, nollie / ollie, presses sur box et rails.
+- Motoneige (V) pour monter les pentes et circuler partout ; une soixantaine d'autres skieurs qui descendent, font la queue et prennent les remontées.
+- Plan : téléportation au départ (« Bas ») ou à l'arrivée (« Haut ») de chaque remontée.
+- Défis : six objectifs, dont deux qui débloquent le Télésiège de la Forêt et le Téléski du Snowpark (progression gardée dans le navigateur).
