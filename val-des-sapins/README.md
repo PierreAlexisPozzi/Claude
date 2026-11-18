@@ -19,3 +19,5 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
 - Motoneige (V) pour monter les pentes et circuler partout ; une soixantaine d'autres skieurs qui descendent, font la queue et prennent les remontées.
 - Plan : téléportation au départ (« Bas ») ou à l'arrivée (« Haut ») de chaque remontée.
 - Défis : six objectifs, dont deux qui débloquent le Télésiège de la Forêt et le Téléski du Snowpark (progression gardée dans le navigateur).
+- Objets assemblés pièce par pièce (atome → pièce → objet) près de la caméra : sapins, rochers, chalets, résidences bois, barre étagée, tours, église, passerelle, mobilier (filets, panneaux, plans des pistes, bancs, lampadaires, râteliers) ; version simplifiée au loin.
+- Faune d'hiver : chamois, lièvres variables, lagopèdes, choucas.
