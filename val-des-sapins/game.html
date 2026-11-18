@@ -303,6 +303,22 @@ const LIFTS = [
   { name: 'Téléski du Snowpark', code: 'TK', type: 'tbar', b: [-450, 398], t: [-470, -76], exit: [-512, -50], speed: 4.5, spacing: 16, off: 1.3 },
   { name: 'Téléski des Marmottes', code: 'TK', type: 'tbar', b: [-165, 1166], t: [-235, 934], exit: [-243, 958], speed: 3.8, spacing: 16, off: 1.3 },
 ];
+// liaisons: every piste that ends near a lift gets a groomed path to its loading point
+(() => {
+  const ends = PISTES.map(p => ({ p, e: p.pts[p.pts.length - 1] }));
+  for (const { p, e } of ends) {
+    let best = null, bd = 260;
+    for (const L of LIFTS) {
+      const dl = Math.hypot(L.t[0] - L.b[0], L.t[1] - L.b[1]), dx = (L.t[0] - L.b[0]) / dl, dz = (L.t[1] - L.b[1]) / dl, sx = dz, sz = -dx;
+      const tx = L.b[0] + sx * L.off - dx * 2, tz = L.b[1] + sz * L.off - dz * 2, d = Math.hypot(e[0] - tx, e[1] - tz);
+      if (d < bd) { bd = d; best = { L, tx, tz, ax: L.b[0] + sx * L.off - dx * 14, az: L.b[1] + sz * L.off - dz * 14 }; }
+    }
+    if (!best || bd < 12) continue;
+    const { L, tx, tz, ax, az } = best;
+    const pts = Math.hypot(e[0] - ax, e[1] - az) > 10 ? [e, [ax, az], [tx, tz]] : [e, [tx, tz]];
+    PISTES.push({ name: 'Accès ' + L.name, liftName: L.name, lvl: 'verte', w: 16, pts, link: true, minGrade: 0.025, cross: 0.15 });   // always a gentle descent to the loading point
+  }
+})();
 // téléski tracks are groomed too (top → bottom)
 LIFTS.filter(l => l.type === 'tbar').forEach(l => PISTES.push({ name: l.name, lvl: 'track', w: 10, pts: [l.t, l.b], hidden: true, cross: 0.3 }));
 
@@ -432,7 +448,7 @@ function genPistes() {
     const sm = S.map(s => smoothBase(s.x, s.z));
     let hs = sm.slice();
     const g = p.minGrade ?? 0.055;
-    const mono = () => { for (let i = 1; i < hs.length; i++) hs[i] = Math.min(hs[i], hs[i - 1] - g * 4); };
+    const mono = () => { if (p.free) return; for (let i = 1; i < hs.length; i++) hs[i] = Math.min(hs[i], hs[i - 1] - g * 4); };
     mono();
     for (let pass = 0; pass < 8; pass++) { const c = hs.slice(); for (let i = 1; i < hs.length - 1; i++) hs[i] = (c[i - 1] + 2 * c[i] + c[i + 1]) / 4; }
     mono();
@@ -475,6 +491,53 @@ function genPistes() {
   for (const T of tunnels) for (const [i, j] of [[T.i0 - 3, T.i0 + 4], [T.i1 - 4, T.i1 + 3]]) {
     const a = T.S[clamp(i, 0, T.S.length - 1)], b = T.S[clamp(j, 0, T.S.length - 1)];
     rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, T.hw + 8, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
+  }
+}
+function gradeLinks() {
+  // each liaison becomes an even ramp from the end of its piste down to the lift's loading pad (cut and fill);
+  // every liaison to the same lift arrives at one common height, and the pad is levelled to it
+  const groups = new Map();
+  for (const p of PISTES) if (p.link) { const S = p.samples, n = S.length; let L = 0; for (let i = 1; i < n; i++) L += Math.hypot(S[i].x - S[i - 1].x, S[i].z - S[i - 1].z);
+    const g = groups.get(p.liftName) || []; g.push({ p, L, h0: gridH(S[0].x, S[0].z) }); groups.set(p.liftName, g); }
+  for (const [, g] of groups) {
+    const E = g[0].p.samples[g[0].p.samples.length - 1];
+    let hE = gridH(E.x, E.z); for (const k of g) hE = Math.min(hE, k.h0 - 0.03 * k.L);
+    rasterSeg(CELL, N, E.x, E.z, E.x, E.z, 22, (ix, iz, d) => { const vi = iz * VN + ix; heights[vi] = lerp(heights[vi], hE, 1 - smoothstep(10, 22, d)); });
+    const best = new Map();   // where liaisons converge, each snow cell follows the nearest ramp
+    for (const { p, L, h0 } of g) {
+      const S = p.samples, n = S.length, hw = p.w / 2, cum = [0];
+      for (let i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(S[i].x - S[i - 1].x, S[i].z - S[i - 1].z));
+      const Lr = L > 44 ? L - 18 : L, tgt = cum.map(c => { const u = Math.min(1, c / Lr); return h0 + (hE - h0) * (u * u * (3 - 2 * u) * 0.35 + u * 0.65); });
+      const R = hw + 8;
+      for (let i = 0; i < n - 1; i++) rasterSeg(CELL, N, S[i].x, S[i].z, S[i + 1].x, S[i + 1].z, R, (ix, iz, dist, t) => {
+        const vi = iz * VN + ix, w = (1 - smoothstep(hw * 0.8, R, dist)) * smoothstep(-4, 8, cum[i] + t * (cum[i + 1] - cum[i])), y = tgt[i] + (tgt[i + 1] - tgt[i]) * t, o = best.get(vi);
+        if (w > 0 && (!o || dist < o.d)) best.set(vi, { w, y, d: dist });
+      });
+    }
+    for (const [vi, o] of best) heights[vi] += (o.y - heights[vi]) * o.w;
+  }
+}
+function drainPistes(onlyLinks) {
+  // where pistes overlap (around the stations) their grooming can leave a rise: lower the snow down to a profile that
+  // keeps going down (never below it, so overlapping corrections cannot add up into a trench)
+  for (let pass = 0; pass < 2; pass++) for (const p of PISTES) {
+    if (p.hidden || p.lvl === 'park' || (onlyLinks && !p.link)) continue;
+    const S = p.samples, n = S.length, hw = p.w / 2, g = (p.link ? 0.02 : 0.015) * 4, prof = new Float32Array(n), skip = new Uint8Array(n);
+    prof[0] = gridH(S[0].x, S[0].z);
+    for (let i = 1; i < n; i++) {
+      const h = gridH(S[i].x, S[i].z);
+      if (p.tr && i >= p.tr[0] - 1 && i <= p.tr[1] + 1) { skip[i] = 1; prof[i] = h; continue; }
+      prof[i] = Math.min(h, prof[i - 1] - g);
+    }
+    const best = new Map();
+    for (let i = 0; i < n - 1; i++) {
+      if (skip[i] || skip[i + 1]) continue;
+      rasterSeg(CELL, N, S[i].x, S[i].z, S[i + 1].x, S[i + 1].z, hw + 6, (ix, iz, dist, t) => {
+        const vi = iz * VN + ix, w = 1 - smoothstep(hw * 0.7, hw + 6, dist), y = prof[i] + (prof[i + 1] - prof[i]) * t, o = best.get(vi);
+        if (!o || w > o.w) best.set(vi, { w, y });
+      });
+    }
+    for (const [vi, o] of best) if (heights[vi] > o.y) heights[vi] -= (heights[vi] - o.y) * o.w;
   }
 }
 function carvePortals() {
@@ -565,9 +628,9 @@ function genSnowGrid() {
   }
 }
 function crudAt(x, z, k, liftNear) {
-  let c = smoothstep(70, 12, pisteDist[k]) * 0.85;
-  c += smoothstep(0.32, 0.5, fbm(x * 0.006 + 9, z * 0.006 - 4, 3)) * 0.7;
-  if (liftNear && liftNear(x, z)) c += 0.6;
+  let c = smoothstep(35, 8, pisteDist[k]) * 0.55;
+  c += smoothstep(0.46, 0.6, fbm(x * 0.006 + 9, z * 0.006 - 4, 3)) * 0.7;
+  if (liftNear && liftNear(x, z)) c += 0.3;
   return c;
 }
 
@@ -660,11 +723,11 @@ function buildTextures() {
   // trafolle: lumps and crossing ski tracks
   { const n = tileNoise(S, 16, 31, 4), h = new Float32Array(S * S), r = mulberry32(77);
     for (let i = 0; i < h.length; i++) h[i] = n[i] * 1.6;
-    for (let k = 0; k < 16; k++) {
+    for (let k = 0; k < 0; k++) {   // no painted ski tracks any more: real ones are drawn as you ski
       const x0 = r() * S, ang = (r() - 0.5) * 1.2, amp = 10 + r() * 30, fr = 1 + Math.floor(r() * 3);
       for (let y = 0; y < S; y++) {
         const cx = x0 + Math.tan(ang) * y * 0.3 + Math.sin(y / S * Math.PI * 2 * fr) * amp;
-        for (const off of [-6, 6]) for (let dx = -3; dx <= 3; dx++) { const x = ((Math.round(cx + off + dx) % S) + S) % S; h[y * S + x] -= 0.55 * (1 - Math.abs(dx) / 4); }
+        for (const off of [-6, 6]) for (let dx = -3; dx <= 3; dx++) { const x = ((Math.round(cx + off + dx) % S) + S) % S; h[y * S + x] -= 0.28 * (1 - Math.abs(dx) / 4); }
       }
     }
     TEX.crud = normalTex(h, S, 3.2); }
@@ -1584,7 +1647,7 @@ const NPC_N = IS_TOUCH ? 24 : 60;
 const npcs = [], npcMesh = {};
 const JACKETS = ['#d6332a', '#2f6fe0', '#f2a12c', '#2fa84f', '#7a3fb0', '#ece8df', '#151a22', '#e0398a', '#14a3a3', '#f2d22c', '#ff6b2c', '#5a7d2a'];
 const npcSpeed = { verte: [5.5, 8.5], bleue: [7.5, 11.5], rouge: [9, 13.5], noire: [10, 15], park: [7, 10] };
-const skiPistes = () => PISTES.filter(p => !p.hidden);
+const skiPistes = () => PISTES.filter(p => !p.hidden && !p.link);
 function npcStartOn(n, p, s) {
   const r = npcSpeed[p.lvl] || [7, 10];
   Object.assign(n, { mode: 'ski', p, s, v: lerp(r[0], r[1], n.skill), phase: rnd() * 6.28, turn: 11 + rnd() * 12, amp: (p.w / 2 - 2.5) * (0.35 + rnd() * 0.5) });
@@ -2342,7 +2405,7 @@ function buildFurniture() {
     furnitureAt('rack', b.x + s.x * (w + 4) - d.x * 14, b.z + s.z * (w + 4) - d.z * 14, Math.atan2(d.x, d.z));
   }
   // signposts at every piste start
-  PISTES.forEach(p => { if (p.hidden) return; const q = p.samples[3], hd = pisteHeading(p, 3), x = q.x + Math.cos(hd) * (p.w / 2 + 2.5), z = q.z - Math.sin(hd) * (p.w / 2 + 2.5); const near = PISTES.filter(o => !o.hidden && Math.hypot(o.samples[0].x - q.x, o.samples[0].z - q.z) < 60).map(o => o.color).slice(0, 3); furnitureAt('sign', x, z, hd, near.length ? near : [p.color]); });
+  PISTES.forEach(p => { if (p.hidden || p.link) return; const q = p.samples[3], hd = pisteHeading(p, 3), x = q.x + Math.cos(hd) * (p.w / 2 + 2.5), z = q.z - Math.sin(hd) * (p.w / 2 + 2.5); const near = PISTES.filter(o => !o.hidden && Math.hypot(o.samples[0].x - q.x, o.samples[0].z - q.z) < 60).map(o => o.color).slice(0, 3); furnitureAt('sign', x, z, hd, near.length ? near : [p.color]); });
   // villages: nets along the piste edges, lamp posts, benches
   for (const V of VILLAGES) {
     const p = PISTES.find(q => q.name === V.piste); if (!p) continue;
@@ -2670,6 +2733,85 @@ function stationAssembly(L, isTop, cableH, O) {
   return A;
 }
 
+/* ---------------- Ski tracks left behind (player, other skiers, snowmobile) ---------------- */
+// Ring buffers of thin quads laid on the snow; each quad remembers when it was drawn and fades out.
+function makeTrailBuffer(n) {
+  const pos = new Float32Array(n * 12), born = new Float32Array(n * 4).fill(-1e4), shade = new Float32Array(n * 4), side = new Float32Array(n * 4), idx = new Uint32Array(n * 6);
+  for (let q = 0; q < n; q++) { side[q * 4] = -1; side[q * 4 + 1] = 1; side[q * 4 + 2] = -1; side[q * 4 + 3] = 1; idx.set([q * 4, q * 4 + 2, q * 4 + 1, q * 4 + 1, q * 4 + 2, q * 4 + 3], q * 6); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('aBorn', new THREE.BufferAttribute(born, 1).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('aShade', new THREE.BufferAttribute(shade, 1).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('aSide', new THREE.BufferAttribute(side, 1));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  const m = new THREE.Mesh(g, TRAIL_MAT); m.frustumCulled = false; m.renderOrder = 1; scene.add(m);
+  return { n, i: 0, g, pos, born, shade, lo: Infinity, hi: -1, wrapped: false };
+}
+const trailUniforms = { uTime: { value: 0 }, uFade: { value: 240 } };
+const TRAIL_MAT = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, fog: false,
+  uniforms: trailUniforms,
+  vertexShader: `attribute float aBorn; attribute float aShade; attribute float aSide; uniform float uTime; uniform float uFade; varying float vA; varying float vS;
+    void main() { float age = uTime - aBorn; vA = aShade * (1.0 - smoothstep(uFade * 0.5, uFade, age)) * step(0.0, age);
+      vec4 mv = modelViewMatrix * vec4(position, 1.0); vA *= 1.0 - smoothstep(140.0, 320.0, -mv.z); vS = aSide; gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `varying float vA; varying float vS; void main() { float e = 1.0 - pow(abs(vS), 3.0); if (vA * e < 0.01) discard; gl_FragColor = vec4(0.22, 0.3, 0.42, vA * e); }`
+});
+let trailsMe = null, trailsOthers = null;
+function trailQuad(B, x0, z0, x1, z1, w, shade, t) {
+  const dx = x1 - x0, dz = z1 - z0, l = Math.hypot(dx, dz) || 1, px = -dz / l * w / 2, pz = dx / l * w / 2, q = B.i;
+  const P4 = [[x0 - px, z0 - pz], [x0 + px, z0 + pz], [x1 - px, z1 - pz], [x1 + px, z1 + pz]];
+  for (let k = 0; k < 4; k++) { const [x, z] = P4[k], o = (q * 4 + k) * 3; B.pos[o] = x; B.pos[o + 1] = H(x, z) + 0.03; B.pos[o + 2] = z; B.born[q * 4 + k] = t; B.shade[q * 4 + k] = shade; }
+  B.lo = Math.min(B.lo, q); B.hi = Math.max(B.hi, q);
+  B.i = (q + 1) % B.n; if (B.i === 0) B.wrapped = true;
+}
+function flushTrails(B) {
+  if (B.hi < 0) return;
+  const at = B.g.attributes;
+  for (const [name, size] of [['position', 3], ['aBorn', 1], ['aShade', 1]]) { const a = at[name]; a.updateRange.offset = B.lo * 4 * size; a.updateRange.count = (B.hi - B.lo + 1) * 4 * size; a.needsUpdate = true; }
+  B.lo = Infinity; B.hi = -1;
+}
+// one emitter per skier: remembers where each ski last touched the snow
+function trackEmitter() { return { lx: null, lz: null, ly: 0, l: null, r: null }; }
+function emitSkiTracks(E, B, x, z, yaw, opt, t) {
+  // opt: { gap (distance between skis), w (line width), shade, smear (one wide band), step }
+  const px = Math.cos(yaw), pz = -Math.sin(yaw);
+  if (E.lx === null) { E.lx = x; E.lz = z; E.l = [x + px * opt.gap, z + pz * opt.gap]; E.r = [x - px * opt.gap, z - pz * opt.gap]; return; }
+  if (Math.hypot(x - E.lx, z - E.lz) < opt.step) return;
+  const L = [x + px * opt.gap, z + pz * opt.gap], R = [x - px * opt.gap, z - pz * opt.gap];
+  if (opt.smear) trailQuad(B, E.lx, E.lz, x, z, opt.smear, opt.shade, t);
+  else { trailQuad(B, E.l[0], E.l[1], L[0], L[1], opt.w, opt.shade, t); trailQuad(B, E.r[0], E.r[1], R[0], R[1], opt.w, opt.shade, t); }
+  E.lx = x; E.lz = z; E.l = L; E.r = R;
+}
+const myTracks = trackEmitter();
+function updateTrails(dt, time) {
+  trailUniforms.uTime.value = time;
+  if (!trailsMe) { trailsMe = makeTrailBuffer(9000); trailsOthers = makeTrailBuffer(22000); }
+  // the player: carved lines, wide smear when skidding, deep furrows in powder; the snowmobile leaves a track
+  const onSnow = (P.state === 'ski' || P.state === 'sled' || P.state === 'crash') && !P.tunnel;
+  if (!onSnow || (P.state === 'sled' && sled.air)) myTracks.lx = null;
+  else {
+    const sp = P.vel.length(), st = P.snow;
+    if (sp < 0.4 && P.state !== 'sled') { /* standing still: nothing new */ }
+    else if (P.state === 'sled') emitSkiTracks(myTracks, trailsMe, P.pos.x, P.pos.z, P.yaw, { gap: 0, step: 0.5, smear: 0.6, shade: 0.42 }, time);
+    else if (P.state === 'crash') emitSkiTracks(myTracks, trailsMe, P.pos.x, P.pos.z, P.yaw, { gap: 0, step: 0.4, smear: 0.9, shade: 0.35 }, time);
+    else {
+      const deep = st === SN.POUDREUSE, crud = st === SN.TRAFOLLE, skid = P.brake > 0.5 || P.skid > 0.55;
+      const opt = skid ? { gap: 0, step: 0.4, smear: 0.55 + Math.min(0.6, sp * 0.03), shade: deep ? 0.55 : 0.32 }
+        : deep ? { gap: 0.13, step: 0.45, w: 0.3, shade: 0.62 }
+        : { gap: 0.12, step: 0.45, w: Math.abs(P.edge) > 0.4 ? 0.12 : 0.15, shade: crud ? 0.5 : st === SN.GLACEE ? 0.3 : 0.7 };
+      emitSkiTracks(myTracks, trailsMe, P.pos.x, P.pos.z, P.yaw, opt, time);
+    }
+  }
+  // other skiers near the camera
+  for (const n of npcs) {
+    if (!n.trk) n.trk = trackEmitter();
+    const near = Math.abs(n.x - camera.position.x) + Math.abs(n.z - camera.position.z) < 380;
+    if (n.mode !== 'ski' || !near || (n.p.tr && n.s / 4 > n.p.tr[0] - 2 && n.s / 4 < n.p.tr[1] + 2)) { n.trk.lx = null; continue; }
+    emitSkiTracks(n.trk, trailsOthers, n.x, n.z, n.yaw, { gap: 0.12, step: 0.9, w: 0.12, shade: 0.55 }, time);
+  }
+  flushTrails(trailsMe); flushTrails(trailsOthers);
+}
+
 /* ---------------- Park features ---------------- */
 function pisteFrame(p, dist) {
   const S = p.samples, i = clamp(Math.round(dist / 4), 1, S.length - 2);
@@ -2744,6 +2886,7 @@ function buildMarkers() {
       const a = S[i - 1], b = S[i + 1], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz);
       for (const s of [-1, 1]) { const x = S[i].x - dz / l * s * (p.w / 2 + 1), z = S[i].z + dx / l * s * (p.w / 2 + 1); list.push([x, z, p.color]); }
     }
+    if (p.link) return;
     const s0 = S[1]; const lab = makeLabel(p.name, p.color, LEVELS[p.lvl].label);
     const a = S[0], b = S[2], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz);
     const lx = s0.x - dz / l * (p.w / 2 + 3), lz = s0.z + dx / l * (p.w / 2 + 3);
@@ -3851,7 +3994,7 @@ function updateVillageBanner() {
   else if (!villageLabels.some(v => v.name === lastVillage && Math.hypot(v.x - P.pos.x, v.z - P.pos.z) < 220)) lastVillage = null;
 }
 function fillFacts() {
-  const vis = PISTES.filter(p => !p.hidden), n = l => vis.filter(p => p.lvl === l).length;
+  const vis = PISTES.filter(p => !p.hidden && !p.link), n = l => vis.filter(p => p.lvl === l).length;
   const pl = (k, a, b) => k + ' ' + (k > 1 ? b : a);
   const items = [['verte', pl(n('verte'), 'verte', 'vertes')], ['bleue', pl(n('bleue'), 'bleue', 'bleues')], ['rouge', pl(n('rouge'), 'rouge', 'rouges')], ['noire', pl(n('noire'), 'noire', 'noires')], ['park', 'Snowpark']];
   $('facts').innerHTML = items.map(([l, t]) => '<span><i class="dot' + (l === 'noire' ? ' noire' : '') + '" style="background:var(--' + l + ')"></i>' + t + '</span>').join('') +
@@ -3945,7 +4088,7 @@ function frame(now) {
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
     if (n === 12) acc = 0;
   }
-  updateLiftAnim(clock); updateNPCs(dt, clock); placeSledMesh(dt); updateNear(camera.position, dt); updateFauna(dt, clock, camera.position);
+  updateLiftAnim(clock); updateNPCs(dt, clock); placeSledMesh(dt); updateNear(camera.position, dt); updateFauna(dt, clock, camera.position); updateTrails(dt, clock);
   updateSkier(dt, clock);
   updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
   if (running) { updateCamera(dt, camSnap); camSnap = false; }
@@ -4001,7 +4144,7 @@ $('go').addEventListener('click', startGame);
 /* ---------------- Boot ---------------- */
 const steps = [
   ['Sculpture du relief…', () => { genTerrain(); }],
-  ['Damage des pistes…', () => { genPistes(); carvePortals(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); genMoguls(); }],
+  ['Damage des pistes…', () => { genPistes(); carvePortals(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); drainPistes(); gradeLinks(); genMoguls(); }],
   ['Installation des remontées…', () => {
     LIFTS.forEach(L => { layoutLift(L); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.T.x, L.T.z, L.off + 7, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.B.x, L.B.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.T.x, L.T.z, L.T.x, L.T.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); });
     rasterSeg(ZR, ZN - 1, -232, 128, -232, 128, 22, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
@@ -4043,6 +4186,7 @@ window.__ski = {
   camNow() { updateCamera(0, true); },
   nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateFauna(0.016, clock, camera.position); },
   fauna, FURN, rocks,
+  trailTick(dt) { clock += dt; updateTrails(dt, clock); }, trailStats() { return { me: trailsMe ? trailsMe.i : 0, others: trailsOthers ? trailsOthers.i : 0 }; },
   track: trackChallenges, tunnelLocal, progress, CHALLENGES, unlockAll() { CHALLENGES.forEach(c => { progress.done[c.id] = true; }); fillMapLists(); }, resetChallenges() { progress.done = {}; saveProgress(); fillMapLists(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
