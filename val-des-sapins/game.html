@@ -477,6 +477,22 @@ function genPistes() {
     rasterSeg(ZR, ZN - 1, a.x, a.z, b.x, b.z, T.hw + 8, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
   }
 }
+function carvePortals() {
+  // a cutting in front of each portal down to the tunnel floor, and solid ground kept above the tube
+  for (const T of tunnels) {
+    let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+    for (let i = Math.max(0, T.i0 - 5); i <= Math.min(T.S.length - 1, T.i1 + 5); i++) { a = Math.min(a, T.S[i].x); b = Math.max(b, T.S[i].x); c = Math.min(c, T.S[i].z); d = Math.max(d, T.S[i].z); }
+    const ix0 = Math.max(0, Math.floor((a - 25 + HALF) / CELL)), ix1 = Math.min(N, Math.ceil((b + 25 + HALF) / CELL)), iz0 = Math.max(0, Math.floor((c - 25 + HALF) / CELL)), iz1 = Math.min(N, Math.ceil((d + 25 + HALF) / CELL));
+    for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
+      const x = -HALF + ix * CELL, z = -HALF + iz * CELL, tl = tunnelLocal(T, x, z, 3); if (!tl) continue;
+      const aw = Math.abs(tl.w), vi = iz * VN + ix;
+      if (aw > T.hw + 1.6) continue;
+      const atPortal = (tl.s > -9 && tl.s < 4) || (tl.s > T.len - 4 && tl.s < T.len + 9);
+      if (atPortal) heights[vi] = Math.min(heights[vi], tl.y - 0.05);
+      else if (tl.s >= 4 && tl.s <= T.len - 4) heights[vi] = Math.max(heights[vi], tl.y + T.ceil + 1.6);
+    }
+  }
+}
 function flattenPad(x, z, r0, r1) {
   const hC = gridH(x, z);
   rasterSeg(CELL, N, x, z, x, z, r1, (ix, iz, d) => { const vi = iz * VN + ix; heights[vi] = lerp(heights[vi], hC, 1 - smoothstep(r0, r1, d)); });
@@ -756,24 +772,8 @@ function buildTerrainMesh() {
   for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) {
     const i = iz * VN + ix; pos[i * 3] = -HALF + ix * CELL; pos[i * 3 + 1] = heights[i]; pos[i * 3 + 2] = -HALF + iz * CELL;
   }
-  // index, minus the triangles that would cover the tunnel tubes and portals
-  const idx = []; const tb = tunnels.map(T => { let a = 1e9, b = -1e9, c = 1e9, d = -1e9; for (let i = Math.max(0, T.i0 - 4); i <= Math.min(T.S.length - 1, T.i1 + 4); i++) { a = Math.min(a, T.S[i].x); b = Math.max(b, T.S[i].x); c = Math.min(c, T.S[i].z); d = Math.max(d, T.S[i].z); } return [a - 20, b + 20, c - 20, d + 20]; });
-  const holed = (a, b, c) => {
-    const cx = (pos[a * 3] + pos[b * 3] + pos[c * 3]) / 3, cz = (pos[a * 3 + 2] + pos[b * 3 + 2] + pos[c * 3 + 2]) / 3;
-    for (let k = 0; k < tunnels.length; k++) {
-      const B = tb[k]; if (cx < B[0] || cx > B[1] || cz < B[2] || cz > B[3]) continue;
-      const T = tunnels[k], tl = tunnelLocal(T, cx, cz, 3);
-      if (!tl || tl.s < -7 || tl.s > T.len + 7 || Math.abs(tl.w) > T.hw + 2.5) continue;
-      const mn = Math.min(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1]);
-      if (mn < tl.y + T.ceil + 2.4) return true;
-    }
-    return false;
-  };
-  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) {
-    const a = iz * VN + ix, b = a + 1, c = a + VN, d = c + 1;
-    if (!holed(a, c, b)) idx.push(a, c, b);
-    if (!holed(b, c, d)) idx.push(b, c, d);
-  }
+  const idx = [];
+  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) { const a = iz * VN + ix, b = a + 1, c = a + VN, d = c + 1; idx.push(a, c, b, b, c, d); }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
@@ -4001,7 +4001,7 @@ $('go').addEventListener('click', startGame);
 /* ---------------- Boot ---------------- */
 const steps = [
   ['Sculpture du relief…', () => { genTerrain(); }],
-  ['Damage des pistes…', () => { genPistes(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); genMoguls(); }],
+  ['Damage des pistes…', () => { genPistes(); carvePortals(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); genMoguls(); }],
   ['Installation des remontées…', () => {
     LIFTS.forEach(L => { layoutLift(L); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.T.x, L.T.z, L.off + 7, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.B.x, L.B.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.T.x, L.T.z, L.T.x, L.T.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); });
     rasterSeg(ZR, ZN - 1, -232, 128, -232, 128, 22, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
