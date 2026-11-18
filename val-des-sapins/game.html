@@ -1498,7 +1498,7 @@ function layoutLift(L) {
   L.up = new Path(up); L.down = new Path(down); L.total = L.up.total;
   L.s0 = 6.4; L.endS = 6.4;
   L.board = L.up.pointAt(L.s0, new V3()); L.board.y = gridH(L.board.x, L.board.z);
-  for (let k = 1; k < nT; k++) towerList.push({ x: nodes[k].x, z: nodes[k].z, g: nodes[k].g, top: nodes[k].top, yaw: L.yaw, w: 2 * L.off + 1.4 });
+  for (let k = 1; k < nT; k++) towerList.push({ x: nodes[k].x, z: nodes[k].z, g: nodes[k].g, top: nodes[k].top, yaw: L.yaw, w: 2 * L.off + 1.4, off: L.off, type: L.type });
 }
 function liftUnitGeo(type) {
   const P = [];
@@ -1522,28 +1522,19 @@ function buildLiftMeshes(L) {
   const lineMat = new THREE.LineBasicMaterial({ color: '#2a2f38' });
   for (const p of [L.up, L.down]) scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(p.pts), lineMat));
   const count = Math.floor(2 * L.total / L.spacing);
-  const geo = liftUnitGeo(L.type);
+  const geo = liftUnitGeo(L.type), dgeo = LIFT_DETAIL[L.type] || (LIFT_DETAIL[L.type] = { chair: chairAssembly, gondola: cabinAssembly, tbar: tbarAssembly }[L.type]());
   const mesh = new THREE.InstancedMesh(geo, lambertVC(), count); mesh.frustumCulled = false; mesh.castShadow = true;
-  scene.add(mesh); liftAnim.push({ L, mesh, count });
-  L.own = new THREE.Mesh(geo, lambertVC()); L.own.visible = false; L.own.castShadow = true; scene.add(L.own);
-  // stations
+  const dmesh = new THREE.InstancedMesh(dgeo, lambertVC(), count); dmesh.frustumCulled = false; dmesh.castShadow = true;
+  scene.add(mesh, dmesh); liftAnim.push({ L, mesh, dmesh, count });
+  L.own = new THREE.Mesh(dgeo, lambertVC()); L.own.visible = false; L.own.castShadow = true; scene.add(L.own);
+  // stations, assembled piece by piece
   for (const [p, isTop] of [[L.B, false], [L.T, true]]) {
     const g = gridH(p.x, p.z), cableY = (isTop ? L.up.pts[L.up.pts.length - 1] : L.up.pts[0]).y;
-    const grp = new THREE.Group(); grp.position.set(p.x, g, p.z); grp.rotation.y = L.yaw;
-    const wall = L.type === 'tbar' ? '#7b5a3a' : '#cfd5dd';
-    const bw = 2 * L.off + (L.type === 'tbar' ? 2.5 : 6), bl = L.type === 'tbar' ? 3 : 9;
-    const hb = L.type === 'tbar' ? 3 : cableY - g - 1.2;
-    const house = new THREE.Mesh(new THREE.BoxGeometry(bw, hb + 6, bl), new THREE.MeshLambertMaterial({ color: wall }));
-    house.position.set(0, (hb + 6) / 2 - 6, isTop ? 4 : -4); house.castShadow = true; house.receiveShadow = true; grp.add(house);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 1.2, 0.5, bl + 1.4), new THREE.MeshLambertMaterial({ color: '#eef3f8' }));
-    roof.position.set(0, hb + 0.25, isTop ? 4 : -4); roof.castShadow = true; grp.add(roof);
-    const band = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.05, 0.6, bl + 0.05), new THREE.MeshLambertMaterial({ color: L.type === 'gondola' ? '#c4232f' : '#2457c9' }));
-    band.position.set(0, hb - 0.5, isTop ? 4 : -4); grp.add(band);
-    const wheel = new THREE.Mesh(new THREE.TorusGeometry(L.off, 0.16, 6, 28), new THREE.MeshLambertMaterial({ color: '#3a414c' }));
-    wheel.rotation.x = Math.PI / 2; wheel.position.set(0, cableY - g, 0); grp.add(wheel);
-    scene.add(grp);
+    const grp = stationAssembly(L, isTop, cableY - g, { x: p.x, z: p.z, g }).toGroup(30);
+    grp.position.set(p.x, g, p.z); grp.rotation.y = L.yaw; scene.add(grp);
   }
 }
+const LIFT_DETAIL = {};
 function buildTowers() {
   const pole = new THREE.CylinderGeometry(0.28, 0.42, 1, 8); pole.translate(0, 0.5, 0);
   const pm = new THREE.InstancedMesh(pole, new THREE.MeshLambertMaterial({ color: '#7d8796' }), towerList.length);
@@ -1556,6 +1547,18 @@ function buildTowers() {
   });
   pm.frustumCulled = hm.frustumCulled = false; pm.castShadow = hm.castShadow = true;
   scene.add(pm, hm);
+  TOWERS.pm = pm; TOWERS.hm = hm;
+  towerList.forEach((t, i) => { const A = towerAssembly(t, t.off, t.type), g = A.toGroup(t.top - t.g + 8); g.position.set(t.x, t.g, t.z); g.rotation.y = t.yaw; g.visible = false; scene.add(g); t.detail = g; t.i = i; d.position.set(t.x, t.g - 1, t.z); d.rotation.set(0, t.yaw, 0); d.scale.set(1, t.top - t.g + 1.2, 1); d.updateMatrix(); t.pm = d.matrix.clone(); d.position.set(t.x, t.top + 0.35, t.z); d.scale.set(t.w, 1, 1); d.updateMatrix(); t.hm = d.matrix.clone(); });
+}
+const TOWERS = {};
+function updateNearTowers(cam) {
+  if (!TOWERS.pm) return; let dirty = false;
+  for (const t of towerList) {
+    const near = Math.hypot(t.x - cam.x, t.z - cam.z) < 450;
+    if (near === t.detail.visible) continue;
+    t.detail.visible = near; TOWERS.pm.setMatrixAt(t.i, near ? ZERO_M : t.pm); TOWERS.hm.setMatrixAt(t.i, near ? ZERO_M : t.hm); dirty = true;
+  }
+  if (dirty) { TOWERS.pm.instanceMatrix.needsUpdate = true; TOWERS.hm.instanceMatrix.needsUpdate = true; }
 }
 const _q = new V3(), _q2 = new V3(), _m = new THREE.Object3D();
 function updateLiftAnim(time) {
@@ -1567,9 +1570,11 @@ function updateLiftAnim(time) {
       if (u < T) L.up.pointAt(u, _q); else { L.down.pointAt(u - T, _q); yaw += Math.PI; }
       _m.position.copy(_q); _m.rotation.set(0, yaw, 0); _m.scale.set(1, 1, 1);
       if (L.type === 'tbar' && u >= T) _m.scale.set(1, 0.35, 1);
-      _m.updateMatrix(); A.mesh.setMatrixAt(i, _m.matrix);
+      _m.updateMatrix();
+      const near = Math.abs(_q.x - camera.position.x) + Math.abs(_q.z - camera.position.z) < 320;
+      A.mesh.setMatrixAt(i, near ? ZERO_M : _m.matrix); A.dmesh.setMatrixAt(i, near ? _m.matrix : ZERO_M);
     }
-    A.mesh.instanceMatrix.needsUpdate = true;
+    A.mesh.instanceMatrix.needsUpdate = true; A.dmesh.instanceMatrix.needsUpdate = true;
   }
 }
 
@@ -1720,7 +1725,7 @@ function toggleSled() {
   P.pos.y = groundY(P.pos.x, P.pos.z); sled.parked = false; camSnap = true; skierSkis(false);
   showTrick(near ? 'Motoneige' : 'Motoneige appelée', '↑ gaz · ↓ frein / marche arrière · V pour descendre');
 }
-function skierSkis(on) { if (!skier) return; skier.feet.forEach(f => f.g.children.forEach((c, i) => { if (i <= 2) c.visible = on; })); skier.arms.forEach(a => { a.pole.visible = on; }); }
+function skierSkis(on) { if (!skier) return; skier.feet.forEach(f => f.g.children.forEach((c, i) => { if (i <= 2 || c.userData.ski) c.visible = on; })); skier.arms.forEach(a => { a.pole.visible = on; }); }
 function stepSled(dt) {
   const speed = P.vel.length();
   groundBasis(P.pos.x, P.pos.z);
@@ -1806,6 +1811,8 @@ function atomGeo(name) {
     case 'cap': g = new THREE.LatheGeometry([[0, 0], [0.25, 0.035], [0.43, 0.13], [0.5, 0.25], [0.5, 0.75], [0.43, 0.87], [0.25, 0.965], [0, 1]].map(q => new THREE.Vector2(q[0], q[1])), 10); break;   // rounded limb
     case 'ball': g = new THREE.SphereGeometry(0.5, 10, 8); break;
     case 'spire': g = new THREE.ConeGeometry(0.5, 1, 8, 1, true); g.translate(0, 0.5, 0); break;
+    case 'disc': g = new THREE.CylinderGeometry(0.5, 0.5, 1, 14); break;                                   // wheel, flange
+    case 'ring': g = new THREE.TorusGeometry(0.5, 0.03, 6, 36); break;                                     // bullwheel rim
   }
   return ATOM[name] = g;
 }
@@ -2106,7 +2113,7 @@ function updateNearBuildings(cam, budgetMs) {
 }
 function updateNear(cam, dt) {
   NEAR.acc = (NEAR.acc || 0) + dt; if (NEAR.acc < 0.15) return; NEAR.acc = 0;
-  updateNearTrees(cam, 3); updateNearRocks(cam); updateNearBuildings(cam, 6); updateFurniture(cam);
+  updateNearTrees(cam, 3); updateNearRocks(cam); updateNearTowers(cam); updateNearBuildings(cam, 6); updateFurniture(cam);
 }
 
 /* ---- modern station buildings, church, bridge: real relief (recessed glazing, piers, slabs, railings) ---- */
@@ -2534,6 +2541,135 @@ function updateFauna(dt, time, cam) {
   }
 }
 
+/* ---- lifts assembled piece by piece: chairs, cabins, T-bars, towers, stations ---- */
+const tube = (A, mat, a, b, r, col) => { const d = new V3().subVectors(b, a), ax = axesAlong(d, {}); A.put('seg', mat, a.x, a.y, a.z, ax.u, ax.v, ax.n, r * 2, d.length(), r * 2, col); };
+const C_ = c => new THREE.Color(c);
+const NZ = new V3(0, 0, -1);
+function wheelAt(A, x, y, z, r) {   // a sheave or a roller turning across the line: rubber tyre and steel hub
+  A.put('disc', 'stone', x, y, z, _ay, X1, NZ, r * 2, 0.08, r * 2, C_('#1e2024'));
+  A.put('disc', 'stone', x, y, z, _ay, X1, NZ, r * 1.3, 0.1, r * 1.3, C_('#9aa3ae'));
+}
+function chairAssembly() {
+  const A = new Assembly(91), FRAME = C_('#6f7784'), SEAT = C_('#2457c9'), DARK = C_('#2b3038');
+  A.put('box', 'stone', 0, 0.02, 0, X1, _ay, Z1, 0.34, 0.22, 0.42, C_('#3c4350'));                      // detachable grip
+  for (const z of [-0.14, 0.14]) wheelAt(A, 0, 0.16, z, 0.09, 'x');
+  tube(A, 'stone', v3(0, -0.08, 0), v3(0, -1.55, -0.06), 0.045, FRAME);                                  // hanger
+  tube(A, 'stone', v3(0, -1.55, -0.06), v3(0, -1.95, -0.32), 0.045, FRAME);
+  tube(A, 'stone', v3(-0.98, -1.95, -0.32), v3(0.98, -1.95, -0.32), 0.04, FRAME);                       // backrest frame
+  tube(A, 'stone', v3(-0.98, -2.33, 0.0), v3(0.98, -2.33, 0.0), 0.04, FRAME);                           // seat frame
+  for (const x of [-0.98, 0.98]) { tube(A, 'stone', v3(x, -1.95, -0.32), v3(x, -2.33, 0.0), 0.035, FRAME); tube(A, 'stone', v3(x, -2.33, 0.0), v3(x, -2.33, 0.42), 0.03, FRAME); tube(A, 'stone', v3(x, -2.33, 0.42), v3(x, -2.05, 0.42), 0.03, FRAME); }   // armrests
+  for (let k = -1; k <= 1; k++) {
+    A.put('box', 'wood', k * 0.63, -2.3, 0.2, X1, _ay, Z1, 0.58, 0.09, 0.5, SEAT);                       // seat cushions
+    const v = new V3(0, Math.cos(0.25), Math.sin(0.25)), n = new V3().crossVectors(X1, v);
+    A.put('box', 'wood', k * 0.63, -2.03, -0.25, X1, v, n, 0.58, 0.55, 0.08, SEAT);                      // backrests
+  }
+  // safety bar with footrest, held up
+  tube(A, 'stone', v3(-0.92, -1.72, 0.58), v3(0.92, -1.72, 0.58), 0.025, C_('#c8ccd2'));
+  for (const x of [-0.5, 0.5]) { tube(A, 'stone', v3(x, -1.72, 0.58), v3(x, -2.62, 0.72), 0.022, C_('#c8ccd2')); A.put('box', 'stone', x, -2.62, 0.74, X1, _ay, Z1, 0.42, 0.04, 0.16, DARK); }
+  tube(A, 'stone', v3(-0.98, -1.95, -0.32), v3(-0.92, -1.72, 0.58), 0.022, C_('#c8ccd2'));
+  return A.toGeometry();
+}
+function cabinAssembly() {
+  const A = new Assembly(92), BODY = C_('#c4232f'), GL = C_('#26303c'), FRAME = C_('#6f7784');
+  A.put('box', 'stone', 0, 0.02, 0, X1, _ay, Z1, 0.34, 0.24, 0.5, C_('#3c4350')); for (const z of [-0.17, 0.17]) wheelAt(A, 0, 0.17, z, 0.1, 'x');
+  tube(A, 'stone', v3(0, -0.08, 0), v3(0, -0.9, 0), 0.06, FRAME); tube(A, 'stone', v3(0, -0.9, 0), v3(0.0, -1.28, 0.0), 0.06, FRAME);
+  A.put('box', 'stone', 0, -1.3, 0, X1, _ay, Z1, 1.7, 0.12, 0.3, FRAME);
+  // rounded body: core box, rounded vertical edges, domed roof
+  A.put('box', 'wood', 0, -2.45, 0, X1, _ay, Z1, 1.9, 2.0, 1.7, BODY);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) A.put('cap', 'wood', sx * 0.93, -3.45, sz * 0.83, X1, _ay, Z1, 0.16, 2.0, 0.16, BODY);
+  A.put('ball', 'wood', 0, -1.45, 0, X1, _ay, Z1, 2.0, 0.3, 1.8, C_('#e8ecf1'));
+  A.put('box', 'stone', 0, -3.48, 0, X1, _ay, Z1, 1.95, 0.08, 1.75, C_('#7a8494'));
+  for (const [nx, nz, L] of [[0, 1, 1.9], [0, -1, 1.9], [1, 0, 1.7], [-1, 0, 1.7]]) {     // glazing band with mullions
+    const n = new V3(nx, 0, nz), u = new V3(nz, 0, -nx), off = nz ? 0.86 : 0.96;
+    A.put('box', 'glass', nx * off, -2.05, nz * off, u, _ay, n, L - 0.3, 0.75, 0.04, GL);
+    for (const s of [-L / 4, L / 4]) A.put('box', 'stone', nx * (off + 0.01) + u.x * s, -2.05, nz * (off + 0.01) + u.z * s, u, _ay, n, 0.05, 0.75, 0.03, C_('#d9dde2'));
+  }
+  A.put('box', 'stone', 0, -2.75, 0.865, X1, _ay, Z1, 0.02, 1.4, 0.02, C_('#7a1218'));            // door seam
+  for (const sx of [-1, 1]) { A.put('box', 'stone', sx * 0.99, -2.6, 0, X1, _ay, Z1, 0.06, 0.9, 1.2, FRAME); for (let k = 0; k < 3; k++) for (const o of [-0.05, 0.05]) A.put('box', 'wood', sx * 1.03, -2.55, -0.4 + k * 0.4 + o, X1, _ay, Z1, 0.025, 1.6, 0.08, C_(['#c4263a', '#2f6fe0', '#f2a12c'][k])); }   // ski holders
+  return A.toGeometry();
+}
+function tbarAssembly() {
+  const A = new Assembly(93), Y = C_('#e5b52e');
+  A.put('box', 'stone', 0, 0.02, 0, X1, _ay, Z1, 0.24, 0.2, 0.3, C_('#3c4350'));
+  A.put('cap', 'stone', 0, -0.62, 0, X1, _ay, Z1, 0.2, 0.62, 0.2, C_('#9aa3ae'));                // spring box
+  tube(A, 'stone', v3(0, -0.62, 0), v3(0, -4.3, 0), 0.008, C_('#2b2b2b'));                       // pull rope
+  tube(A, 'stone', v3(0, -4.3, 0), v3(0, -4.62, 0), 0.025, Y);
+  A.put('cap', 'wood', -0.5, -4.62, 0, Z1, X1, _ay, 0.07, 1.0, 0.07, Y);
+  for (const x of [-0.35, 0.35]) A.put('ball', 'wood', x, -4.62, 0, X1, _ay, Z1, 0.18, 0.1, 0.12, C_('#2b2b2b'));
+  return A.toGeometry();
+}
+function towerAssembly(t, off, type) {
+  // local frame: x across the line, z along it, y up from the ground; t.top - t.g is the height to the cable
+  const A = new Assembly(hashSeed(t.x, t.z, 97)), h = t.top - t.g, STEEL = C_(type === 'tbar' ? '#8d969f' : '#7d8796'), DARK = C_('#3a4048');
+  A.put('box', 'stone', 0, -0.2, 0, X1, _ay, Z1, 1.8, 0.7, 1.8, C_('#9a958d'));                               // concrete footing
+  for (const [x, z] of [[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]]) A.put('box', 'stone', x, 0.2, z, X1, _ay, Z1, 0.08, 0.12, 0.08, DARK);
+  A.put('box', 'stone', 0, 0.18, 0, X1, _ay, Z1, 1.0, 0.08, 1.0, STEEL);
+  const n = Math.max(2, Math.ceil(h / 3.2));
+  for (let k = 0; k < n; k++) {                                                                                      // tapered column in bolted sections
+    const y0 = 0.2 + k * (h - 0.6) / n, y1 = 0.2 + (k + 1) * (h - 0.6) / n, r = lerp(0.36, 0.24, (k + 0.5) / n);
+    A.put('seg', 'stone', 0, y0, 0, X1, _ay, Z1, r * 2, y1 - y0, r * 2, STEEL);
+    A.put('disc', 'stone', 0, y1, 0, X1, _ay, Z1, r * 2 + 0.12, 0.05, r * 2 + 0.12, DARK);
+  }
+  for (const s of [-0.12, 0.12]) A.put('box', 'stone', s, h / 2, -0.38, X1, _ay, Z1, 0.03, h - 1.6, 0.03, C_('#c9ced6'));   // ladder
+  for (let y = 1.2; y < h - 0.6; y += 0.32) A.put('box', 'stone', 0, y, -0.38, X1, _ay, Z1, 0.24, 0.02, 0.02, C_('#c9ced6'));
+  const W = off + 1.0;
+  A.put('box', 'stone', 0, h - 0.15, 0, X1, _ay, Z1, 2 * W, 0.3, 0.35, STEEL);                                   // crossarm
+  for (const sx of [-1, 1]) tube(A, 'stone', v3(0, h - 1.6, 0), v3(sx * (W - 0.4), h - 0.3, 0), 0.06, STEEL);        // braces
+  for (const sx of [-1, 1]) {
+    A.put('box', 'stone', sx * off, h - 0.02, 0, X1, _ay, Z1, 0.12, 0.08, 2.4, DARK);                             // balancer beam
+    for (let k = 0; k < 4; k++) wheelAt(A, sx * off, h + 0.12, -0.9 + k * 0.6, 0.15, 'x');                        // sheave train
+    A.put('box', 'stone', sx * off * 0.55, h + 0.02, 0.35, X1, _ay, Z1, off * 0.9, 0.04, 0.5, C_('#9aa3ae'));     // catwalk grating
+    for (const x of [0.25, 0.7]) A.put('box', 'stone', sx * off * x, h + 0.5, 0.58, X1, _ay, Z1, 0.04, 1.0, 0.04, C_('#e5b52e'));
+  }
+  A.put('box', 'stone', 0, h + 1.0, 0.58, X1, _ay, Z1, 2 * off * 0.75, 0.04, 0.04, C_('#e5b52e'));
+  A.put('box', 'wood', 0, h - 1.2, 0.3, X1, _ay, Z1, 0.36, 0.26, 0.02, C_('#f2efe8'));                           // tower number
+  A.put('lump', 'snow', 0, h + 0.05, 0, X1, _ay, Z1, 2 * W * 0.6, 0.12, 0.3, C_('#f4f7fb'));
+  return A;
+}
+function stationAssembly(L, isTop, cableH, O) {
+  const cy = Math.cos(L.yaw), sy = Math.sin(L.yaw), gl = (lx, lz) => O ? gridH(O.x + lx * cy + lz * sy, O.z - lx * sy + lz * cy) - O.g : 0;   // ground under a local point
+  // local frame: z along the line (+z toward the other station), x across; ground at y = 0
+  const A = new Assembly(hashSeed(L.b[0], L.b[1], isTop ? 3 : 2)), STEEL = C_('#7d8796'), WALL = C_(L.type === 'gondola' ? '#d9dde2' : '#cfd5dd'), BAND = C_(L.type === 'gondola' ? '#c4232f' : '#2457c9');
+  const tb = L.type === 'tbar', W = 2 * L.off + (tb ? 2.5 : 6), back = isTop ? 1 : -1;      // the machine house sits behind the bullwheel
+  if (tb) {
+    for (const F of faces(3, 3)) { F.o.z += back * 3; logCourse(A, F, 0, 2.6, [], '#7b5a3a', F.n.x ? 1 : 0); }
+    A.put('box', 'wood', 0, 1.3, back * 3, X1, _ay, Z1, 2.7, 2.6, 2.7, C_('#3b2618'));
+    snowRoof(A, 3, 3, 2.6, 0.6, '#7b5a3a');
+    for (const s of [-1, 1]) tube(A, 'stone', v3(s * 0.4, 0, 0), v3(s * 0.15, cableH, 0), 0.12, STEEL);
+  } else {
+    // steel portal holding the bullwheel, roof canopy over it
+    for (const [x, z] of [[-W / 2, -3.5], [W / 2, -3.5], [-W / 2, 3.5], [W / 2, 3.5]]) A.put('box', 'stone', x, cableH / 2 + 0.6, z, X1, _ay, Z1, 0.35, cableH + 1.2, 0.35, STEEL);
+    for (const z of [-3.5, 3.5]) A.put('box', 'stone', 0, cableH + 1.25, z, X1, _ay, Z1, W + 0.4, 0.35, 0.35, STEEL);
+    for (const x of [-W / 2, W / 2]) A.put('box', 'stone', x, cableH + 1.25, 0, X1, _ay, Z1, 0.35, 0.35, 7.4, STEEL);
+    A.put('box', 'stone', 0, cableH + 1.6, 0, X1, _ay, Z1, W + 1.6, 0.25, 9, C_('#55606d'));
+    A.put('box', 'snow', 0, cableH + 2.0, 0, X1, _ay, Z1, W + 1.7, 0.55, 9.1, C_('#f4f7fb'));
+    for (let x = -W / 2 - 0.8; x <= W / 2 + 0.8; x += 0.9) for (const sz of [-1, 1]) A.put('lump', 'snow', x, cableH + 1.9, sz * 4.6, X1, _ay, Z1, 1.0, 0.45, 0.6, C_('#f4f7fb'));
+    A.put('box', 'wood', 0, cableH + 1.4, 4.56, X1, _ay, Z1, W + 1.6, 0.5, 0.06, BAND);
+    // bullwheel: rim, spokes, hub, drive
+    A.put('ring', 'stone', 0, cableH, 0, X1, NZ, _ay, L.off * 2, L.off * 2, 1, C_('#3a414c'));
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; tube(A, 'stone', v3(0, cableH, 0), v3(Math.cos(a) * L.off, cableH, Math.sin(a) * L.off), 0.05, C_('#55606d')); }
+    A.put('disc', 'stone', 0, cableH, 0, X1, _ay, Z1, 0.9, 0.5, 0.9, C_('#2b3038'));
+    tube(A, 'stone', v3(0, cableH + 0.25, 0), v3(0, cableH + 1.2, 0), 0.18, C_('#2b3038'));
+    // machine house with windows set into the cladding
+    const hh = Math.max(3.2, cableH - 0.6), Fs = faces(W, 6).map(F => { F.o.z += back * 6.5; return F; });
+    A.put('box', 'stone', 0, hh / 2, back * 6.5, X1, _ay, Z1, W - 0.6, hh, 5.4, C_('#4b525c'));
+    for (const F of Fs) framedFloor(A, F, 0, Math.min(hh, 3.2), { wall: '#cfd5dd', frame: '#4b525c', bay: 2.4, pier: 0.5, spandrel: 1.0, depth: 0.3, lit: 0.5 });
+    if (hh > 3.3) for (const F of Fs) { const p = onFace(F, F.L / 2, (3.2 + hh) / 2, -0.15); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, F.L, hh - 3.2, 0.5, WALL); }
+    A.put('box', 'stone', 0, hh + 0.15, back * 6.5, X1, _ay, Z1, W + 0.4, 0.3, 6.4, C_('#55606d')); A.put('box', 'snow', 0, hh + 0.5, back * 6.5, X1, _ay, Z1, W + 0.3, 0.45, 6.3, C_('#f4f7fb'));
+    // loading ramp: planks across, gates, rope barriers
+    const side = L.off;
+    for (let z = 2; z < 10; z += 0.3) A.put('box', 'wood', side, gl(side, -back * z) + 0.03, -back * z, X1, _ay, Z1, 2.6, 0.06, 0.26, A.jit('#8a6a48', 0.15));
+    for (const x of [side - 1.6, side + 1.6]) { for (let z = 2; z <= 10; z += 1.6) A.put('seg', 'stone', x, gl(x, -back * z) - 0.2, -back * z, X1, _ay, Z1, 0.07, 1.2, 0.07, C_('#ff6a14')); for (let z = 2; z < 10; z += 1.6) { const a = v3(x, gl(x, -back * z) + 0.95, -back * z), b = v3(x, gl(x, -back * (z + 1.6)) + 0.95, -back * (z + 1.6)); tube(A, 'stone', a, b, 0.015, C_('#2b6fe0')); } }
+  }
+  // operator cabin with big windows
+  const ox = -(L.off + (tb ? 2.5 : 4)), Fc = faces(2.4, 2.4).map(F => { F.o.x += ox; F.o.z += back * (tb ? -1 : 1.5); return F; });
+  A.put('box', 'stone', ox, 1.2, back * (tb ? -1 : 1.5), X1, _ay, Z1, 2.0, 2.4, 2.0, C_('#4b525c'));
+  for (const F of Fc) framedFloor(A, F, 0, 2.4, { wall: '#e8e4dc', frame: '#3a3f46', bay: 1.2, pier: 0.18, spandrel: 0.9, depth: 0.15, lit: 0.6 });
+  A.put('box', 'stone', ox, 2.55, back * (tb ? -1 : 1.5), X1, _ay, Z1, 2.9, 0.15, 2.9, C_('#55606d')); A.put('box', 'snow', ox, 2.8, back * (tb ? -1 : 1.5), X1, _ay, Z1, 2.8, 0.4, 2.8, C_('#f4f7fb'));
+  tube(A, 'stone', v3(ox + 0.6, 2.6, back * (tb ? -1 : 1.5) - 0.6), v3(ox + 0.6, 3.6, back * (tb ? -1 : 1.5) - 0.6), 0.06, C_('#2b3038'));
+  return A;
+}
+
 /* ---------------- Park features ---------------- */
 function pisteFrame(p, dist) {
   const S = p.samples, i = clamp(Math.round(dist / 4), 1, S.length - 2);
@@ -2668,6 +2804,7 @@ function makeSkiGeo() {
   return g;
 }
 let SKI_GEO = null, SKI_MAT = null;
+function skMatVC() { const m = skMat('#ffffff', 30); m.vertexColors = true; return m; }
 const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg);
 let skier = null;
 function buildSkier() {
@@ -2677,15 +2814,26 @@ function buildSkier() {
   const quilt = fabricTex(301, true), weave = fabricTex(302, false);
   const JACKET = skMat('#c8321f', 14, quilt), YOKE = skMat('#eeeae2', 14, weave), PANTS = skMat('#24314f', 10, weave), DARK = skMat('#1a1d24', 20),
     BOOT = skMat('#2c3340', 60), BUCKLE = skMat('#c7ccd3', 90), HELM = skMat('#f2f4f7', 80),
-    GOG = skMat('#ff9a1f', 160), GOGF = skMat('#20242c', 30), SKIN = skMat('#d6a37f'), BUFF = skMat('#2f4d6b', 6, weave), POLE = skMat('#c9ced6', 90), GLOVE = skMat('#22252c', 25);
+    GOG = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 32; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, '#2b1f6b'); gr.addColorStop(0.45, '#d14a2b'); gr.addColorStop(0.7, '#ffb21f'); gr.addColorStop(1, '#ffe08a'); g.fillStyle = gr; g.fillRect(0, 0, 64, 32); g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(6, 4, 22, 3); g.fillRect(36, 6, 12, 2); const m = skMat('#ffffff', 200, new THREE.CanvasTexture(c)); m.specular = new THREE.Color('#ffffff'); return m; })(), GOGF = skMat('#20242c', 30), SKIN = skMat('#d6a37f'), BUFF = skMat('#2f4d6b', 6, weave), POLE = skMat('#c9ced6', 90), GLOVE = skMat('#22252c', 25);
   // skis and boots
   const feet = [1, -1].map(sd => {
     const g = new THREE.Group(); g.rotation.order = 'YXZ'; base.add(g);
     mesh(SKI_GEO, SKI_MAT, g, 0, 0, 0);
     mesh(new THREE.BoxGeometry(0.07, 0.04, 0.12), DARK, g, 0, 0.038, 0.17); mesh(new THREE.BoxGeometry(0.07, 0.05, 0.1), DARK, g, 0, 0.042, -0.16);
+    { const A = new Assembly(sd > 0 ? 501 : 502); A.put('cap', 'wood', 0, 0.045, 0.24, Z1, X1, _ay, 0.06, 0.05, 0.05, C_('#c8ccd2')); A.put('box', 'wood', 0, 0.06, 0.2, X1, _ay, Z1, 0.08, 0.025, 0.06, C_('#e0393e'));
+      A.put('box', 'wood', 0, 0.07, -0.2, X1, _ay, Z1, 0.08, 0.06, 0.08, C_('#c8ccd2')); A.put('box', 'wood', 0, 0.1, -0.22, X1, _ay, Z1, 0.05, 0.02, 0.12, C_('#e0393e'));
+      for (const x of [-0.055, 0.055]) A.put('box', 'wood', x, 0.025, -0.14, X1, _ay, Z1, 0.012, 0.012, 0.14, C_('#9aa3ae'));
+      A.put('box', 'wood', 0, 0.026, 0.0, X1, _ay, Z1, 0.07, 0.008, 0.3, C_('#3a3f46'));
+      const bm = mesh(A.toGeometry(), skMatVC(), g); bm.userData.ski = true; }
     const shell = mesh(lathe([[0, 0], [0.06, 0.005], [0.062, 0.07], [0.05, 0.1], [0, 0.1]], 12), BOOT, g, 0, 0.035, 0.03); shell.scale.set(1, 1, 2.45);
     const cuff = mesh(lathe([[0, 0], [0.072, 0], [0.074, 0.12], [0.068, 0.22], [0, 0.22]], 14), BOOT, g, 0, 0.08, -0.03); cuff.rotation.x = 0.2; cuff.scale.z = 1.15;
     for (const y of [0.13, 0.2, 0.26]) mesh(new THREE.BoxGeometry(0.12, 0.016, 0.03), BUCKLE, g, 0, y, 0.06 - y * 0.12);
+    { const A = new Assembly(sd > 0 ? 511 : 512);
+      for (const [y, z] of [[0.1, 0.13], [0.15, 0.06], [0.21, 0.04], [0.27, 0.01]]) { const v = new V3(0, Math.cos(0.5), Math.sin(0.5)); A.put('box', 'wood', -sd * 0.07, y, z, X1, v, new V3().crossVectors(X1, v), 0.012, 0.05, 0.016, C_('#c7ccd3')); }
+      A.put('disc', 'wood', 0, 0.3, -0.03, X1, _ay, Z1, 0.155, 0.04, 0.17, C_('#151820'));
+      A.put('box', 'wood', 0, 0.035, 0.18, X1, _ay, Z1, 0.08, 0.025, 0.05, C_('#151820')); A.put('box', 'wood', 0, 0.035, -0.13, X1, _ay, Z1, 0.08, 0.025, 0.05, C_('#151820'));
+      A.put('box', 'wood', sd * 0.06, 0.16, -0.06, X1, _ay, Z1, 0.004, 0.12, 0.12, C_('#e0393e'));
+      mesh(A.toGeometry(), skMatVC(), g); }
     return { g, sd };
   });
   // pelvis + legs (ski pants: full thighs, flared over the boots)
@@ -2694,20 +2842,30 @@ function buildSkier() {
   const legs = feet.map(f => {
     const hip = new THREE.Group(); hip.position.set(f.sd * 0.095, -0.05, 0); pelvis.add(hip);
     const thigh = new THREE.Group(); hip.add(thigh);
-    mesh(lathe([[0, 0.04], [0.08, 0.03], [0.088, -0.08], [0.08, -0.25], [0.066, -0.42], [0.06, -0.47], [0, -0.47]], 14), PANTS, thigh);
+    mesh(lathe([[0, 0.04], [0.08, 0.03], [0.088, -0.08], [0.08, -0.25], [0.066, -0.42], [0.06, -0.47], [0, -0.47]], 22), PANTS, thigh);
+    { const A = new Assembly(f.sd > 0 ? 521 : 522); A.put('box', 'wood', f.sd * 0.083, -0.22, 0.0, X1, _ay, Z1, 0.03, 0.15, 0.11, C_('#1d2840')); A.put('box', 'wood', f.sd * 0.09, -0.15, 0.0, X1, _ay, Z1, 0.012, 0.012, 0.11, C_('#3a4560')); A.put('box', 'wood', 0, -0.25, 0.078, X1, _ay, Z1, 0.004, 0.42, 0.004, C_('#3a4560')); mesh(A.toGeometry(), skMatVC(), thigh); }
     const knee = new THREE.Group(); knee.position.y = -0.45; thigh.add(knee);
     mesh(new THREE.SphereGeometry(0.066, 12, 10), PANTS, knee, 0, 0, 0.008);
-    mesh(lathe([[0, 0.02], [0.064, 0.0], [0.06, -0.12], [0.058, -0.3], [0.07, -0.38], [0.082, -0.43], [0, -0.43]], 14), PANTS, knee);
+    mesh(lathe([[0, 0.02], [0.064, 0.0], [0.06, -0.12], [0.058, -0.3], [0.07, -0.38], [0.082, -0.43], [0, -0.43]], 22), PANTS, knee);
+    { const A = new Assembly(f.sd > 0 ? 531 : 532); for (const y of [-0.02, -0.05]) A.put('box', 'wood', 0, y, 0.062, X1, _ay, Z1, 0.07, 0.006, 0.006, C_('#3a4560')); A.put('ring', 'wood', 0, -0.41, 0, X1, NZ, _ay, 0.165, 0.165, 2, C_('#151820')); mesh(A.toGeometry(), skMatVC(), knee); }
     return { hip, thigh, knee, foot: f, off: new V3(f.sd * 0.095, -0.05, 0) };
   });
   // torso: insulated jacket over the hips, chest wider than waist
   const spine = new THREE.Group(); spine.rotation.order = 'YXZ'; spine.position.y = 0.05; pelvis.add(spine);
-  const jacket = mesh(lathe([[0, -0.17], [0.175, -0.16], [0.18, -0.05], [0.168, 0.1], [0.19, 0.26], [0.205, 0.38], [0.2, 0.47], [0.16, 0.54], [0.09, 0.58], [0, 0.585]], 20), JACKET, spine); jacket.scale.z = 0.7;
+  const jacket = mesh(lathe([[0, -0.17], [0.175, -0.16], [0.18, -0.05], [0.168, 0.1], [0.19, 0.26], [0.205, 0.38], [0.2, 0.47], [0.16, 0.54], [0.09, 0.58], [0, 0.585]], 28), JACKET, spine); jacket.scale.z = 0.7;
   const yoke = mesh(lathe([[0.204, 0.4], [0.2, 0.47], [0.16, 0.54], [0.09, 0.58], [0, 0.585]], 20), YOKE, spine); yoke.scale.set(1.012, 1.004, 0.712);
   mesh(new THREE.BoxGeometry(0.012, 0.66, 0.012), DARK, spine, 0, 0.2, 0.143);                     // zip
   for (const sd of [-1, 1]) { const pk = mesh(new THREE.BoxGeometry(0.11, 0.012, 0.02), DARK, spine, sd * 0.1, 0.06, 0.125); pk.rotation.z = sd * 0.25; }
   const collar = mesh(lathe([[0.085, 0], [0.09, 0.08], [0.08, 0.1], [0, 0.1]], 16), BUFF, spine, 0, 0.56, 0); collar.scale.z = 0.95;
   mesh(new THREE.BoxGeometry(0.25, 0.32, 0.1), DARK, spine, 0, 0.3, -0.155);                       // back protector pack
+  { const A = new Assembly(541);
+    A.put('ball', 'wood', 0, 0.55, -0.12, X1, _ay, Z1, 0.27, 0.15, 0.14, C_('#b22b1a'));                                         // hood, folded
+    A.put('ring', 'wood', 0, -0.16, 0, X1, NZ, _ay, 0.36, 0.25, 3, C_('#151820'));                                               // hem band
+    A.put('box', 'wood', 0.09, 0.36, 0.143, X1, _ay, Z1, 0.1, 0.008, 0.006, C_('#151820')); A.put('box', 'wood', 0.14, 0.36, 0.145, X1, _ay, Z1, 0.012, 0.03, 0.01, C_('#c7ccd3'));   // chest pocket zip
+    A.put('box', 'wood', 0, 0.48, 0.14, X1, _ay, Z1, 0.014, 0.03, 0.012, C_('#c7ccd3'));                                         // zip pull
+    for (const sd of [-1, 1]) { const v = new V3(sd * 0.15, 1, 0.25).normalize(); A.put('box', 'wood', sd * 0.1, 0.42, 0.125, X1, v, new V3().crossVectors(X1, v), 0.045, 0.3, 0.012, C_('#151820')); A.put('box', 'wood', sd * 0.1, 0.54, -0.04, X1, _ay, Z1, 0.045, 0.012, 0.3, C_('#151820')); }   // pack straps
+    A.put('box', 'wood', -0.19, 0.3, 0.0, X1, _ay, Z1, 0.004, 0.06, 0.18, C_('#f2efe8'));                                         // reflective strip
+    mesh(A.toGeometry(), skMatVC(), spine); }
   const neck = new THREE.Group(); neck.position.y = 0.62; spine.add(neck);
   const head = new THREE.Group(); head.position.y = 0.1; neck.add(head);
   // head: helmet, goggles with frame and strap, neck gaiter over the chin (all a skier shows of the face)
@@ -2719,21 +2877,33 @@ function buildSkier() {
   mesh(new THREE.CylinderGeometry(0.124, 0.124, 0.074, 18, 1, true, -1.15, 2.3), GOGF, head, 0, 0.012, 0);
   mesh(new THREE.CylinderGeometry(0.127, 0.127, 0.058, 18, 1, true, -1.05, 2.1), GOG, head, 0, 0.012, 0);
   const strap = mesh(new THREE.TorusGeometry(0.126, 0.013, 4, 24), DARK, head, 0, 0.012, 0); strap.rotation.x = Math.PI / 2;
+  { const A = new Assembly(551);
+    for (const sd of [-1, 1]) { A.put('ball', 'wood', sd * 0.118, -0.02, -0.01, X1, _ay, Z1, 0.04, 0.08, 0.075, C_('#151820')); const a = v3(sd * 0.11, -0.05, 0.0), b = v3(sd * 0.03, -0.13, 0.05); const d = new V3().subVectors(b, a), ax = axesAlong(d, {}); A.put('box', 'wood', a.x, a.y, a.z, ax.u, ax.v, ax.n, 0.012, d.length() * 2, 0.004, C_('#151820')); }
+    for (const x of [-0.035, 0.035]) A.put('box', 'wood', x, 0.13, -0.02, X1, _ay, Z1, 0.012, 0.012, 0.2, C_('#e0393e'));
+    A.put('box', 'wood', 0, 0.075, 0.115, X1, _ay, Z1, 0.24, 0.016, 0.04, C_('#151820'));                                       // goggle foam top
+    mesh(A.toGeometry(), skMatVC(), head); }
   // arms: puffy sleeves, gloves with a thumb, poles
   const arms = [1, -1].map(sd => {
     const sh = new THREE.Group(); sh.position.set(sd * 0.2, 0.49, 0); sh.rotation.order = 'ZXY'; spine.add(sh);
     mesh(new THREE.SphereGeometry(0.07, 12, 10), JACKET, sh);
-    mesh(lathe([[0, 0.02], [0.064, 0.01], [0.066, -0.1], [0.058, -0.26], [0.052, -0.3], [0, -0.3]], 12), JACKET, sh);
+    mesh(lathe([[0, 0.02], [0.064, 0.01], [0.066, -0.1], [0.058, -0.26], [0.052, -0.3], [0, -0.3]], 20), JACKET, sh);
     const el = new THREE.Group(); el.position.y = -0.29; sh.add(el);
     mesh(new THREE.SphereGeometry(0.052, 10, 8), JACKET, el);
-    mesh(lathe([[0, 0.01], [0.053, 0], [0.052, -0.12], [0.046, -0.22], [0.056, -0.25], [0, -0.25]], 12), JACKET, el);
+    mesh(lathe([[0, 0.01], [0.053, 0], [0.052, -0.12], [0.046, -0.22], [0.056, -0.25], [0, -0.25]], 20), JACKET, el);
+    { const A = new Assembly(sd > 0 ? 571 : 572); A.put('ring', 'wood', 0, -0.24, 0, X1, NZ, _ay, 0.115, 0.115, 3, C_('#151820')); if (sd > 0) A.put('box', 'wood', 0.05, -0.1, 0.0, X1, _ay, Z1, 0.006, 0.07, 0.05, C_('#f2efe8')); mesh(A.toGeometry(), skMatVC(), el); }   // cuff, ski pass
     const hand = new THREE.Group(); hand.position.y = -0.27; el.add(hand);
     mesh(lathe([[0, 0.03], [0.052, 0.03], [0.05, -0.01], [0, -0.01]], 10), GLOVE, hand, 0, 0.02, 0);      // gauntlet cuff
-    const palm = mesh(new THREE.BoxGeometry(0.07, 0.095, 0.075), GLOVE, hand, 0, -0.03, 0.005); palm.geometry.translate(0, 0, 0);
-    const thumb = mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.05, 6), GLOVE, hand, -sd * 0.035, -0.02, 0.035); thumb.rotation.set(0.6, 0, sd * 0.7);
+    { const A = new Assembly(sd > 0 ? 561 : 562), GL = C_('#22252c');
+      A.put('ball', 'wood', sd * 0.012, -0.03, -0.012, X1, _ay, Z1, 0.07, 0.1, 0.06, GL);                                         // palm and back of the hand
+      for (let k = 0; k < 4; k++) { const y = -0.005 - k * 0.022; limb(A, 'wood', v3(sd * 0.03, y, -0.02), v3(sd * 0.022, y - 0.004, 0.035), 0.012, GL); limb(A, 'wood', v3(sd * 0.022, y - 0.004, 0.035), v3(-sd * 0.012, y - 0.006, 0.03), 0.011, GL); }   // fingers round the grip
+      limb(A, 'wood', v3(-sd * 0.025, 0.0, 0.0), v3(-sd * 0.02, -0.02, 0.04), 0.013, GL); limb(A, 'wood', v3(-sd * 0.02, -0.02, 0.04), v3(sd * 0.005, -0.03, 0.045), 0.012, GL);   // thumb
+      A.put('box', 'wood', 0, 0.035, 0, X1, _ay, Z1, 0.11, 0.022, 0.095, C_('#e0393e'));                                          // cuff strap
+      A.put('ring', 'wood', 0, -0.03, -0.035, X1, _ay, Z1, 0.07, 0.11, 2, C_('#3a3f46'));                                         // pole strap
+      mesh(A.toGeometry(), skMatVC(), hand); }
     const pole = new THREE.Group(); hand.add(pole);
     mesh(new THREE.CylinderGeometry(0.0105, 0.008, 1.14, 6), POLE, pole, 0, -0.57, 0);
     mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.01, 12), DARK, pole, 0, -1.04, 0);
+    { const A = new Assembly(sd > 0 ? 581 : 582); for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI; A.put('box', 'wood', 0, -1.04, 0, new V3(Math.cos(a), 0, Math.sin(a)), _ay, new V3(-Math.sin(a), 0, Math.cos(a)), 0.1, 0.006, 0.006, C_('#3a3f46')); } A.put('icicle', 'wood', 0, -1.07, 0, X1, _ay, Z1, 0.012, 0.06, 0.012, C_('#c8ccd2')); mesh(A.toGeometry(), skMatVC(), pole); }
     mesh(new THREE.CylinderGeometry(0.02, 0.017, 0.15, 8), DARK, pole, 0, 0.02, 0);
     return { sd, sh, el, hand, pole };
   });
