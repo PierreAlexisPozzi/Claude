@@ -1026,6 +1026,7 @@ function placeTrees() {
   const CH = 350, nc = WORLD / CH, buckets = Array.from({ length: nc * nc }, () => []);
   for (let i = 0; i < trees.x.length; i++) buckets[clamp(Math.floor((trees.x[i] + HALF) / CH), 0, nc - 1) + clamp(Math.floor((trees.z[i] + HALF) / CH), 0, nc - 1) * nc].push(i);
   const dummy = new THREE.Object3D(), tint = new THREE.Color();
+  trees.mat = new Float32Array(trees.x.length * 16); trees.tint = new Float32Array(trees.x.length); trees.farMesh = []; trees.farK = new Int32Array(trees.x.length); trees.farMeshes = [];
   buckets.forEach((b, ci) => {
     if (!b.length) return;
     const cx = -HALF + (ci % nc + 0.5) * CH, cz = -HALF + (Math.floor(ci / nc) + 0.5) * CH;
@@ -1039,8 +1040,11 @@ function placeTrees() {
       dummy.scale.set(s * (0.9 + rnd() * 0.2), s * (0.95 + rnd() * 0.25), s * (0.9 + rnd() * 0.2));
       dummy.updateMatrix(); mesh.setMatrixAt(k, dummy.matrix);
       const v = (0.82 + rnd() * 0.3) * lerp(0.6, 1, sunVis(trees.x[i], trees.z[i], gridH(trees.x[i], trees.z[i]) + 5)); tint.setRGB(v, v * (0.97 + rnd() * 0.06), v); mesh.setColorAt(k, tint);
+      dummy.position.x += cx; dummy.position.y += cy; dummy.position.z += cz; dummy.updateMatrix(); dummy.matrix.toArray(trees.mat, i * 16);
+      trees.tint[i] = v; trees.farMesh[i] = mesh; trees.farK[i] = k;
     });
     mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.userData.inv = new THREE.Matrix4().makeTranslation(-cx, -cy, -cz); trees.farMeshes.push(mesh);
     scene.add(mesh);
   });
 }
@@ -1215,6 +1219,7 @@ function startGroup(x, z, rot, w, d) {
 function bldWoodRes(x, z, rot, w, d) {
   const floors = 3 + (rnd() < 0.5 ? 1 : 0) + (w > 30 ? 1 : 0), gf = 3.4;
   const { grp, top } = startGroup(x, z, rot, w, d), parts = [], rails = [];
+  BUILDINGS.push({ type: 'woodres', x, z, rot, w, d, top, floors, grp, detail: null });
   facadeMesh(grp, 'arcade', w, gf, d, 0, top + gf / 2, 0, 3.4);
   const H1 = floors * FLOOR; facadeMesh(grp, 'woodres', w, H1, d, 0, top + gf + H1 / 2, 0);
   for (let f = 0; f < floors; f++) {
@@ -1238,6 +1243,7 @@ function bldWoodRes(x, z, rot, w, d) {
 function bldStoneChalet(x, z, rot, w, d, small) {
   const sf = small ? 1 : 2, wf = small ? 1 : 2;
   const { grp, top } = startGroup(x, z, rot, w, d), parts = [], rails = [];
+  BUILDINGS.push({ type: 'chalet', x, z, rot, w, d, top, sf, wf, grp, detail: null });
   facadeMesh(grp, 'stone', w, sf * FLOOR, d, 0, top + sf * FLOOR / 2, 0);
   facadeMesh(grp, 'chaletwood', w - 0.2, wf * FLOOR, d - 0.2, 0, top + sf * FLOOR + wf * FLOOR / 2, 0);
   for (let f = 1; f < sf + wf; f++) {
@@ -1798,6 +1804,320 @@ function placeSledMesh(dt) {
   } else if (sled.parked) {
     normalAt(sled.x, sled.z, _n); m.position.set(sled.x, H(sled.x, sled.z), sled.z); m.quaternion.setFromAxisAngle(AX_Y, sled.yaw); _qa.setFromUnitVectors(AX_Y, _n); m.quaternion.premultiply(_qa); m.visible = true;
   } else m.visible = false;
+}
+
+/* ---------------- Matter: atoms → parts → objects ---------------- */
+// Every detailed object is assembled from tiny shared shapes ("atoms": a plank, a stone, a frond of needles,
+// a lump of snow...). Parts place atoms (a log wall, a balustrade, a branch), objects place parts (a chalet, a fir).
+// The same description gives a near version (thousands of atoms) and the existing far version (a few boxes),
+// so the switch keeps the silhouette. Variation comes from a seed derived from the object's position, never
+// from the world's random stream, so the domain layout stays identical.
+const ATOM = {};
+function atomGeo(name) {
+  if (ATOM[name]) return ATOM[name];
+  let g;
+  switch (name) {
+    case 'box': g = new THREE.BoxGeometry(1, 1, 1); break;                                   // planks, stones, beams, boards
+    case 'frond': g = new THREE.OctahedronGeometry(0.5, 0); break;                           // a flat fan of needles
+    case 'lump': g = new THREE.IcosahedronGeometry(0.5, 0); break;                           // a clump of snow, a pebble
+    case 'seg': g = new THREE.CylinderGeometry(0.5, 0.5, 1, 6, 1, true); g.translate(0, 0.5, 0); break;   // trunk segment
+    case 'twig': g = new THREE.CylinderGeometry(0.5, 0.5, 1, 4, 1, true); g.translate(0, 0.5, 0); break;  // branch
+    case 'puff': g = new THREE.OctahedronGeometry(0.5, 0); break;                                               // light snow clump
+    case 'icicle': g = new THREE.ConeGeometry(0.5, 1, 5, 1, true); g.rotateX(Math.PI); g.translate(0, -0.5, 0); break;
+  }
+  return ATOM[name] = g;
+}
+const MATTER_MAT = {
+  wood: () => new THREE.MeshLambertMaterial({ color: '#ffffff' }),
+  stone: () => new THREE.MeshLambertMaterial({ color: '#ffffff' }),
+  snow: () => new THREE.MeshLambertMaterial({ color: '#ffffff' }),
+  glass: () => new THREE.MeshPhongMaterial({ color: '#ffffff', shininess: 90, specular: 0x8899aa }),
+  lit: () => new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+};
+const matCache = {};
+const mmat = k => matCache[k] || (matCache[k] = MATTER_MAT[k]());
+const hashSeed = (x, z, k = 0) => (Math.floor(x * 73.13) * 73856093 ^ Math.floor(z * 91.7) * 19349663 ^ k * 83492791) >>> 0;
+const _am = new THREE.Matrix4(), _av = new V3(), _au = new V3(), _an = new V3(), _ay = new V3(0, 1, 0), _ac = new THREE.Color();
+class Assembly {
+  constructor(seed) { this.r = mulberry32(seed); this.parts = new Map(); this.count = 0; }
+  // place one atom: centre, local axes (u across, v up, n out), sizes along each, colour
+  put(atom, mat, cx, cy, cz, u, v, n, su, sv, sn, color) {
+    const k = atom + '|' + mat; let l = this.parts.get(k); if (!l) this.parts.set(k, l = []);
+    _am.makeBasis(u, v, n); _am.scale(_av.set(su, sv, sn)); _am.setPosition(cx, cy, cz);
+    l.push(_am.elements.slice(), typeof color === 'string' ? new THREE.Color(color) : color.clone ? color.clone() : new THREE.Color(color));
+    this.count++;
+  }
+  jit(c, amt) { const k = 1 + (this.r() - 0.5) * amt; return _ac.copy(new THREE.Color(c)).multiplyScalar(k).clone(); }
+  // near version for a placed object: one instanced mesh per (atom, material), with a real bounding sphere
+  toGroup(radius) {
+    const g = new THREE.Group();
+    for (const [k, l] of this.parts) {
+      const [atom, mat] = k.split('|'), n = l.length / 2;
+      const geo = atomGeo(atom).clone(); geo.boundingSphere = new THREE.Sphere(new V3(0, 0, 0), radius);
+      const m = new THREE.InstancedMesh(geo, mmat(mat), n);
+      for (let i = 0; i < n; i++) { _am.fromArray(l[i * 2]); m.setMatrixAt(i, _am); m.setColorAt(i, l[i * 2 + 1]); }
+      m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true;
+      m.castShadow = mat !== 'lit' && mat !== 'glass'; m.receiveShadow = true;
+      g.add(m);
+    }
+    return g;
+  }
+  // one merged, indexed geometry with vertex colours (a prototype that is then instanced whole, e.g. a fir)
+  toGeometry() {
+    let nv = 0, ni = 0; const items = [];
+    for (const [k, l] of this.parts) { const g = atomGeo(k.split('|')[0]); for (let i = 0; i < l.length; i += 2) { items.push([g, l[i], l[i + 1]]); nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; } }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), idx = new Uint32Array(ni);
+    let ov = 0, oi = 0; const m = new THREE.Matrix4(), nm = new THREE.Matrix3(), p = new V3();
+    for (const [g, e, c] of items) {
+      m.fromArray(e); nm.getNormalMatrix(m);
+      const gp = g.attributes.position, gn = g.attributes.normal, n = gp.count;
+      for (let i = 0; i < n; i++) {
+        p.fromBufferAttribute(gp, i).applyMatrix4(m); pos[(ov + i) * 3] = p.x; pos[(ov + i) * 3 + 1] = p.y; pos[(ov + i) * 3 + 2] = p.z;
+        p.fromBufferAttribute(gn, i).applyMatrix3(nm).normalize(); nor[(ov + i) * 3] = p.x; nor[(ov + i) * 3 + 1] = p.y; nor[(ov + i) * 3 + 2] = p.z;
+        col[(ov + i) * 3] = c.r; col[(ov + i) * 3 + 1] = c.g; col[(ov + i) * 3 + 2] = c.b;
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) idx[oi++] = g.index.getX(i) + ov; else for (let i = 0; i < n; i++) idx[oi++] = i + ov;
+      ov += n;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    return geo;
+  }
+}
+// orient an atom along a direction (its local y axis follows d)
+function axesAlong(d, out) {
+  const v = d.clone().normalize(), t = Math.abs(v.y) < 0.95 ? new V3(0, 1, 0) : new V3(1, 0, 0);
+  const u = new V3().crossVectors(t, v).normalize(), n = new V3().crossVectors(u, v).normalize();
+  out.u = u; out.v = v; out.n = n; return out;
+}
+
+/* ---- the fir: trunk, whorls of drooping branches, fans of needles, snow resting on top ---- */
+// same envelope as the far fir (≈7.6 m tall, 2.1 m wide at the base) so the near/far switch keeps the silhouette
+function firPrototype(seed) {
+  const A = new Assembly(seed), r = A.r, ax = {};
+  const BARK = '#4a3426', NEEDLE = ['#1d4630', '#234f39', '#1a3f2b', '#28563d'], SNOW = '#eef3f8';
+  for (let k = 0; k < 6; k++) { const y0 = k * 1.25, r0 = 0.2 * (1 - y0 / 7.8) + 0.03; A.put('seg', 'wood', 0, y0, 0, new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1), r0 * 2, 1.3, r0 * 2, A.jit(BARK, 0.2)); }
+  A.put('frond', 'wood', 0, 7.45, 0, new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1), 0.35, 0.7, 0.35, A.jit(NEEDLE[1], 0.15));
+  A.put('lump', 'wood', 0, 7.6, 0, new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1), 0.22, 0.18, 0.22, A.jit(SNOW, 0.04));
+  for (let y = 0.95; y < 7.2; y += 0.5 + r() * 0.08) {
+    const h = (y - 0.95) / 6.4, R = 2.1 * Math.pow(1 - h, 0.92) + 0.18, nb = y < 6 ? 5 : 4, off = r() * 6.28;
+    for (let b = 0; b < nb; b++) {
+      const th = off + b / nb * Math.PI * 2 + (r() - 0.5) * 0.4, L = R * (0.85 + r() * 0.25), dir = new V3(Math.sin(th), 0, Math.cos(th));
+      // one branch, drooping under the snow, carrying two fans of needles (inner, outer) and a clump of snow
+      const droop = -0.22 - h * 0.12, d = new V3(dir.x * Math.cos(droop), Math.sin(droop), dir.z * Math.cos(droop)), p = new V3(dir.x * 0.08, y, dir.z * 0.08);
+      axesAlong(d, ax);
+      A.put('twig', 'wood', p.x, p.y, p.z, ax.u, ax.v, ax.n, 0.055, L, 0.055, A.jit(BARK, 0.25));
+      const fan = new V3().crossVectors(new V3(0, 1, 0), dir).normalize();
+      for (const [t, wk, ln] of [[0.33, 1.0, 0.62], [0.74, 0.8, 0.5]]) {
+        const q = p.clone().addScaledVector(d, L * t), wFan = (0.55 + 0.6 * wk) * Math.min(1, L / 1.3) + 0.2;
+        A.put('frond', 'wood', q.x, q.y - 0.05, q.z, fan, new V3(0, 1, 0), d.clone().normalize(), wFan, 0.24, L * ln + 0.2, A.jit(NEEDLE[(b + Math.round(t * 3)) % 4], 0.18));
+      }
+      if (r() < 0.7 && y < 6.6) { const q = p.clone().addScaledVector(d, L * 0.45); A.put('puff', 'wood', q.x, q.y + 0.08, q.z, fan, new V3(0, 1, 0), d.clone().normalize(), 0.75 * Math.min(1, L / 1.3) + 0.15, 0.14, L * 0.55, A.jit(SNOW, 0.05)); }
+    }
+  }
+  const geo = A.toGeometry();
+  geo.boundingSphere = new THREE.Sphere(new V3(0, 4, 0), 70);   // one sphere covering a whole near chunk
+  return { geo, atoms: A.count, tris: geo.index.count / 3 };
+}
+
+/* near firs: a moving set of 48 m chunks around the camera swaps the far cones for assembled trees */
+const NEAR = { treeR: IS_TOUCH ? 70 : 130, buildR: IS_TOUCH ? 110 : 230, chunk: 48, protos: null, chunks: new Map(), grid: null, budget: 0 };
+function initNearTrees() {
+  NEAR.protos = [hashSeed(1, 2), hashSeed(3, 4), hashSeed(5, 6)].map(firPrototype);
+  NEAR.mat = lambertVC({ side: THREE.DoubleSide });
+  const C = NEAR.chunk; NEAR.grid = new Map();
+  for (let i = 0; i < trees.x.length; i++) { const k = Math.floor((trees.x[i] + HALF) / C) + Math.floor((trees.z[i] + HALF) / C) * 1000; let l = NEAR.grid.get(k); if (!l) NEAR.grid.set(k, l = []); l.push(i); }
+}
+function setFar(i, on) { const m = trees.farMesh[i]; m.setMatrixAt(trees.farK[i], on ? _am.fromArray(trees.mat, i * 16).premultiply(m.userData.inv) : ZERO_M); m.userData.dirty = true; }
+function updateNearTrees(cam, maxBuild) {
+  if (!NEAR.protos) return;
+  const C = NEAR.chunk, R = NEAR.treeR, cx = Math.floor((cam.x + HALF) / C), cz = Math.floor((cam.z + HALF) / C), reach = Math.ceil(R / C) + 1;
+  const want = new Set();
+  for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) {
+    const k = cx + dx + (cz + dz) * 1000, ox = -HALF + (cx + dx + 0.5) * C, oz = -HALF + (cz + dz + 0.5) * C;
+    if (Math.hypot(ox - cam.x, oz - cam.z) < R + C * 0.7 && NEAR.grid.has(k)) want.add(k);
+  }
+  let built = 0;
+  for (const k of want) {
+    if (NEAR.chunks.has(k) || built >= maxBuild) continue;
+    const list = NEAR.grid.get(k), ox = -HALF + (k % 1000 + 0.5) * C, oz = -HALF + (Math.floor(k / 1000) + 0.5) * C, oy = gridH(ox, oz);
+    const g = new THREE.Group(); g.position.set(ox, oy, oz);
+    const byV = [[], [], []]; list.forEach(i => byV[i % 3].push(i));
+    byV.forEach((ids, v) => {
+      if (!ids.length) return;
+      const m = new THREE.InstancedMesh(NEAR.protos[v].geo, NEAR.mat, ids.length), tint = new THREE.Color();
+      ids.forEach((i, j) => { _am.fromArray(trees.mat, i * 16); _am.elements[12] -= ox; _am.elements[13] -= oy; _am.elements[14] -= oz; m.setMatrixAt(j, _am); m.setColorAt(j, tint.setScalar(trees.tint[i])); setFar(i, false); });
+      m.castShadow = true; m.receiveShadow = true; g.add(m);
+    });
+    scene.add(g); NEAR.chunks.set(k, g); built++;
+  }
+  for (const [k, g] of NEAR.chunks) {
+    if (want.has(k)) continue;
+    const ox = -HALF + (k % 1000 + 0.5) * C, oz = -HALF + (Math.floor(k / 1000) + 0.5) * C;
+    if (Math.hypot(ox - cam.x, oz - cam.z) < R + C * 1.6) continue;                 // hysteresis
+    scene.remove(g); g.children.forEach(m => m.dispose && m.dispose());
+    NEAR.grid.get(k).forEach(i => setFar(i, true)); NEAR.chunks.delete(k);
+  }
+  for (const m of trees.farMeshes) if (m.userData.dirty) { m.instanceMatrix.needsUpdate = true; m.userData.dirty = false; }
+}
+
+/* ---- buildings assembled from stones, logs, boards, balusters, shutters, snow ---- */
+const BUILDINGS = [];
+// one face of the building: origin at its left end on the ground line, u along it, n out of it
+function faces(w, d) {
+  return [
+    { o: new V3(-w / 2, 0, d / 2), u: new V3(1, 0, 0), n: new V3(0, 0, 1), L: w, front: true },
+    { o: new V3(w / 2, 0, -d / 2), u: new V3(-1, 0, 0), n: new V3(0, 0, -1), L: w, back: true },
+    { o: new V3(w / 2, 0, d / 2), u: new V3(0, 0, -1), n: new V3(1, 0, 0), L: d },
+    { o: new V3(-w / 2, 0, -d / 2), u: new V3(0, 0, 1), n: new V3(-1, 0, 0), L: d },
+  ];
+}
+const onFace = (F, s, y, out) => _av.copy(F.o).addScaledVector(F.u, s).setY(y).addScaledVector(F.n, out);
+function freeSpans(F, y0, y1, holes, ext0 = 0, ext1 = 0) {
+  // the parts of a row [y0,y1] that are not cut by a window or door
+  let spans = [[-ext0, F.L + ext1]];
+  for (const h of holes) if (h.F === F && y1 > h.v0 && y0 < h.v1) spans = spans.flatMap(([a, b]) => h.u1 <= a || h.u0 >= b ? [[a, b]] : [[a, h.u0], [h.u1, b]].filter(([p, q]) => q - p > 0.05));
+  return spans;
+}
+function stoneCourse(A, F, y0, y1, holes, col) {
+  // irregular masonry: courses of different heights, stones of different lengths, each slightly proud of the wall
+  for (let y = y0; y < y1 - 0.05;) {
+    const h = Math.min(y1 - y, 0.24 + A.r() * 0.16);
+    for (const [a, b] of freeSpans(F, y, y + h, holes)) for (let s = a; s < b - 0.05;) {
+      const l = Math.min(b - s, 0.35 + A.r() * 0.55), dep = 0.25 + A.r() * 0.1;
+      const p = onFace(F, s + l / 2, y + h / 2, 0.05 + A.r() * 0.04 - dep / 2);
+      A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, l - 0.035, h - 0.035, dep, A.jit(col, 0.32));
+      s += l;
+    }
+    y += h;
+  }
+}
+function logCourse(A, F, y0, y1, holes, col, rowParity) {
+  // horizontal madriers; at the corners every other course runs past the wall, giving the interlocked log ends
+  let row = 0;
+  for (let y = y0; y < y1 - 0.05; y += 0.24, row++) {
+    const ext = (row + rowParity) % 2 ? 0.28 : 0;
+    for (const [a, b] of freeSpans(F, y, y + 0.24, holes, ext, ext)) {
+      for (let s = a; s < b - 0.05;) { const l = Math.min(b - s, 2.5 + A.r() * 2.5); const p = onFace(F, s + l / 2, y + 0.12, 0.02); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, l - 0.01, 0.215, 0.16, A.jit(col, 0.18)); s += l; }
+    }
+  }
+}
+function boardCladding(A, F, y0, y1, holes, col) {
+  // vertical boards and battens, cut around the openings
+  for (let s = 0.05; s < F.L - 0.05; s += 0.2) {
+    const cut = holes.filter(h => h.F === F && s + 0.1 > h.u0 && s - 0.1 < h.u1).map(h => [h.v0, h.v1]).sort((a, b) => a[0] - b[0]);
+    let y = y0;
+    for (const [v0, v1] of [...cut, [y1, y1]]) {
+      if (v0 > y + 0.05) { const p = onFace(F, s, (y + Math.min(v0, y1)) / 2, 0.03); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, 0.185, Math.min(v0, y1) - y, 0.035, A.jit(col, 0.14)); }
+      y = Math.max(y, v1);
+    }
+  }
+}
+function windowAt(A, F, h, lit, shutters, wood) {
+  const uc = (h.u0 + h.u1) / 2, w = h.u1 - h.u0, hh = h.v1 - h.v0, yc = (h.v0 + h.v1) / 2, FR = '#3a2412';
+  let p = onFace(F, uc, yc, -0.06); A.put('box', lit ? 'lit' : 'glass', p.x, p.y, p.z, F.u, _ay, F.n, w, hh, 0.04, lit ? A.jit('#f3c27a', 0.15) : A.jit('#2b3644', 0.2));
+  for (const [du, dv, su, sv] of [[0, hh / 2, w + 0.1, 0.08], [0, -hh / 2, w + 0.1, 0.08], [-w / 2, 0, 0.08, hh], [w / 2, 0, 0.08, hh], [0, 0, 0.05, hh]]) { p = onFace(F, uc + du, yc + dv, 0.02); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, su, sv, 0.09, A.jit(FR, 0.15)); }
+  p = onFace(F, uc, h.v0 - 0.05, 0.12); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, w + 0.25, 0.07, 0.3, A.jit(wood, 0.15));
+  p = onFace(F, uc, h.v0 + 0.02, 0.14); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, w + 0.1, 0.12, 0.26, A.jit('#f2f6fb', 0.04));
+  if (shutters) for (const sd of [-1, 1]) for (let k = 0; k < 5; k++) {        // shutters: five vertical slats each, a little ajar
+    const us = uc + sd * (w / 2 + 0.05 + k * w / 10 + w / 20);
+    p = onFace(F, us, yc, 0.07 + k * 0.012); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, w / 10 - 0.012, hh + 0.05, 0.035, A.jit(wood, 0.2));
+  }
+}
+function balcony(A, F, y, len, wood) {
+  const s0 = (F.L - len) / 2;
+  for (let k = 0; k < 4; k++) { const p = onFace(F, F.L / 2, y, 0.18 + k * 0.32); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, len, 0.06, 0.3, A.jit(wood, 0.12)); }   // deck boards
+  for (let s = s0; s <= s0 + len; s += 0.85) { const p = onFace(F, s, y - 0.14, 0.62); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, 0.14, 0.2, 1.3, A.jit('#4a2e1a', 0.1)); }   // joist ends
+  for (let s = s0 + 0.1; s < s0 + len - 0.05; s += 0.19) { const p = onFace(F, s, y + 0.5, 1.26); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, 0.13, 0.86, 0.035, A.jit(wood, 0.12)); }   // balusters
+  for (const [yy, hh] of [[y + 0.95, 0.09], [y + 0.1, 0.08]]) { const p = onFace(F, F.L / 2, yy, 1.26); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, len, hh, 0.12, A.jit('#4a2e1a', 0.1)); }
+  for (let s = s0; s <= s0 + len + 0.01; s += Math.max(2.5, len / Math.round(len / 3))) { const p = onFace(F, s, y + 0.5, 1.26); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, 0.16, 1.05, 0.16, A.jit('#4a2e1a', 0.1)); }
+  for (let s = s0 + 0.4; s < s0 + len; s += 0.6 + A.r()) { const p = onFace(F, s, y + 1.03, 1.26); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, 0.35 + A.r() * 0.4, 0.09, 0.16, A.jit('#f2f6fb', 0.03)); }
+}
+function snowRoof(A, w, d, ye, pitch, wood) {
+  // underside and rafter ends, a thick snow blanket, rounded pillows along the eaves, icicles
+  const ov = 0.9, half = d / 2 + ov, rh = half * pitch, ang = Math.atan(pitch);
+  for (const sg of [-1, 1]) {
+    const n = new V3(0, Math.cos(ang), sg * Math.sin(ang)), v = new V3(0, Math.sin(ang), -sg * Math.cos(ang)), u = new V3(1, 0, 0), hyp = Math.hypot(half, rh);
+    const mid = new V3(0, ye + rh / 2, sg * half / 2);
+    A.put('box', 'wood', mid.x, mid.y - 0.05, mid.z, u, n, v, w + 1.4, 0.16, hyp, A.jit(wood, 0.1));
+    for (let k = 0; k < 3; k++) { const t = (k + 0.5) / 3; A.put('box', 'snow', 0, ye + rh * (1 - t) + 0.3 + A.r() * 0.04, sg * half * t, u, n, v, w + 1.5, 0.5 + A.r() * 0.12, hyp / 3 + 0.08, A.jit('#f4f7fb', 0.03)); }
+    for (let x = -w / 2 - 0.6; x <= w / 2 + 0.6; x += 0.8 + A.r() * 0.6) {
+      A.put('lump', 'snow', x, ye + 0.08, sg * (half + 0.12), u, _ay, new V3(0, 0, sg), 1.1 + A.r() * 0.7, 0.55 + A.r() * 0.2, 0.75, A.jit('#f4f7fb', 0.03));
+      if (A.r() < 0.55) A.put('icicle', 'snow', x + A.r() * 0.3, ye - 0.15, sg * (half + 0.25), u, _ay, new V3(0, 0, sg), 0.07, 0.25 + A.r() * 0.6, 0.07, A.jit('#dfeaf5', 0.04));
+    }
+    for (let x = -w / 2 + 0.3; x < w / 2; x += 0.9) A.put('box', 'wood', x, ye - 0.12, sg * (d / 2 + ov * 0.55), u, _ay, new V3(0, 0, sg), 0.14, 0.2, ov * 1.1, A.jit('#4a2e1a', 0.1));
+    A.put('box', 'wood', 0, ye + 0.02, sg * (half + 0.02), u, _ay, new V3(0, 0, sg), w + 1.5, 0.3, 0.06, A.jit('#4a2e1a', 0.08));   // fascia
+  }
+  for (let x = -w / 2 - 0.7; x <= w / 2 + 0.7; x += 0.9 + A.r() * 0.5) A.put('lump', 'snow', x, ye + rh + 0.42, 0, new V3(1, 0, 0), _ay, new V3(0, 0, 1), 1.3, 0.45, 1.1 + A.r() * 0.4, A.jit('#f4f7fb', 0.03));
+  // gable ends: vertical boards following the slope
+  for (const sx of [-1, 1]) for (let z = -d / 2 + 0.1; z < d / 2; z += 0.2) {
+    const hgt = rh * (1 - Math.abs(z) / half) - 0.05; if (hgt < 0.1) continue;
+    A.put('box', 'wood', sx * (w / 2 + 0.02), ye + hgt / 2, z, new V3(0, 0, 1), _ay, new V3(sx, 0, 0), 0.185, hgt, 0.04, A.jit(wood, 0.15));
+  }
+  return rh;
+}
+function chimney(A, x, z, y0, yTop) {
+  for (let y = y0; y < yTop; y += 0.28) for (const [dx, dz] of [[-0.25, 0], [0.25, 0], [0, -0.25], [0, 0.25]]) A.put('box', 'stone', x + dx, y + 0.14, z + dz, new V3(1, 0, 0), _ay, new V3(0, 0, 1), dx ? 0.3 : 0.8, 0.26, dz ? 0.3 : 0.8, A.jit('#8a857e', 0.3));
+  A.put('box', 'stone', x, yTop + 0.1, z, new V3(1, 0, 0), _ay, new V3(0, 0, 1), 1.05, 0.12, 1.05, A.jit('#6f6a64', 0.1));
+  A.put('lump', 'snow', x, yTop + 0.24, z, new V3(1, 0, 0), _ay, new V3(0, 0, 1), 1.1, 0.3, 1.1, A.jit('#f4f7fb', 0.03));
+}
+function assembleBuilding(b) {
+  const A = new Assembly(hashSeed(b.x, b.z, 7)), { w, d, top } = b, Fs = faces(w, d), holes = [];
+  const STONE = '#94908a', LOG = '#7c5434', BOARD = '#b0703a', wood = b.type === 'woodres' ? BOARD : LOG;
+  const stoneH = b.type === 'woodres' ? 3.4 : b.sf * FLOOR, woodH = (b.type === 'woodres' ? b.floors : b.wf) * FLOOR, ye = top + stoneH + woodH;
+  // backing volume, so no sky shows between the pieces
+  A.put('box', 'stone', 0, top + stoneH / 2, 0, new V3(1, 0, 0), _ay, new V3(0, 0, 1), w - 0.3, stoneH, d - 0.3, new THREE.Color('#57534e'));
+  A.put('box', 'wood', 0, top + stoneH + woodH / 2, 0, new V3(1, 0, 0), _ay, new V3(0, 0, 1), w - 0.25, woodH, d - 0.25, new THREE.Color('#3b2618'));
+  // openings: windows on every floor, arches on the woodres arcade, a door
+  for (const F of Fs) {
+    const n = Math.max(1, Math.floor(F.L / 3.4)), step = F.L / n;
+    for (let k = 0; k < n; k++) {
+      const uc = step * (k + 0.5);
+      if (b.type === 'woodres') holes.push({ F, u0: uc - 1.1, u1: uc + 1.1, v0: top, v1: top + 2.7, arch: true });
+      else for (let f = 0; f < b.sf; f++) if ((k + f) % 2 === 0) holes.push({ F, u0: uc - 0.45, u1: uc + 0.45, v0: top + f * FLOOR + 1.0, v1: top + f * FLOOR + 2.1 });
+      const fl = b.type === 'woodres' ? b.floors : b.wf;
+      for (let f = 0; f < fl; f++) holes.push({ F, u0: uc - 0.6, u1: uc + 0.6, v0: top + stoneH + f * FLOOR + 0.85, v1: top + stoneH + f * FLOOR + 2.25 });
+    }
+  }
+  for (const F of Fs) {
+    stoneCourse(A, F, top, top + stoneH, holes, STONE);
+    if (b.type === 'woodres') boardCladding(A, F, top + stoneH, ye, holes, BOARD); else logCourse(A, F, top + stoneH, ye, holes, LOG, F.n.x ? 1 : 0);
+  }
+  for (const h of holes) {
+    if (h.arch) {   // arcade: voussoirs around a lit shopfront
+      const uc = (h.u0 + h.u1) / 2, rr = (h.u1 - h.u0) / 2, yc = h.v1 - rr;
+      let p = onFace(h.F, uc, (h.v0 + h.v1) / 2 - 0.2, -0.15); A.put('box', A.r() < 0.6 ? 'lit' : 'glass', p.x, p.y, p.z, h.F.u, _ay, h.F.n, rr * 2, h.v1 - h.v0, 0.04, A.r() < 0.6 ? A.jit('#e9b56c', 0.2) : A.jit('#2a2c30', 0.2));
+      for (let a = 0; a <= Math.PI + 0.01; a += Math.PI / 9) { p = onFace(h.F, uc - Math.cos(a) * (rr + 0.12), yc + Math.sin(a) * (rr + 0.12), 0.06); const tu = new V3().copy(h.F.u).multiplyScalar(Math.sin(a)).addScaledVector(_ay, Math.cos(a)).normalize(); A.put('box', 'stone', p.x, p.y, p.z, tu, new V3().crossVectors(h.F.n, tu), h.F.n, 0.2, 0.32, 0.35, A.jit('#b7afa2', 0.15)); }
+    } else windowAt(A, h.F, h, A.r() < (b.type === 'woodres' ? 0.25 : 0.45), b.type !== 'woodres', wood);
+  }
+  // balconies on the long faces of every timber floor
+  const fl = b.type === 'woodres' ? b.floors : b.wf;
+  for (const F of Fs) if (F.front || (F.back && b.type === 'woodres')) for (let f = b.type === 'woodres' ? 0 : 0; f < fl; f++) balcony(A, F, top + stoneH + f * FLOOR + 0.05, F.L * (b.type === 'woodres' ? 0.92 : 0.85), wood);
+  // corner posts on the chalet
+  if (b.type !== 'woodres') for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) A.put('box', 'wood', sx * (w / 2 - 0.05), top + stoneH + woodH / 2, sz * (d / 2 - 0.05), new V3(1, 0, 0), _ay, new V3(0, 0, 1), 0.3, woodH, 0.3, A.jit('#4a2e1a', 0.1));
+  const rh = snowRoof(A, w, d, ye, b.type === 'woodres' ? 0.55 : 0.6, wood);
+  chimney(A, w * 0.25, -d * 0.15, ye + rh * 0.3, ye + rh * 0.3 + 2.2);
+  if (b.type === 'woodres') chimney(A, -w * 0.3, -d * 0.18, ye + rh * 0.3, ye + rh * 0.3 + 2.4);
+  const g = A.toGroup(Math.hypot(w, d) / 2 + ye - top + 6);
+  g.position.set(b.x, 0, b.z); g.rotation.y = b.rot; g.userData.atoms = A.count;
+  return g;
+}
+function updateNearBuildings(cam, budgetMs) {
+  const t0 = performance.now();
+  for (const b of BUILDINGS) {
+    const dd = Math.hypot(b.x - cam.x, b.z - cam.z);
+    if (!b.detail && dd < NEAR.buildR && performance.now() - t0 < budgetMs) {
+      b.detail = assembleBuilding(b); scene.add(b.detail);
+      b.grp.children.forEach((c, i) => { if (i > 0) c.visible = false; });     // keep the stone plinth, hide the far shell
+    } else if (b.detail && dd > NEAR.buildR + 70) {
+      scene.remove(b.detail); b.detail.children.forEach(m => { m.dispose(); m.geometry.dispose(); }); b.detail = null;
+      b.grp.children.forEach(c => { c.visible = true; });
+    }
+  }
+}
+function updateNear(cam, dt) {
+  NEAR.acc = (NEAR.acc || 0) + dt; if (NEAR.acc < 0.15) return; NEAR.acc = 0;
+  updateNearTrees(cam, 3); updateNearBuildings(cam, 6);
 }
 
 /* ---------------- Park features ---------------- */
@@ -3041,7 +3361,7 @@ function frame(now) {
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
     if (n === 12) acc = 0;
   }
-  updateLiftAnim(clock); updateNPCs(dt, clock); placeSledMesh(dt);
+  updateLiftAnim(clock); updateNPCs(dt, clock); placeSledMesh(dt); updateNear(camera.position, dt);
   updateSkier(dt, clock);
   updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
   if (running) { updateCamera(dt, camSnap); camSnap = false; }
@@ -3069,10 +3389,11 @@ function autoQuality(dt) {
   perf.t += dt; perf.n++;
   if (perf.t < 4) return;
   const ms = perf.t / perf.n * 1000; perf.t = 0; perf.n = 0;
-  if (ms < 36 || perf.stage >= 3) return;
+  if (ms < 36 || perf.stage >= 4) return;
   perf.stage++;
-  if (perf.stage === 1) renderer.setPixelRatio(Math.min(1, Q.pr));
-  else if (perf.stage === 2) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  if (perf.stage === 1) { NEAR.treeR *= 0.5; NEAR.buildR *= 0.6; }          // fewer assembled trees and buildings first
+  else if (perf.stage === 2) renderer.setPixelRatio(Math.min(1, Q.pr));
+  else if (perf.stage === 3) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   else if (terrainMesh) terrainMesh.castShadow = false;   // the baked sun shading still darkens slopes in the shade
   resize();
 }
@@ -3113,7 +3434,7 @@ const steps = [
   ['Construction des villages…', () => { buildVillages(); buildCannonMeshes(); initPlumes(); }],
   ['Plantation des sapins…', () => { placeTrees(); placeRocks(); }],
   ['Calcul de l\'ensoleillement…', () => { buildTerrainMesh(); buildMogulMeshes(); buildTunnels(); buildBackdrop(); }],
-  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); initNPCs(); buildSled(); fillFacts(); }],
+  ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); initNPCs(); buildSled(); initNearTrees(); fillFacts(); }],
 ];
 function boot(i) {
   if (i >= steps.length) {
@@ -3133,6 +3454,9 @@ window.__ski = {
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, npcs, sled,
   advance(dt) { clock += dt; updateNPCs(dt, clock); },
+  NEAR, BUILDINGS, firPrototype, assembleBuilding, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
+  camNow() { updateCamera(0, true); },
+  nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearBuildings(camera.position, 1e4); } },
   track: trackChallenges, tunnelLocal, progress, CHALLENGES, unlockAll() { CHALLENGES.forEach(c => { progress.done[c.id] = true; }); fillMapLists(); }, resetChallenges() { progress.done = {}; saveProgress(); fillMapLists(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
