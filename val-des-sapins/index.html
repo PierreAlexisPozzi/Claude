@@ -3,9 +3,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Val des Sapins</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: full-bleed WebGL mountain; HUD sits in the corners like resort signage (single dark look, by choice) */
 :root{
@@ -13,8 +10,8 @@
   --panel:rgba(11,19,31,.62); --panel-strong:rgba(9,15,25,.9); --line:rgba(220,235,255,.16);
   --ice:#a6dcff; --gold:#ffc94d;
   --verte:#2fa84f; --bleue:#2f6fe0; --rouge:#e0393e; --noire:#0f1216; --park:#f08a24;
-  --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
-  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Bahnschrift SemiCondensed","Bahnschrift","Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   color-scheme:dark;
 }
 [hidden]{display:none!important}
@@ -195,12 +192,31 @@ body.touch #tools,body.touch .ctrls{display:none}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* =====================================================================================
+   Val des Sapins — Three.js r187 (ES modules, importmap). Sections, in file order:
+   noise & terrain · pistes & snow · RENDERER · LIGHTS & SKY · MATERIALS & procedural textures ·
+   scene builders (terrain, villages, lifts, trees, fauna…) · player physics · camera ·
+   POST-PROCESSING · main LOOP. Everything except Three.js is generated in code.
+   ===================================================================================== */
+import * as THREE from 'three';
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
 const V3 = THREE.Vector3;
+// Instanced meshes here are culled with the bounding sphere given to their geometry (a whole chunk, a whole lift…):
+// instances move (skiers, chairs, rocks swapped in and out), so a sphere cached from the first instance layout would pop.
+Object.defineProperty(THREE.InstancedMesh.prototype, 'boundingSphere', {
+  configurable: true,
+  get() { const g = this.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); return g.boundingSphere; },
+  set(v) { /* the geometry's sphere is the reference */ }
+});
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -644,7 +660,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: Q.aa, powerPrefere
 renderer.setPixelRatio(Q.pr);
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;   // r187 PCF is filtered (soft); PCFSoft was removed
 const MAX_ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4);
 const scene = new THREE.Scene();
 const FOG = new THREE.Color('#c5d6ea');
@@ -2771,7 +2787,7 @@ function trailQuad(B, x0, z0, x1, z1, w, shade, t) {
 function flushTrails(B) {
   if (B.hi < 0) return;
   const at = B.g.attributes;
-  for (const [name, size] of [['position', 3], ['aBorn', 1], ['aShade', 1]]) { const a = at[name]; a.updateRange.offset = B.lo * 4 * size; a.updateRange.count = (B.hi - B.lo + 1) * 4 * size; a.needsUpdate = true; }
+  for (const [name, size] of [['position', 3], ['aBorn', 1], ['aShade', 1]]) { const a = at[name]; a.clearUpdateRanges(); a.addUpdateRange(B.lo * 4 * size, (B.hi - B.lo + 1) * 4 * size); a.needsUpdate = true; }
   B.lo = Infinity; B.hi = -1;
 }
 // one emitter per skier: remembers where each ski last touched the snow
@@ -2875,8 +2891,8 @@ function makeLabel(text, color, sub) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160; const g = cv.getContext('2d');
   g.fillStyle = 'rgba(12,20,32,0.9)'; g.beginPath(); if (g.roundRect) g.roundRect(4, 4, 504, 152, 18); else g.rect(4, 4, 504, 152); g.fill();
   g.fillStyle = color; g.fillRect(24, 34, 52, 52);
-  g.fillStyle = '#f2f6fb'; g.font = '700 54px "Barlow Condensed", "Arial Narrow", sans-serif'; g.textBaseline = 'middle'; g.fillText(text, 96, 62, 400);
-  if (sub) { g.fillStyle = '#a6dcff'; g.font = '600 32px "Barlow Condensed", "Arial Narrow", sans-serif'; g.fillText(sub, 96, 118, 400); }
+  g.fillStyle = '#f2f6fb'; g.font = '700 54px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif'; g.textBaseline = 'middle'; g.fillText(text, 96, 62, 400);
+  if (sub) { g.fillStyle = '#a6dcff'; g.font = '600 32px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif'; g.fillText(sub, 96, 118, 400); }
   const t = new THREE.CanvasTexture(cv); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false }));
   s.scale.set(9, 2.8, 1); return s;
 }
@@ -3921,14 +3937,14 @@ function drawBigMap() {
   const c = $('bigmap'), g = c.getContext('2d'), W = c.width;
   g.drawImage(minimapImg, 0, 0, W, W);
   const tp = (x, z) => [(x + HALF) / WORLD * W, (z + HALF) / WORLD * W];
-  g.font = '700 22px "Barlow Condensed", "Arial Narrow", sans-serif'; g.textBaseline = 'middle';
+  g.font = '700 22px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif'; g.textBaseline = 'middle';
   LIFTS.forEach(L => { const [x, y] = tp(L.board.x, L.board.z); const t = L.code + ' ' + L.name.split(' ').slice(-1)[0]; g.lineWidth = 5; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(t, x + 10, y); g.fillStyle = '#0d1520'; g.fillText(t, x + 10, y); });
-  g.font = '600 19px "Barlow Condensed", "Arial Narrow", sans-serif';
-  g.font = '800 24px "Barlow Condensed", "Arial Narrow", sans-serif';
+  g.font = '600 19px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif';
+  g.font = '800 24px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif';
   const seenV = new Set(); villageLabels.forEach(v => { if (seenV.has(v.name)) return; seenV.add(v.name); const [x, y] = tp(v.x, v.z); g.fillStyle = '#6b4428'; g.fillRect(x - 5, y - 5, 10, 10); g.lineWidth = 5; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(v.name.toUpperCase(), x - 40, y - 14); g.fillStyle = '#3b2412'; g.fillText(v.name.toUpperCase(), x - 40, y - 14); });
-  g.font = '600 18px "Barlow Condensed", "Arial Narrow", sans-serif';
+  g.font = '600 18px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif';
   tunnels.forEach(T => { const q = T.S[Math.floor((T.i0 + T.i1) / 2)]; const [x, y] = tp(q.x, q.z); g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(T.name, x + 8, y + 18); g.fillStyle = '#a3127a'; g.fillText(T.name, x + 8, y + 18); });
-  g.font = '600 19px "Barlow Condensed", "Arial Narrow", sans-serif';
+  g.font = '600 19px "Bahnschrift SemiCondensed", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif';
   PISTES.forEach(p => { if (p.hidden) return; const s = p.samples[Math.floor(p.samples.length * 0.45)]; const [x, y] = tp(s.x, s.z); g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.95)'; g.strokeText(p.name, x + 8, y); g.fillStyle = p.lvl === 'noire' ? '#0f1216' : p.color; g.fillText(p.name, x + 8, y); });
   const [px, py] = tp(P.pos.x, P.pos.z); drawArrow(g, px, py, headingAngle(), 20);
 }
