@@ -270,6 +270,68 @@ def npc_pose(seated, variant='a'):
     return body.obj(name + '_body'), jacket.obj(name + '_jacket')
 
 
+def npc_rig_parts():
+    """Rigid parts for the articulated crowd (each in its joint frame, game coordinates, metres).
+    White areas take the per-skier tint (jacket or trousers); boots, gloves, skin, helmet, beanie, skis keep baked colours."""
+    WHITE, DARK, SKIN, HELM, GOG = (1, 1, 1), hexrgb('#1a1d24'), hexrgb('#d6a37f'), hexrgb('#eeeeee'), hexrgb('#ff9a1f')
+    BEANIE, POLE = hexrgb('#b8432e'), hexrgb('#b9bec6')
+    out = []
+
+    def mk(name, build):
+        mb = MeshBuilder(); build(mb); ob = mb.obj(name)
+        for p in ob.data.polygons:
+            p.use_smooth = True
+        out.append(ob)
+
+    mk('npcp_pelvis', lambda mb: lathe(mb, smooth([(-0.12, 0), (-0.1, 0.11), (-0.02, 0.16), (0.08, 0.15), (0.12, 0)], 2), 14, 1.0, 0.78))
+    mk('npcp_thigh', lambda mb: lathe(mb, smooth([(0.03, 0), (0.02, 0.07), (-0.08, 0.088), (-0.3, 0.075), (-0.46, 0.062), (-0.48, 0)], 2), 12, 1.0, 1.06))
+    mk('npcp_shin', lambda mb: lathe(mb, smooth([(0.05, 0), (0.04, 0.06), (-0.1, 0.062), (-0.3, 0.064), (-0.4, 0.078), (-0.42, 0)], 2), 12))
+
+    def torso(mb, long):
+        prof = [(-0.18, 0), (-0.17, 0.17), (-0.05, 0.18), (0.1, 0.17), (0.28, 0.195), (0.42, 0.205), (0.52, 0.17), (0.58, 0.09), (0.59, 0)]
+        if long:
+            prof = [(-0.46, 0), (-0.45, 0.2), (-0.3, 0.205), (-0.12, 0.19)] + prof[2:]
+        lathe(mb, smooth(prof, 2), 16, 1.0, 0.74, deform=lambda y, th, t: 0.007 * abs(math.sin(math.pi * (y + 0.15) / 0.11)) if y < 0.42 else 0)
+        capsule(mb, (-0.2, 0.48, 0.0), (0.2, 0.48, 0.0), 0.075, 0.075, WHITE, segs=10)            # shoulders
+        lathe(mb, [(0.0, 0.09), (0.1, 0.085), (0.11, 0)], 10, col=DARK, xform=lambda p: Vector((p.x, p.y + 0.56, p.z)))   # neck gaiter
+    mk('npcp_torso_a', lambda mb: torso(mb, False))
+    mk('npcp_torso_b', lambda mb: torso(mb, True))
+
+    def head(mb, beanie):
+        ellipsoid(mb, (0, 0.1, 0.012), 0.085, 0.105, 0.095, SKIN, segs=12, rings=8)
+        if beanie:
+            lathe(mb, [(math.cos(i / 7 * math.pi * 0.5) * 0.112, math.sin(i / 7 * math.pi * 0.5) * 0.11) for i in range(8)], 14, 1.0, 1.05, col=BEANIE, xform=lambda p: Vector((p.x, p.y + 0.12, p.z)))
+            ellipsoid(mb, (0, 0.245, 0), 0.04, 0.035, 0.04, hexrgb('#f0ece4'), segs=8, rings=6)
+            lathe(mb, [(0.012, 0.1), (-0.012, 0.1)], 12, 1.0, 1.08, col=lambda y: DARK, xform=lambda p: Vector((p.x, p.y + 0.12, p.z + 0.014)) if p.z > 0 else Vector((p.x * 0.9, p.y + 0.12, p.z * 0.9)))
+        else:
+            lathe(mb, [(math.cos(i / 7 * math.pi * 0.55) * 0.125, math.sin(i / 7 * math.pi * 0.55) * 0.125) for i in range(8)], 14, 1.0, 1.1, col=HELM, xform=lambda p: Vector((p.x, p.y + 0.11, p.z)))
+            lathe(mb, [(0.03, 0.118), (-0.03, 0.118)], 14, 1.0, 1.12, col=lambda y: GOG, xform=lambda p: Vector((p.x, p.y + 0.11, p.z + 0.012)) if p.z > -0.02 else Vector((p.x * 0.98, p.y + 0.11, p.z)))
+    mk('npcp_head_a', lambda mb: head(mb, False))
+    mk('npcp_head_b', lambda mb: head(mb, True))
+    mk('npcp_upperarm', lambda mb: lathe(mb, smooth([(0.05, 0), (0.04, 0.06), (-0.1, 0.064), (-0.28, 0.054), (-0.31, 0)], 2), 10))
+
+    def forearm(mb):
+        lathe(mb, smooth([(0.03, 0), (0.02, 0.052), (-0.12, 0.05), (-0.24, 0.054), (-0.26, 0)], 2), 10)
+        ellipsoid(mb, (0, -0.3, 0.01), 0.05, 0.06, 0.055, DARK, segs=10, rings=6)               # glove
+    mk('npcp_forearm', forearm)
+
+    def ski(mb):
+        capsule(mb, (0, 0.1, -0.02), (0, -0.02, 0.06), 0.07, 0.075, DARK, segs=10)              # boot shell
+        a = mb.vert(G(-0.045, -0.1, -0.78)); b = mb.vert(G(0.045, -0.1, -0.78)); c = mb.vert(G(0.045, -0.1, 0.72)); e = mb.vert(G(-0.045, -0.1, 0.72))
+        mb.face((e, c, b, a), col=WHITE)
+        a2 = mb.vert(G(-0.045, -0.04, 0.92)); b2 = mb.vert(G(0.045, -0.04, 0.92))
+        mb.face((a2, b2, c, e), col=WHITE)                                                     # rockered tip
+        for z0, z1 in ((-0.78, 0.72), (0.72, 0.92)):
+            pass
+    mk('npcp_ski', ski)
+
+    def pole(mb):
+        capsule(mb, (0, 0, 0), (0, -1.12, 0), 0.011, 0.008, POLE, segs=5)
+        lathe(mb, [(0.005, 0.045), (-0.005, 0.045)], 10, col=lambda y: DARK, xform=lambda p: Vector((p.x, p.y - 1.05, p.z)))
+    mk('npcp_pole', pole)
+    return out
+
+
 def add_flutter(ob):
     """Per-vertex weight for the game's secondary motion: loose fabric at the hem, cuffs and trouser bottoms."""
     def ss(a, b, x):
@@ -317,6 +379,16 @@ def main():
         ob.location = Vector((0, 0, 0))
     print('npc tris', {o.name: tri_count([o]) for o in objs})
     export_glb(objs, 'skiers_npc.glb')
+
+    reset()
+    rig = npc_rig_parts()
+    for i, ob in enumerate(rig):
+        ob.location = Vector((i * 1.5, 0, 0))
+    bake_ao_to_vertex_colors(rig, samples=48, distance=0.08, strength=0.6, floor=0.45)
+    for ob in rig:
+        ob.location = Vector((0, 0, 0))
+    print('rig tris', {o.name: tri_count([o]) for o in rig}, 'per skier ~', sum(tri_count([o]) * (2 if o.name in ('npcp_upperarm', 'npcp_forearm', 'npcp_thigh', 'npcp_shin', 'npcp_ski', 'npcp_pole') else 1) for o in rig if not o.name.endswith('_b')))
+    export_glb(rig, 'skiers_rig.glb')
 
 
 main()
