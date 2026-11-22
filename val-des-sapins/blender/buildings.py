@@ -9,6 +9,8 @@ Outputs (val-des-sapins/assets):
                rounded sides. Scaled per roof by the game like any box atom. Cycles AO baked in the vertex colours.
     baluster   unit-cube module of a carved Savoyard balcony plank (balustre découpé): vase-shaped edges so that
                neighbouring planks open decorative gaps, a heart cut through the middle.
+    skis / snowboard  gear left on balconies, standing on their tails (metres, origin on the deck): a pair of skis
+               with bindings and poles, a twin snowboard with bindings; white top sheets for per-instance colours.
 - rooms_atlas.jpg  four chalet interiors rendered with Cycles (pine panelling, beams, furniture, lamps) for the
                windows' interior mapping. Each 256x256 tile is the room seen through its opening from a camera placed
                one room-depth in front of the window plane, so the game can re-project any point of the room box.
@@ -113,6 +115,72 @@ def baluster():
     me.color_attributes.active_color = ca
     me.uv_layers.new(name='UVMap')
     return ob
+
+
+# ------------------------------------------------------------------ gear left on the balconies
+def board_outline(L, w_mid, w_tip, n=14):
+    """half-widths along a board standing on its tail (y from 0 to L): sidecut, rounded ends."""
+    out = []
+    for i in range(n + 1):
+        t = i / n
+        y = t * L
+        side = w_mid + (w_tip - w_mid) * (2 * t - 1) ** 2
+        end = 1.0
+        if t < 0.06: end = math.sqrt(max(0.0, 1 - ((0.06 - t) / 0.06) ** 2))
+        if t > 0.94: end = math.sqrt(max(0.0, 1 - ((t - 0.94) / 0.06) ** 2))
+        out.append((y, max(0.004, side * end)))
+    return out
+
+
+def plank(mb, x0, prof, th, rocker, top_col, base_col):
+    """A ski or board standing up: profile [(y, half width)], thickness th, both ends curving forward (+z)."""
+    rows = []
+    L = prof[-1][0]
+    for y, hw in prof:
+        t = y / L
+        zc = rocker * (max(0, 0.15 - t) / 0.15) ** 2 + rocker * (max(0, t - 0.85) / 0.15) ** 2
+        rows.append([mb.vert(G(x0 - hw, y, zc + th)), mb.vert(G(x0 + hw, y, zc + th)), mb.vert(G(x0 + hw, y, zc)), mb.vert(G(x0 - hw, y, zc))])
+    for i in range(len(rows) - 1):
+        a, b = rows[i], rows[i + 1]
+        col = top_col(prof[i][0] / L)
+        mb.face((a[0], a[1], b[1], b[0]), col=col)                    # top sheet (faces +z, out of the wall)
+        mb.face((a[3], b[3], b[2], a[2]), col=base_col)               # base
+        mb.face((a[1], a[2], b[2], b[1]), col=(0.75, 0.76, 0.78))     # steel edges
+        mb.face((a[0], b[0], b[3], a[3]), col=(0.75, 0.76, 0.78))
+
+
+def boxg(mb, c, s, col):
+    x, y, z = c; sx, sy, sz = (v / 2 for v in s)
+    p = [mb.vert(G(x + dx * sx, y + dy * sy, z + dz * sz)) for dx in (-1, 1) for dy in (-1, 1) for dz in (-1, 1)]
+    for q in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
+        mb.face(tuple(p[i] for i in q), col=col)
+
+
+def skis():
+    """A pair of skis with bindings and two poles, standing on their tails (origin on the deck, leaning done by the game)."""
+    mb = MeshBuilder()
+    WHITE, DARK, GREY = (1, 1, 1), (0.12, 0.12, 0.14), (0.6, 0.62, 0.66)
+    stripe = lambda t: (0.25, 0.25, 0.28) if abs(t - 0.62) < 0.05 or abs(t - 0.3) < 0.02 else WHITE
+    for x in (-0.055, 0.055):
+        plank(mb, x, board_outline(1.72, 0.04, 0.056), 0.016, 0.05, stripe, DARK)
+        boxg(mb, (x, 0.72, 0.035), (0.07, 0.12, 0.04), DARK); boxg(mb, (x, 0.95, 0.035), (0.07, 0.08, 0.05), GREY)   # heel and toe pieces
+    for x in (-0.17, 0.17):                                                       # poles beside the skis
+        boxg(mb, (x, 0.6, 0.08), (0.016, 1.2, 0.016), GREY); boxg(mb, (x, 1.17, 0.08), (0.035, 0.14, 0.035), DARK)
+        boxg(mb, (x, 0.1, 0.08), (0.09, 0.008, 0.09), DARK)
+    return mb.obj('skis')
+
+
+def snowboard():
+    mb = MeshBuilder()
+    WHITE, DARK, GREY = (1, 1, 1), (0.1, 0.1, 0.12), (0.5, 0.52, 0.56)
+    graphic = lambda t: (0.2, 0.2, 0.24) if (t * 9) % 2 < 0.35 else WHITE
+    plank(mb, 0.0, board_outline(1.55, 0.122, 0.148), 0.013, 0.06, graphic, DARK)
+    for y in (0.53, 1.02):                                                        # bindings: base, highback, two straps
+        boxg(mb, (0, y, 0.025), (0.22, 0.2, 0.02), DARK)
+        boxg(mb, (0, y - 0.08, 0.1), (0.2, 0.03, 0.16), DARK)
+        for dy in (0.02, 0.09):
+            boxg(mb, (0, y + dy, 0.06), (0.2, 0.035, 0.05), GREY)
+    return mb.obj('snowboard')
 
 
 # ------------------------------------------------------------------ chalet interiors for the windows
@@ -246,8 +314,14 @@ def main():
     slab = snowslab()
     slab.scale = (10, 0.6, 6) if False else slab.scale
     bake_ao_to_vertex_colors([slab], samples=48, distance=0.25, strength=0.6, floor=0.45)
-    print('tris', {'snowslab': tri_count([slab])})
-    export_glb([slab], 'building_parts.glb')
+    gear = [skis(), snowboard()]
+    for i, ob in enumerate(gear):
+        ob.location.x = 3 + i * 2
+    bake_ao_to_vertex_colors(gear, samples=32, distance=0.1, strength=0.5, floor=0.5)
+    for ob in gear:
+        ob.location.x = 0
+    print('tris', {o.name: tri_count([o]) for o in [slab] + gear})
+    export_glb([slab] + gear, 'building_parts.glb')
     reset()
     baluster_mask(baluster())
 
