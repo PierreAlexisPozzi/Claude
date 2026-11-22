@@ -182,12 +182,23 @@ def masonry(net):
     return col, h
 
 
+def snowpack(net):
+    ripples = noise4(net, 0.4, 3.0, 2.2, detail=3, rough=0.5)          # wind ripples across the slope
+    grain = noise4(net, 2.0, 2.0, 30.0, detail=4, off=(2, 5))
+    crust = voronoi4(net, 1.5, 1.5, 6.0, feature='DISTANCE_TO_EDGE', off=(7, 1))
+    col = ramp(net, net.math('ADD', net.math('MULTIPLY', ripples, val=0.7), net.math('MULTIPLY', grain, val=0.3)),
+               [(0.3, (0.8, 0.86, 0.95)), (0.55, (0.93, 0.95, 0.98)), (0.7, (1.0, 1.0, 1.0))])
+    h = net.math('ADD', net.math('MULTIPLY', ripples, val=0.7), net.math('MULTIPLY', grain, val=0.15))
+    h = net.math('SUBTRACT', h, net.math('MULTIPLY', net.math('LESS_THAN', crust, val=0.02), val=0.05))
+    return col, h
+
+
 def main():
-    for name, fn, nstr, neutralize in (('rock', rock, 6.0, False), ('timber', timber, 5.0, True), ('masonry', masonry, 4.0, True)):
+    for name, fn, nstr, neutralize in (('rock', rock, 6.0, False), ('timber', timber, 5.0, True), ('masonry', masonry, 4.0, True), ('snowpack', snowpack, 3.0, True)):
         r = bake(fn, name)
         alb = to_display(r['albedo'])
         if neutralize:
-            alb = neutral(alb, 0.5, 0.3)
+            alb = neutral(alb, 0.5, 0.6 if name == 'snowpack' else 0.3)
         save_png(name + '_albedo', alb)
         save_png(name + '_normal', normal_from_height(r['height'][..., 0], nstr * S / 64))
 

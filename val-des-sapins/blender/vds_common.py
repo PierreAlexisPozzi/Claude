@@ -130,7 +130,8 @@ def export_glb(objs, name):
     path = os.path.join(ASSETS, name)
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True,
                               export_materials='NONE', export_vertex_color='ACTIVE', export_normals=True,
-                              export_texcoords=True, export_yup=True, export_animations=False)
+                              export_texcoords=True, export_yup=True, export_animations=False,
+                              export_attributes=True)   # custom '_name' attributes (e.g. _flutter)
     print('wrote', path, os.path.getsize(path), 'bytes')
     return path
 

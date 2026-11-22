@@ -205,8 +205,10 @@ def ellipsoid(mb, c, rx, ry, rz, col, segs=14, rings=9):
     lathe(mb, [(y, r) for y, r in prof], segs, rx, rz, col=col, xform=lambda p: Vector(c) + Vector((p.x, p.y, p.z)))
 
 
-def npc_pose(seated):
+def npc_pose(seated, variant='a'):
     PANTS, DARK, SKIN, HELM, GOG = hexrgb('#232a3c'), hexrgb('#1a1d24'), hexrgb('#d6a37f'), hexrgb('#eeeeee'), hexrgb('#ff9a1f')
+    if variant == 'b':                                   # second outfit: light trousers, knit beanie, long parka
+        PANTS, SKIN, BEANIE = hexrgb('#c9b79a'), hexrgb('#e0b08c'), hexrgb('#b8432e')
     SKI, POLE, WHITE = hexrgb('#2b3a55'), hexrgb('#b9bec6'), (1, 1, 1)
     body, jacket = MeshBuilder(), MeshBuilder()
     if not seated:
@@ -227,6 +229,8 @@ def npc_pose(seated):
         ellipsoid(jacket, (0, 1.28, 0.15), 0.215, 0.2, 0.16, WHITE, segs=18)                 # chest
         capsule(jacket, (-0.19, 1.38, 0.18), (0.19, 1.38, 0.18), 0.08, 0.08, WHITE, segs=12)  # shoulders
         ellipsoid(jacket, (0, 0.97, 0.0), 0.2, 0.12, 0.15, WHITE, segs=18)                   # hem over the hips
+        if variant == 'b':
+            capsule(jacket, (0, 0.95, -0.01), (0, 0.7, 0.06), 0.205, 0.2, WHITE, segs=18, folds=0.006)   # long parka skirt
         capsule(body, (0, 1.42, 0.22), (0, 1.56, 0.28), 0.075, 0.07, DARK, segs=10)           # neck gaiter
         ellipsoid(jacket, (0, 1.46, 0.24), 0.12, 0.05, 0.11, WHITE)
         head, face = (0, 1.66, 0.29), (0, 1.6, 0.31)
@@ -247,14 +251,35 @@ def npc_pose(seated):
         capsule(body, (0, 0.56, 0.0), (0, 0.7, 0.03), 0.075, 0.07, DARK, segs=10)
         ellipsoid(jacket, (0, 0.6, 0.02), 0.12, 0.05, 0.11, WHITE)
         head, face = (0, 0.84, 0.03), (0, 0.78, 0.05)
-    # head: face, helmet, goggles
+    # head: face, then a helmet and goggles (outfit a) or a knit beanie and sunglasses (outfit b)
     ellipsoid(body, face, 0.085, 0.105, 0.095, SKIN)
     hx, hy, hz = head
+    if variant == 'b':
+        prof = [(math.cos(i / 9 * math.pi * 0.5) * 0.115, math.sin(i / 9 * math.pi * 0.5) * 0.112) for i in range(10)]
+        lathe(body, prof, 16, 1.0, 1.05, col=BEANIE, xform=lambda p: Vector((hx + p.x, hy + p.y - 0.035, hz + p.z)),
+              deform=lambda y, th, t: 0.003 * math.sin(th * 18))                                  # ribbed knit
+        lathe(body, [(0.02, 0.118), (-0.02, 0.118)], 16, 1.0, 1.06, col=lambda y: BEANIE, xform=lambda p: Vector((hx + p.x, hy + p.y - 0.045, hz + p.z)))   # folded brim
+        ellipsoid(body, (hx, hy + 0.1, hz), 0.045, 0.04, 0.045, hexrgb('#f0ece4'))                # pompom
+        lathe(body, [(0.012, 0.1), (-0.012, 0.1)], 12, 1.0, 1.08, col=lambda y: DARK, xform=lambda p: Vector((face[0] + p.x, face[1] + p.y + 0.02, face[2] + p.z + 0.012)) if p.z > 0 else Vector((face[0] + p.x * 0.9, face[1] + p.y + 0.02, face[2] + p.z * 0.9)))
+        name = 'npc_seat' if seated else 'npc_ski'
+        return body.obj(name + '_body_b'), jacket.obj(name + '_jacket_b')
     prof = [(math.cos(i / 9 * math.pi * 0.55) * 0.125, math.sin(i / 9 * math.pi * 0.55) * 0.125) for i in range(10)]
     lathe(body, prof, 16, 1.0, 1.1, col=HELM, xform=lambda p: Vector((hx + p.x, hy + p.y - 0.02, hz + p.z)))
     lathe(body, [(0.03, 0.118), (-0.03, 0.118)], 16, 1.0, 1.12, col=lambda y: GOG, xform=lambda p: Vector((hx + p.x, hy + p.y - 0.06, hz + p.z + 0.012)) if p.z > -0.02 else Vector((hx + p.x * 0.98, hy + p.y - 0.06, hz + p.z)))
     name = 'npc_seat' if seated else 'npc_ski'
     return body.obj(name + '_body'), jacket.obj(name + '_jacket')
+
+
+def add_flutter(ob):
+    """Per-vertex weight for the game's secondary motion: loose fabric at the hem, cuffs and trouser bottoms."""
+    def ss(a, b, x):
+        t = min(1, max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t)
+    rule = {'sk_jacket': lambda y: ss(0.05, -0.17, y), 'sk_forearm': lambda y: ss(-0.12, -0.26, y) * 0.7,
+            'sk_upperarm': lambda y: 0.25, 'sk_shin': lambda y: ss(-0.25, -0.43, y), 'sk_thigh': lambda y: 0.15}
+    f = rule.get(ob.name)
+    at = ob.data.attributes.new('_flutter', 'FLOAT', 'POINT')
+    for i, v in enumerate(ob.data.vertices):
+        at.data[i].value = f(v.co.z) if f else 0.0       # Blender z = game y
 
 
 def main():
@@ -269,13 +294,14 @@ def main():
     for ob in parts:
         for p in ob.data.polygons:
             p.use_smooth = True
+        add_flutter(ob)
     print('parts tris', {o.name: tri_count([o]) for o in parts})
     export_glb(parts, 'skier_parts.glb')
 
     reset()
     objs = []
-    for k, seated in enumerate((False, True)):
-        b, j = npc_pose(seated)
+    for k, (seated, variant) in enumerate(((False, 'a'), (True, 'a'), (False, 'b'), (True, 'b'))):
+        b, j = npc_pose(seated, variant)
         for ob in (b, j):
             ob.location = Vector((k * 4, 0, 0))
             for p in ob.data.polygons:
