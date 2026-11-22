@@ -281,6 +281,11 @@ def main():
             for p in ob.data.polygons:
                 p.use_smooth = True
         objs += [b, j]
+    # the crowd is small on screen and instanced 60 times in each pose: collapse to ~40 % before baking
+    for ob in objs:
+        mod = ob.modifiers.new('decimate', 'DECIMATE'); mod.ratio = 0.4
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.modifier_apply(modifier=mod.name)
     bake_ao_to_vertex_colors(objs, samples=64, distance=0.25, strength=0.7, floor=0.3)
     for ob in objs:
         ob.location = Vector((0, 0, 0))
