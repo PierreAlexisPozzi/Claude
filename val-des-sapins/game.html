@@ -67,6 +67,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 .toast.tier0{border-left-color:#c98a4a}.toast.tier1{border-left-color:#c9d1db}.toast.tier2,.toast.lvl{border-left-color:var(--gold)}.toast.off{border-left-color:#ff6a5a}.toast.say{border-left-color:#5fd38a}
 @keyframes tin{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
 #prompt .bang{color:var(--gold);font:800 16px var(--display)}#prompt .bang.q{color:#5fd0ff}
+#fade{position:fixed;inset:0;background:#05080e;opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:15}
+#fade.on{opacity:1}
+@media (prefers-reduced-motion:reduce){#fade{transition:none}}
 /* Dialogue */
 #dlg{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);width:min(560px,calc(100vw - 28px));box-sizing:border-box;padding:16px 18px;background:var(--panel-strong);z-index:20;display:flex;flex-direction:column;gap:10px}
 #dlg .who{display:flex;gap:12px;align-items:center}
@@ -217,7 +220,7 @@ body.touch #tools,body.touch .ctrls{display:none}
     <span class="k"><span class="key">⇧</span><span class="key">F</span></span><span>Grab (mute / tail)</span>
     <span class="k"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span><span>Au sol : nose / tail press, + ←→ butter</span>
     <span class="k"><span class="key">X</span></span><span>Demi-tour : skier en arrière</span>
-    <span class="k"><span class="key">E</span></span><span>Prendre la remontée · parler</span>
+    <span class="k"><span class="key">E</span></span><span>Prendre la remontée · parler · passer la montée</span>
     <span class="k"><span class="key">J</span></span><span>Carnet : missions, défis, chronos</span>
     <span class="k"><span class="key">V</span></span><span>Appeler / quitter la motoneige</span>
     <span class="k"><span class="key">R</span></span><span>Retour à la remontée la plus proche</span>
@@ -227,6 +230,7 @@ body.touch #tools,body.touch .ctrls{display:none}
   <div id="tools"><button class="tbtn" id="jnlBtn" type="button">Carnet</button><button class="tbtn" id="mapBtn" type="button">Carte</button><button class="tbtn" id="camBtn" type="button">Caméra</button><button class="tbtn" id="muteBtn" type="button">Son : oui</button><button class="tbtn" id="qualBtn" type="button">Image</button></div>
 </div>
 
+<div id="fade" aria-hidden="true"></div>
 <div id="dlg" class="panel" role="dialog" aria-modal="true" aria-labelledby="dlgName" hidden>
   <div class="who"><span class="av" id="dlgAv" aria-hidden="true">?</span><div><b id="dlgName"></b><span id="dlgRole"></span></div></div>
   <p id="dlgText"></p>
@@ -2209,11 +2213,20 @@ function updateNearTowers(cam) {
   if (dirty) { TOWERS.pm.instanceMatrix.needsUpdate = true; TOWERS.hm.instanceMatrix.needsUpdate = true; }
 }
 const _q = new V3(), _q2 = new V3(), _m = new THREE.Object3D();
+// each lift runs on its own clock (phase in metres of cable): speeding up your ride speeds up the whole lift,
+// so the other chairs and the skiers on them keep their spacing with yours
+function liftClock(dt) {
+  for (const L of LIFTS) {
+    const mine = running && P.state === 'lift' && P.lift === L && !mapOpen && !dlgOpen && !jnlOpen;
+    L.mult = mine && (input.grab || input.up) ? 4 : 1;
+    L.phase = (L.phase || 0) + dt * L.speed * (mapOpen || dlgOpen || jnlOpen ? 0 : L.mult);
+  }
+}
 function updateLiftAnim(time) {
   for (const A of liftAnim) {
     const L = A.L, T = L.total;
     for (let i = 0; i < A.count; i++) {
-      let u = (time * L.speed + i * L.spacing) % (2 * T);
+      let u = ((L.phase || 0) + i * L.spacing) % (2 * T);
       let yaw = L.yaw;
       if (u < T) L.up.pointAt(u, _q); else { L.down.pointAt(u - T, _q); yaw += Math.PI; }
       _m.position.copy(_q); _m.rotation.set(0, yaw, 0); _m.scale.set(1, 1, 1);
@@ -2375,7 +2388,7 @@ function npcNext(n) {
   if (L) { Object.assign(n, { mode: 'walk', L, tx: L.board.x - L.dir.x * (2 + rnd() * 4) + L.side.x * (rnd() - 0.5) * 3, tz: L.board.z - L.dir.z * (2 + rnd() * 4) + L.side.z * (rnd() - 0.5) * 3 }); return; }
   const list = skiPistes(), p = list[Math.floor(rnd() * list.length)]; npcStartOn(n, p, 0);
 }
-function chairU(L, i, time) { return (time * L.speed + i * L.spacing) % (2 * L.total); }
+function chairU(L, i, time) { return ((L.phase || 0) + i * L.spacing) % (2 * L.total); }
 function updateNPCs(dt, time) {
   if (!npcMesh.sb) return;
   for (let k = 0; k < npcs.length; k++) {
@@ -2403,7 +2416,7 @@ function updateNPCs(dt, time) {
       const L = n.L, A = liftAnim.find(q => q.L === L);
       n.yaw = L.yaw; n.show = 'ski';
       const taken = new Set(npcs.filter(o => o.mode === 'lift' && o.L === L).map(o => o.chair));
-      for (let c = 0; A && c < A.count; c++) { const u = chairU(L, c, time); if (Math.abs(u - L.s0) < L.speed * dt * 1.5 + 0.05 && !taken.has(c)) { n.mode = 'lift'; n.chair = c; break; } }
+      for (let c = 0; A && c < A.count; c++) { const u = chairU(L, c, time); if (Math.abs(u - L.s0) < L.speed * (L.mult || 1) * dt * 1.5 + 0.05 && !taken.has(c)) { n.mode = 'lift'; n.chair = c; break; } }
     } else if (n.mode === 'npc') { peopleUpdate(n, dt, time); continue;
     } else if (n.mode === 'lift') {
       const L = n.L, u = chairU(L, n.chair, time);
@@ -4036,7 +4049,7 @@ function stepSim(dt) { stepSimCore(dt); riderStep(dt); }   // progression tracki
 function stepSimCore(dt) {
   for (const a of queued) {
     if (a === 'respawn') respawnNearestLift();
-    else if (a === 'action') tryAction();
+    else if (a === 'action') { if (P.state === 'lift') skipLift(); else tryAction(); }
     else if (a === 'sled') toggleSled();
     else if (a === 'revert' && P.state === 'ski' && P.revertT <= 0) { P.revertT = 0.32; P.revertDir = P.edge >= 0 ? 1 : -1; }
   }
@@ -4429,7 +4442,7 @@ function tryBoard() {
   const lk = lockOf(L); if (lk) { showTrick('Remontée fermée', lk.goal); return; }
   P.state = 'lift'; P.lift = L; P.liftS = L.s0; P.vel.set(0, 0, 0); P.edge = 0; P.charge = 0; riderEvent('ride', L);
   L.own.visible = true;
-  showTrick(L.name, L.type === 'tbar' ? 'Tenez la perche · ⇧ ou ↑ pour accélérer' : 'Bonne montée · ⇧ ou ↑ pour accélérer');
+  showTrick(L.name, (L.type === 'tbar' ? 'Tenez la perche' : 'Bonne montée') + ' · ↑ pour accélérer · E pour passer');
 }
 function nearLift(r) {
   if (P.state !== 'ski') return null;
@@ -4439,11 +4452,20 @@ function nearLift(r) {
 }
 function stepLift(dt) {
   const L = P.lift, mult = (input.grab || input.up) ? 4 : 1;
+  if (P.liftSkip > 0) { P.liftSkip -= dt; if (P.liftSkip <= 0) { $('fade').classList.remove('on'); unload(L); } return; }
   P.liftS += L.speed * mult * dt;
   if (P.liftS >= L.total - L.endS) { unload(L); return; }
   L.up.pointAt(P.liftS, _t);
   if (L.type === 'tbar') P.pos.set(_t.x, H(_t.x, _t.z), _t.z); else P.pos.copy(_t);
   P.yaw = L.yaw;
+}
+// skip the rest of the ride: a short fade to black, then you are at the top. A timed mission is charged the
+// remaining ride at full boost (×4), as if you had held ↑ all the way.
+function skipLift() {
+  if (P.state !== 'lift' || P.liftSkip > 0) return;
+  const L = P.lift, rest = Math.max(0, L.total - L.endS - P.liftS) / (L.speed * 4);
+  if (RIDER.active && missionById(RIDER.active.id).time) RIDER.active.time -= rest;
+  P.liftSkip = 0.45; $('fade').classList.add('on');
 }
 function unload(L) {
   L.own.visible = false;
@@ -5543,8 +5565,9 @@ function updateHud(dt) {
   $('pts').textContent = fmt(P.score);
   const pr = $('prompt');
   const L = nearLift(12), who = nearPerson();
-  const ta = document.querySelector('#touch [data-a="action"]'); if (ta) ta.textContent = who ? 'Parler' : 'Monter';
-  if (who && !dlgOpen) { pr.innerHTML = '<span class="key">E</span> Parler à ' + who.name + ' · ' + who.role + (who.markKind === '!' ? ' <b class="bang">!</b>' : who.markKind === '?' ? ' <b class="bang q">?</b>' : ''); pr.hidden = false; }
+  const ta = document.querySelector('#touch [data-a="action"]'); if (ta) ta.textContent = P.state === 'lift' ? 'Passer' : who ? 'Parler' : 'Monter';
+  if (P.state === 'lift') { pr.innerHTML = '<span class="key">↑</span> Accélérer toute la remontée · <span class="key">E</span> Passer la montée'; pr.hidden = false; }
+  else if (who && !dlgOpen) { pr.innerHTML = '<span class="key">E</span> Parler à ' + who.name + ' · ' + who.role + (who.markKind === '!' ? ' <b class="bang">!</b>' : who.markKind === '?' ? ' <b class="bang q">?</b>' : ''); pr.hidden = false; }
   else if (L && P.state === 'ski') { const lk = lockOf(L); pr.innerHTML = lk ? '🔒 ' + L.code + ' ' + L.name + ' · ' + lk.goal.toLowerCase() : '<span class="key">E</span> Monter · ' + L.code + ' ' + L.name; pr.hidden = false; }
   else if (P.state === 'ski' && P.stillT > 5 && P.offPiste) { pr.innerHTML = '<span class="key">R</span> Bloqué ? Rejoindre la remontée la plus proche'; pr.hidden = false; }
   else pr.hidden = true;
@@ -5613,7 +5636,7 @@ function frame(now) {
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
     if (n === 12) acc = 0;
   }
-  updateLiftAnim(clock); updateNPCs(dt, clock); if (PEOPLE[0].n) updatePeopleFx(clock); placeSledMesh(dt); updateNear(camera.position, dt); updateFauna(dt, clock, camera.position); updateTrails(dt, clock);
+  liftClock(dt); updateLiftAnim(clock); updateNPCs(dt, clock); if (PEOPLE[0].n) updatePeopleFx(clock); placeSledMesh(dt); updateNear(camera.position, dt); updateFauna(dt, clock, camera.position); updateTrails(dt, clock);
   updateSkier(dt, clock);
   updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
   if (running) { updateCamera(dt, camSnap); camSnap = false; cameraFeel(dt); }
