@@ -13,6 +13,12 @@ BEGIN, END = '<!-- VDS-ASSETS:BEGIN -->', '<!-- VDS-ASSETS:END -->'
 MIME = {'.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp'}
 BUDGET = 6 * 1024 * 1024
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from glb_slim import slim
+NO_UV = {'snowmobile.glb', 'lift_vehicles.glb'}   # vertex-coloured only: their UVs are never sampled
+for name in sorted(os.listdir(ASSETS)):
+    if name.endswith('.glb'):
+        slim(os.path.join(ASSETS, name), keep_uv=name not in NO_UV)   # idempotent: 8-bit colours, int8 normals
 data, total = {}, 0
 for name in sorted(os.listdir(ASSETS)):
     ext = os.path.splitext(name)[1]

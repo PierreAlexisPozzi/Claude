@@ -73,3 +73,18 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
 - **Bouton doré contextuel** : n'apparaît que s'il y a quelque chose à faire (Monter, Parler, Passer la montée, Rejoindre après une chute ou un blocage). Le bandeau d'information est aussi touchable.
 - Raccourcis : Carnet, Moto, Plus (Caméra, Son, Image, Remontée) ; mini-carte **ronde** (repère Nord, objectif épinglé sur le bord), touchable pour ouvrir le plan. Vibrations courtes aux appuis, au saut et au switch.
 - Les commandes se masquent pendant un dialogue, le plan ou le carnet. Mises en page portrait, paysage et petits écrans ; touches clavier masquées sur mobile. Le clavier et les tests automatiques gardent le pilotage numérique inchangé.
+
+## Véhicules, remontées et techniques de ski (références BlendSwap)
+Références étudiées sur BlendSwap (catalogue « ski », aperçus publics ; aucun fichier tiers n'est intégré au jeu) :
+
+| Référence (id, auteur, licence) | Ce qui en a été appris | Réalisé dans le jeu |
+|---|---|---|
+| Modern chair-lift (10931, ViSki, CC0) | Télésiège 6 places débrayable à bulle, suspente en J, repose-pieds solidaires de la bulle | `blender/lifts.py` : siège 6 places rembourré, bulle teintée baissée à la montée et relevée à la descente |
+| Cable-way car (10735, ViSki, CC0) | Proportions d'une cabine, chariot et bras de suspente | Cabine 10 places arrondie, vitrage panoramique, toit blanc, paniers à skis |
+| Modern cable road tower (10973, ViSki, CC0) | Pylône tubulaire, tête en T, passerelle, balanciers | Déjà présents dans le pylône procédural (conservé) |
+| Alpine skiing beginner / intermediate / carving / racer (13118, 12381, 15045, 12945, ViSki, CC0) | Postures par niveau : chasse-neige, parallèle, angulation du carving, position de géant | Styles des skieurs du domaine selon la piste et le niveau : chasse-neige bras écartés, parallèle, carving (jambe intérieure fléchie, buste contre-incliné, main intérieure devant), coureur (très bas, pieds écartés, bâtons sous les bras) |
+| Penguin Ski Trip (23302, CC-BY) | Seule motoneige du catalogue (dessin animé) | Non utilisée : motoneige moderne modélisée de zéro (`blender/vehicles.py`) |
+
+- **Motoneige** (`blender/vehicles.py`) : capot galbé avec bande latérale, selle longue, tunnel et marchepieds ajourés, chenille à crampons et galets, suspension avant à triangles et combinés ressort-amortisseur, skis à spatule relevée, guidon avec protège-mains, pare-brise, phares émissifs. Les points d'appui du pilote sont ceux de l'ancien modèle.
+- Les pieds des skieurs sont recalés sur la neige quand le corps s'incline (le ski intérieur ne s'enfonce plus, l'extérieur ne flotte plus).
+- `tools/glb_slim.py` (lancé par `embed_assets.py`) : couleurs de sommets sur 8 bits, normales sur 8 bits (KHR_mesh_quantization), UV supprimées quand elles ne servent pas — tous les modèles tiennent dans le budget de 6 Mo.

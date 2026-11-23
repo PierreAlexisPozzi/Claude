@@ -8,7 +8,9 @@ python3.13 -m venv .bpyenv && .bpyenv/bin/pip install -r blender/requirements.tx
 .bpyenv/bin/python blender/trees.py        # spruces: needle atlas, 3 near variants, far silhouette
 .bpyenv/bin/python blender/people.py       # skier parts and posed skiers for the other characters
 .bpyenv/bin/python blender/materials.py    # tileable PBR detail maps for timber, planks and masonry
-python3 tools/embed_assets.py              # embeds assets/ into game.html (base64, one JSON block at the end)
+.bpyenv/bin/python blender/vehicles.py     # snowmobile (own design)
+.bpyenv/bin/python blender/lifts.py        # 6-seat bubble chair (two bubble states) and 10-seat gondola cabin
+python3 tools/embed_assets.py              # slims every .glb (tools/glb_slim.py), then embeds assets/ into game.html
 ./build.sh
 ```
 

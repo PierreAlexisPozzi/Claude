@@ -7,7 +7,7 @@ CT = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I'
 NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
 
 
-def slim(path):
+def slim(path, keep_uv=False):
     raw = open(path, 'rb').read()
     magic, ver, length = struct.unpack_from('<III', raw, 0)
     assert magic == 0x46546C67
@@ -66,8 +66,10 @@ def slim(path):
         for p in m['primitives']:
             at = p['attributes']; na = {}
             for k, ai in at.items():
-                if k.startswith('TEXCOORD'):
+                if k.startswith('TEXCOORD') and not keep_uv:
                     continue
+                if k.startswith('TEXCOORD'):
+                    na[k] = copy_acc(ai); continue
                 na[k] = quant(ai, 'color') if k.startswith('COLOR') else quant(ai, 'normal') if k == 'NORMAL' else copy_acc(ai)
             p['attributes'] = na
             if 'indices' in p:
@@ -85,5 +87,6 @@ def slim(path):
     print('slim', path, len(raw), '->', len(glb))
 
 
-for p in sys.argv[1:]:
-    slim(p)
+if __name__ == '__main__':
+    for p in [a for a in sys.argv[1:] if not a.startswith('--')]:
+        slim(p, keep_uv='--keep-uv' in sys.argv)
