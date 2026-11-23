@@ -22,6 +22,16 @@ from mathutils import Vector, Matrix
 from vds_common import reset, hexrgb, bake_ao_to_vertex_colors, export_glb, tri_count, srgb2lin
 
 DATA = os.environ.get('MH_DATA', '')
+SKINS = os.environ.get('MH_SKINS', '')       # MakeHuman system assets 'skins' folder (CC0)
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets')
+_FLOOR = {}
+
+
+def floor_off(mv, faces, fgroup):
+    k = id(mv)
+    if k not in _FLOOR:
+        _FLOOR[k] = min(mv[i][1] for f, g in zip(faces, fgroup) if g == 'body' for i in f) * 0.1
+    return _FLOOR[k]
 S = 0.1                                   # MakeHuman decimetres -> metres
 
 
@@ -30,15 +40,22 @@ def G(x, y, z):
 
 
 # ----------------------------------------------------------------------------------------------------- data
+UVS, FUV = [], []          # base mesh texture coordinates (OBJ convention, v up) and per-face uv indices
+
+
 def load_base():
     verts, faces, fgroup, cur = [], [], [], None
     for line in open(os.path.join(DATA, '3dobjs', 'base.obj')):
         if line.startswith('v '):
             verts.append([float(t) for t in line.split()[1:4]])
+        elif line.startswith('vt '):
+            UVS.append([float(t) for t in line.split()[1:3]])
         elif line.startswith('g '):
             cur = line.split()[1]
         elif line.startswith('f '):
-            faces.append([int(p.split('/')[0]) - 1 for p in line.split()[1:]])
+            parts = line.split()[1:]
+            faces.append([int(p.split('/')[0]) - 1 for p in parts])
+            FUV.append([int(p.split('/')[1]) - 1 if '/' in p and p.split('/')[1] else -1 for p in parts])
             fgroup.append(cur)
     return verts, faces, fgroup
 
@@ -155,6 +172,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     for k in mk:
         mk[k] = mk[k] - Vector((0, floor, 0))
     body = [f for f, g in zip(faces, fgroup) if g == 'body']
+    faces_index = {id(f): k for k, f in enumerate(faces)}
     used = sorted({i for f in body for i in f})
     # vertex normals of the body
     nrm = {i: Vector((0, 0, 0)) for i in used}
@@ -172,7 +190,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
 
     JK, PT, GL, SK = hexrgb(opts['jacket']), hexrgb(opts['pants']), hexrgb('#1b1d22'), hexrgb(SKIN_TONES[opts['skin']])
     ACC = hexrgb(opts['accent'])
-    verts_out, cols, tints, wout, polys, fcol = [], [], [], [], [], []
+    verts_out, cols, tints, wout, polys, fcol, psrc = [], [], [], [], [], [], []
 
     def add_shell(kind, offset_fn, col_fn, tint_fn):
         idx, start = {}, len(polys)
@@ -189,7 +207,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                     p = V[i] + nrm[i] * offset_fn(i)
                     verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(weights.get(i, {'pelvis': 1.0}))
                 ids.append(idx[i])
-            polys.append(ids)
+            polys.append(ids); psrc.append((kind, faces_index[id(f)]))
             fcol.append(col_fn(max(f, key=lambda i: V[i].y if kind == 'skin' else 0), sum((V[i] for i in f), Vector()) / len(f)))
 
     # quilted jacket: baffles across the torso and sleeves, hem flared over the hips, high collar
@@ -230,52 +248,182 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     add_shell('pants', p_off, lambda i, p: PT if p.y > 0.16 else hexrgb('#16181c'), lambda i, p: 0.0)
     add_shell('glove', lambda i: 0.012, lambda i, p: GL, lambda i, p: 0.0)
-    add_shell('skin', lambda i: 0.0, lambda i, p: SK, lambda i, p: 2.0)
+    add_shell('skin', lambda i: 0.0, lambda i, p: (1.0, 1.0, 1.0), lambda i, p: 2.0)   # colour from the skin texture
 
-    # helmet shell, goggles and strap: rigid on the head (weights 'head' = 1)
     head_c = (mk['joint-head'] + mk['joint-head-2']) * 0.5
     eye_y = (mk['joint-l-eye'].y + mk['joint-r-eye'].y) * 0.5
-    eye_z = max(mk['joint-l-eye'].z, mk['joint-r-eye'].z)
-    HC, GF, GL_ = hexrgb(opts.get('helmet', '#f1f3f5')), hexrgb('#16181c'), hexrgb(opts.get('lens', '#d9772a'))
-    def ring_cap(c, rx, ry, rz, lat0, lat1, n_lat, n_lon, colf, front_cut=None):
-        rows = []
-        for a in range(n_lat + 1):
-            la = lat0 + (lat1 - lat0) * a / n_lat
-            row = []
-            for b in range(n_lon):
-                lo = b / n_lon * 2 * math.pi
-                x, z = math.sin(lo), math.cos(lo)
-                l2 = la if front_cut is None else la + front_cut * max(0.0, z) ** 2     # brow line higher at the front
-                p = Vector((c.x + rx * math.cos(l2) * x, c.y + ry * math.sin(l2), c.z + rz * math.cos(l2) * z))
-                row.append(len(verts_out)); verts_out.append(p); cols.append(colf(p)); tints.append(0.0); wout.append({'head': 1.0})
-            rows.append(row)
-        for a in range(n_lat):
-            for b in range(n_lon):
-                b1 = (b + 1) % n_lon
-                polys.append([rows[a][b], rows[a][b1], rows[a + 1][b1], rows[a + 1][b]])
-                fcol.append(cols[rows[a][b]])
-    hr = abs(mk['joint-l-eye'].x - mk['joint-r-eye'].x) * 1.95 + 0.02
-    ring_cap(head_c + Vector((0, 0.005, -0.012)), hr * 0.98, 0.15, hr * 1.08, math.radians(-30), math.radians(90), 8, 28,
-             lambda p: HC, front_cut=math.radians(38))
-    # goggle band (frame) and lens across the front
-    gc = Vector((head_c.x, eye_y + 0.004, head_c.z - 0.012))
-    rzg = (eye_z + 0.04) - gc.z
-    for (yy, rr, colf, a0, a1) in ((0.0, 1.0, lambda p: GF, -1.0, 1.0), (0.0, 1.02, lambda p: GL_, -0.55, 0.55)):
-        rows = []
-        for k, dy in enumerate((-0.034, 0.034)):
-            row = []
-            for b in range(15):
-                lo = a0 + (a1 - a0) * b / 14
-                p = Vector((gc.x + hr * 0.96 * rr * math.sin(lo * math.pi / 2), gc.y + dy * (0.8 if rr > 1 else 1), gc.z + rzg * rr * math.cos(lo * math.pi / 2)))
-                row.append(len(verts_out)); verts_out.append(p); cols.append(colf(p)); tints.append(0.0); wout.append({'head': 1.0})
-            rows.append(row)
-        for b in range(14):
-            polys.append([rows[0][b], rows[0][b + 1], rows[1][b + 1], rows[1][b]]); fcol.append(colf(None))
+    neck = mk['joint-neck']
+    W = lambda **kw: kw
+
+    # ---- jacket details, built into the body: rolled hood, back protector pack with shoulder straps, pockets
+    def surf(x, y, front, kinds=('jacket',)):
+        """closest jacket-shell point to (x, y) on the front (front=1) or back (front=-1) of the torso"""
+        best, bd = None, 1e9
+        for i in used:
+            if reg[i] not in ('jacket', 'both') or V[i].z * front <= 0:
+                continue
+            d = (V[i].x - x) ** 2 + (V[i].y - y) ** 2
+            if d < bd:
+                bd, best = d, i
+        return V[best] + nrm[best] * (j_off(best) + 0.004), nrm[best]
+
+    def add_box(c, n, up, size, col, wts, tint=0.0, faces6=True):
+        n = n.normalized(); r = up.cross(n).normalized(); u = n.cross(r).normalized()
+        sx, sy, sz = (v / 2 for v in size)
+        base = len(verts_out)
+        for dx in (-sx, sx):
+            for dy in (-sy, sy):
+                for dz in (0, sz * 2):
+                    verts_out.append(c + r * dx + u * dy + n * dz); cols.append(col); tints.append(tint); wout.append(wts)
+        for fc in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
+            polys.append([base + q for q in fc]); fcol.append(col); psrc.append(('extra', -1))
+
+    def add_tube(path, rad, col, wts_fn, tint=0.0, sides=8):
+        rings = []
+        for k, p in enumerate(path):
+            d = (path[min(k + 1, len(path) - 1)] - path[max(k - 1, 0)]).normalized()
+            a = Vector((0, 1, 0)) if abs(d.y) < 0.9 else Vector((1, 0, 0))
+            u = d.cross(a).normalized(); w = d.cross(u).normalized()
+            ring = []
+            for t in range(sides):
+                th = t / sides * 2 * math.pi
+                ring.append(len(verts_out)); verts_out.append(p + (u * math.cos(th) + w * math.sin(th)) * rad); cols.append(col); tints.append(tint); wout.append(wts_fn(p))
+            rings.append(ring)
+        for k in range(len(rings) - 1):
+            for t in range(sides):
+                t1 = (t + 1) % sides
+                polys.append([rings[k][t], rings[k][t1], rings[k + 1][t1], rings[k + 1][t]]); fcol.append(col); psrc.append(('extra', -1))
+
+    sp_b, sp_c = mk['SPINE_B'], mk['SPINE_C']
+    upper = lambda p: W(spine_03=0.7, spine_02=0.3) if p.y > sp_c.y - 0.05 else W(spine_02=0.7, spine_01=0.3)
+    # rolled hood behind the collar
+    hc = Vector((neck.x, neck.y - 0.03, neck.z - 0.005))
+    rx = abs(mk['joint-l-clavicle'].x - mk['joint-r-clavicle'].x) * 0.62
+    hood = [hc + Vector((rx * math.sin(a), 0.012 * math.cos(a * 2), -abs(rx * 0.95 * math.cos(a)) - 0.035)) for a in (math.radians(v) for v in range(-100, 101, 10))]
+    add_tube(hood, 0.038, JK, lambda p: W(spine_03=0.6, neck_01=0.4), tint=1.0, sides=10)
+    # back protector pack and straps
+    top_y, bot_y = sp_c.y + 0.02, sp_b.y - 0.1
+    pb, pn = surf(0.0, (top_y + bot_y) / 2, -1)
+    add_box(pb, Vector((0, 0, -1)), Vector((0, 1, 0)), (0.27, top_y - bot_y, 0.085), hexrgb('#1c1f25'), W(spine_02=0.5, spine_03=0.5))
+    add_box(pb + Vector((0, 0.03, -0.088)), Vector((0, 0, -1)), Vector((0, 1, 0)), (0.18, 0.12, 0.012), hexrgb(opts['accent']), W(spine_02=0.5, spine_03=0.5))
+    for sx in (-1, 1):
+        sh = mk['joint-%s-shoulder' % ('l' if sx > 0 else 'r')]
+        pf, _ = surf(sx * 0.085, sh.y - 0.12, 1)
+        pf2, _ = surf(sx * 0.095, sp_b.y - 0.02, 1)
+        pbk, _ = surf(sx * 0.085, top_y - 0.02, -1)
+        path = [pbk, Vector((sx * 0.09, sh.y + 0.045, (pbk.z + pf.z) / 2)), pf + Vector((0, 0.04, 0.004)), pf, pf2]
+        add_tube([path[0].lerp(path[1], t) for t in (0, 0.5, 1)] + [path[1].lerp(path[2], t) for t in (0.5, 1)] + path[3:], 0.011, hexrgb('#1c1f25'), upper)
+    # chest pocket (left), hip pockets: flap, zip line
+    for (x, y, wdt) in ((0.085, sp_c.y - 0.06, 0.11), (0.13, hip_y + 0.06, 0.13), (-0.13, hip_y + 0.06, 0.13)):
+        p, n = surf(x, y, 1)
+        n = Vector((n.x, 0, n.z)).normalized()
+        wts = upper(p) if y > hip_y + 0.1 else W(spine_01=0.6, pelvis=0.4)
+        add_box(p, n, Vector((0, 1, 0)), (wdt, 0.065, 0.008), (0.82, 0.82, 0.82), wts, tint=1.0)
+        add_box(p + Vector((0, 0.029, 0)), n, Vector((0, 1, 0)), (wdt * 0.92, 0.006, 0.011), hexrgb('#16181c'), wts)
+    # chest zip
+    zs = [surf(0.0, y, 1)[0] + Vector((0, 0, 0.003)) for y in [hip_y - 0.05 + k * (neck.y - hip_y) / 8 for k in range(9)]]
+    add_tube(zs, 0.005, hexrgb('#16181c'), upper, sides=5)
+
+    # ---- head gear: shells offset from the head surface, so they fit the head instead of a generic sphere
+    hface = [f for f in body if all(dom[i] in ('head', 'neck_01') for i in f)]
+    hv = sorted({i for f in hface for i in f})
+    def hdir(i):
+        d = Vector((V[i].x - head_c.x, 0, V[i].z - head_c.z))
+        return d.normalized() if d.length > 1e-6 else Vector((0, 0, 1))
+    def line(i, front, side, back):
+        c = hdir(i).z
+        return eye_y + (side + (front - side) * c if c > 0 else side + (back - side) * -c)
+
+    def gear(name, sel, offset, colf, tintf, smooth_it, rim=0.0):
+        """a skinned shell (weights head = 1) over the selected head faces, smoothed, with an optional rim band"""
+        P = {'v': [], 'c': [], 't': [], 'p': [], 'fc': []}
+        idx = {}
+        for f in hface:
+            if not all(sel(i) for i in f):
+                continue
+            ids = []
+            for i in f:
+                if i not in idx:
+                    idx[i] = len(P['v']); P['v'].append(V[i] + nrm[i] * offset(i)); P['t'].append(tintf(i))
+                ids.append(idx[i])
+            P['p'].append(ids); P['fc'].append(colf(f))
+        if rim:
+            from collections import Counter
+            ec = Counter(tuple(sorted((a, b))) for p in P['p'] for a, b in zip(p, p[1:] + p[:1]))
+            for p, fcl in list(zip(P['p'], P['fc'])):
+                for a, b in zip(p, p[1:] + p[:1]):
+                    if ec[tuple(sorted((a, b)))] == 1:            # open border: fold a rim back to the head
+                        src = {v: k for k, v in idx.items()}
+                        ia, ib = src[a], src[b]
+                        na, nb = len(P['v']), len(P['v']) + 1
+                        P['v'] += [V[ia] + nrm[ia] * rim, V[ib] + nrm[ib] * rim]; P['t'] += [P['t'][a], P['t'][b]]
+                        P['p'].append([b, a, na, nb]); P['fc'].append(hexrgb('#1a1c21'))
+        P['smooth'] = smooth_it
+        return P
+
+    HC, LENS = hexrgb(opts.get('helmet', '#f1f3f5')), hexrgb(opts.get('lens', '#d9772a'))
+    hl = lambda i: line(i, 0.034, -0.03, -0.065)
+    def h_col(f):
+        c = sum((V[i] for i in f), Vector()) / len(f)
+        top = (c - head_c)
+        if c.y > eye_y + 0.06 and abs(abs(c.x - head_c.x) - 0.028) < 0.009 and -0.05 < top.z < 0.06:
+            return hexrgb('#24272d')                                                  # vents
+        if abs(c.y - (eye_y + 0.012)) < 0.016 and hdir(f[0]).z < 0.25:
+            return hexrgb('#16181c')                                                  # goggle strap
+        return HC
+    helmet = gear('helmet', lambda i: V[i].y >= hl(i), lambda i: 0.024, h_col, lambda i: 3.0, 10, rim=0.004)
+    # goggles: a band over the eyes, proud of the face, lens across the front
+    gl = lambda i: abs(V[i].y - (eye_y + 0.004)) < 0.032 and hdir(i).z > 0.05
+    def g_col(f):
+        c = sum((V[i] for i in f), Vector()) / len(f)
+        return LENS if abs(c.x - head_c.x) < 0.072 and abs(c.y - (eye_y + 0.004)) < 0.022 else hexrgb('#16181c')
+    goggles = gear('goggles', gl, lambda i: 0.02 + 0.008 * max(0.0, hdir(i).z), g_col, lambda i: 0.0, 4, rim=0.003)
+    # beanie for people in town: rib-knit cuff, pompom
+    bl = lambda i: line(i, 0.062, 0.002, -0.04)
+    def b_col(f):
+        c = sum((V[i] for i in f), Vector()) / len(f)
+        a = math.atan2(c.x - head_c.x, c.z - head_c.z)
+        cuff = c.y < bl(f[0]) + 0.04
+        return (0.78, 0.78, 0.78) if cuff and int((a + 4) * 26) % 2 else (1.0, 1.0, 1.0)
+    beanie = gear('beanie', lambda i: V[i].y >= bl(i), lambda i: 0.012 + (0.005 if V[i].y < bl(i) + 0.04 else 0.0), b_col, lambda i: 4.0, 4, rim=0.003)
+    topv = max(hv, key=lambda i: V[i].y)
+    pp = V[topv] + Vector((0, 0.035, -0.01))
+    pom = {'v': [], 't': [], 'p': [], 'fc': [], 'smooth': 0}
+    rr = random.Random(3)
+    for a in range(9):
+        for b in range(12):
+            la, lo = -math.pi / 2 + math.pi * a / 8, 2 * math.pi * b / 12
+            r = 0.04 * (1 + 0.12 * rr.random())
+            pom['v'].append(pp + Vector((math.cos(la) * math.sin(lo), math.sin(la), math.cos(la) * math.cos(lo))) * r); pom['t'].append(4.0)
+    for a in range(8):
+        for b in range(12):
+            b1 = (b + 1) % 12
+            pom['p'].append([a * 12 + b, a * 12 + b1, (a + 1) * 12 + b1, (a + 1) * 12 + b]); pom['fc'].append((0.92, 0.92, 0.92))
+    # eyes for faces without goggles: eyeballs in the sockets, iris and pupil facing forward
+    eyes = {'v': [], 't': [], 'p': [], 'fc': [], 'smooth': 0}
+    for s_ in ('l', 'r'):
+        c = mk['joint-%s-eye' % s_]
+        base = len(eyes['v'])
+        for a in range(9):
+            for b in range(14):
+                la, lo = -math.pi / 2 + math.pi * a / 8, 2 * math.pi * b / 14
+                eyes['v'].append(c + Vector((math.cos(la) * math.sin(lo), math.sin(la), math.cos(la) * math.cos(lo))) * 0.0122); eyes['t'].append(0.0)
+        for a in range(8):
+            for b in range(14):
+                b1 = (b + 1) % 14
+                q = [base + a * 14 + b, base + a * 14 + b1, base + (a + 1) * 14 + b1, base + (a + 1) * 14 + b]
+                cz = sum((eyes['v'][k] - c).normalized().z for k in q) / 4
+                eyes['p'].append(q); eyes['fc'].append(hexrgb('#0c0c0e') if cz > 0.95 else hexrgb(opts.get('iris', '#5a3a22')) if cz > 0.82 else hexrgb('#ece6dc'))
+    gear_parts = {'helmet': helmet, 'goggles': goggles, 'beanie': beanie, 'pompom': pom, 'eyes': eyes}
 
     # ---- mesh + armature
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(G(p.x, p.y, p.z)) for p in verts_out], [], polys)
     me.update()
+    psrc_v = ['extra'] * len(verts_out)
+    for p, (kind, fi) in zip(polys, psrc):
+        if kind != 'extra':
+            for v in p: psrc_v[v] = 'shell'
     bm = bmesh.new(); bm.from_mesh(me)
     hem_y = hip_y - 0.065
     for e in bm.edges:
@@ -283,7 +431,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             for v in e.verts:
                 if v.index < len(tints) and tints[v.index] == 1.0 and v.co.z < hip_y + 0.02:   # Blender z = game y
                     v.co.z = hem_y
-    cloth = [v for v in bm.verts if v.index < len(tints) and wout[v.index].get('head', 0) < 0.5 and cols[v.index] != SK]
+    cloth = [v for v in bm.verts if v.index < len(tints) and wout[v.index].get('head', 0) < 0.5 and tints[v.index] != 2.0 and psrc_v[v.index] == 'shell']
     for _ in range(6):
         bmesh.ops.smooth_vert(bm, verts=cloth, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     bm.to_mesh(me); bm.free(); me.update()
@@ -296,6 +444,14 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     ta = me.attributes.new('_tint', 'FLOAT', 'POINT')
     for k, t in enumerate(tints):
         ta.data[k].value = t
+    uvl = me.uv_layers.new(name='UVMap')
+    for poly in me.polygons:
+        kind, fi = psrc[poly.index]
+        for j, li in enumerate(poly.loop_indices):
+            if kind == 'skin' and fi >= 0 and FUV[fi][j] >= 0 and all(-0.001 <= c <= 1.001 for c in skin_uv(UVS[FUV[fi][j]])):
+                uvl.data[li].uv = skin_uv(UVS[FUV[fi][j]])
+            else:
+                uvl.data[li].uv = WHITE_UV
     for p in me.polygons:
         p.use_smooth = True
     ob = bpy.data.objects.new(name, me)
@@ -325,7 +481,33 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                 ob.vertex_groups[bn].add([k], x / tot, 'REPLACE')
     ob.parent = ao
     mod = ob.modifiers.new('arm', 'ARMATURE'); mod.object = ao
-    return ob, ao, mk
+    # ---- head gear meshes on the same rig
+    gobs = []
+    for gname, P in gear_parts.items():
+        gm = bpy.data.meshes.new(name + '_' + gname)
+        gm.from_pydata([tuple(G(p.x, p.y, p.z)) for p in P['v']], [], P['p']); gm.update()
+        if P['smooth']:
+            bm = bmesh.new(); bm.from_mesh(gm)
+            for _ in range(P['smooth']):
+                bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+            bm.to_mesh(gm); bm.free(); gm.update()
+        ca = gm.color_attributes.new('Color', 'FLOAT_COLOR', 'CORNER')
+        for poly in gm.polygons:
+            c = P['fc'][poly.index]
+            for li in poly.loop_indices:
+                ca.data[li].color = (srgb2lin(c[0]), srgb2lin(c[1]), srgb2lin(c[2]), 1.0)
+        gm.color_attributes.active_color = ca
+        ta = gm.attributes.new('_tint', 'FLOAT', 'POINT')
+        for k, t in enumerate(P['t']):
+            ta.data[k].value = t
+        for p in gm.polygons:
+            p.use_smooth = True
+        go = bpy.data.objects.new(name + '_' + gname, gm); bpy.context.scene.collection.objects.link(go)
+        go.vertex_groups.new(name='head').add(list(range(len(P['v']))), 1.0, 'REPLACE')
+        go.parent = ao; m2 = go.modifiers.new('arm', 'ARMATURE'); m2.object = ao
+        gobs.append(go)
+    return ob, ao, mk, gobs
 
 
 def finish(ob, ratio):
@@ -342,9 +524,57 @@ def finish(ob, ratio):
         bpy.ops.object.modifier_apply(modifier='dec')
 
 
+CROP = {}                  # head/neck island of the MakeHuman UV layout: [u0, v0, u1, v1]
+WHITE_UV = (0.004, 0.004)  # a white texel in the corner of the cropped texture (clothes take their colour from vertices)
+
+
+def skin_uv(uv):
+    u0, v0, u1, v1 = CROP['box']
+    return ((uv[0] - u0) / (u1 - u0), (uv[1] - v0) / (v1 - v0))
+
+
+def skin_crop(faces, fgroup, weights):
+    us = []
+    for f, g, fu in zip(faces, fgroup, FUV):
+        if g != 'body':
+            continue
+        if all(max(weights.get(i, {'pelvis': 1}).items(), key=lambda kv: kv[1])[0] == 'head' for i in f):
+            us += [UVS[k] for k in fu if k >= 0]
+    mu = sorted(u for u, v in us)[len(us) // 2]
+    us = [(u, v) for u, v in us if abs(u - mu) < 0.25]          # the head island only (mouth interior lies elsewhere)
+    su, sv = sorted(u for u, v in us), sorted(v for u, v in us)
+    q = lambda L, x: L[int(x * (len(L) - 1))]
+    u0, v0, u1, v1 = q(su, 0.02) - 0.012, q(sv, 0.02) - 0.012, q(su, 0.985) + 0.012, q(sv, 0.985) + 0.012   # the head island (stray mouth-interior UVs ignored)
+    CROP['box'] = [u0, v0, u1, v1]
+
+
+def skin_texture(src, out, brows, size=512):
+    """crop the head island of a MakeHuman skin (CC0) to size x size, paint eyebrows, white corner texel"""
+    import numpy as np
+    img = bpy.data.images.load(src)
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32); img.pixels.foreach_get(px); px = px.reshape(h, w, 4)   # row 0 = bottom (v = 0)
+    u0, v0, u1, v1 = CROP['box']
+    ys = np.clip(((v0 + (v1 - v0) * (np.arange(size) + 0.5) / size) * h).astype(int), 0, h - 1)
+    xs = np.clip(((u0 + (u1 - u0) * (np.arange(size) + 0.5) / size) * w).astype(int), 0, w - 1)
+    out_px = px[ys][:, xs].copy()
+    for (bu, bv), r, dark in brows:                                   # eyebrows: soft dark dabs along the brow line
+        cx, cy = (bu - u0) / (u1 - u0) * size, (bv - v0) / (v1 - v0) * size
+        yy, xx = np.mgrid[0:size, 0:size]
+        a = np.clip(1 - (((xx - cx) * 1.8) ** 2 + (yy - cy) ** 2) / (r * r), 0, 1) * dark   # the face lies sideways in the MakeHuman layout
+        out_px[..., :3] *= (1 - a[..., None] * 0.72)
+    out_px[0:6, 0:6, :3] = 1.0
+    im = bpy.data.images.new(os.path.basename(out), size, size)
+    im.pixels.foreach_set(out_px.ravel()); im.filepath_raw = out; im.file_format = 'JPEG'
+    bpy.context.scene.render.image_settings.quality = 86
+    im.save()
+
+
 CAST = [   # the game varies jacket colour, skin tone and build per skier
-    ('hm_male', 'male', 0.6, 0.5, (0.2, 0.2, 0.6), dict(jacket='#ffffff', pants='#24272e', accent='#1d2027', skin='light', helmet='#f1f3f5', lens='#d9772a')),
-    ('hm_female', 'female', 0.5, 0.42, (0.2, 0.2, 0.6), dict(jacket='#ffffff', pants='#2b2f38', accent='#e9edf2', skin='light', helmet='#2b2f38', lens='#5aa7d8')),
+    ('hm_male', 'male', 0.6, 0.5, (0.2, 0.2, 0.6), dict(jacket='#ffffff', pants='#24272e', accent='#c8ccd2', skin='light', helmet='#ffffff', lens='#d9772a', iris='#4a3524',
+                                                     skin_tex='young_caucasian_male/young_lightskinned_male_diffuse.png')),
+    ('hm_female', 'female', 0.5, 0.42, (0.2, 0.2, 0.6), dict(jacket='#ffffff', pants='#2b2f38', accent='#c8ccd2', skin='light', helmet='#ffffff', lens='#5aa7d8', iris='#3d6a8e',
+                                                         skin_tex='young_caucasian_female2/young_lightskinned_female_diffuse2.png')),
 ]
 
 
@@ -354,12 +584,36 @@ def main():
     verts, faces, fgroup = load_base()
     weights = load_weights()
     rnd = random.Random(7)
-    objs, rigs, info = [], [], {}
+    skin_crop(faces, fgroup, weights)
+    objs, rigs, info, gears = [], [], {}, []
     for name, g, mus, wei, eth, opts in CAST:
         mv = morph(verts, character(g, mus, wei, eth))
-        ob, ao, mk = build(name, mv, faces, fgroup, weights, opts, rnd)
+        ob, ao, mk, gobs = build(name, mv, faces, fgroup, weights, opts, rnd)
         finish(ob, float(os.environ.get('HM_RATIO', '0.5')))
-        objs.append(ob); rigs.append(ao)
+        for go in gobs:
+            if go.name.endswith(('_helmet', '_beanie', '_goggles')):
+                finish(go, 0.3 if go.name.endswith('_goggles') else 0.45)
+        objs.append(ob); rigs.append(ao); gears += gobs
+        # eyebrows: points of the base mesh just above each eye, in UV space
+        brows = []
+        for s_ in ('l', 'r'):
+            e = mk['joint-%s-eye' % s_]
+            for t in [k * 0.5 for k in range(13)]:
+                x = e.x + (t - 2.4) * 0.0075 * (1 if e.x > 0 else -1)   # inner end clear of the nose bridge
+                y = e.y + 0.029 + 0.004 * math.sin(t / 6 * math.pi) - 0.003 * (t / 6)
+                best, bd = None, 1e9
+                for fi, (f, gg) in enumerate(zip(faces, fgroup)):
+                    if gg != 'body':
+                        continue
+                    for j, i in enumerate(f):
+                        p = Vector(mv[i]) * S
+                        if p.z < e.z - 0.01:
+                            continue
+                        d = (p.x - x) ** 2 + (p.y - floor_off(mv, faces, fgroup) - y) ** 2
+                        if d < bd and FUV[fi][j] >= 0:
+                            bd, best = d, UVS[FUV[fi][j]]
+                brows.append((best, 9.0 - abs(t - 2.6) * 0.9, 0.8))
+        skin_texture(os.path.join(SKINS, opts['skin_tex']), os.path.join(ASSETS_DIR, 'skin_%s.jpg' % g), brows)
         seg = lambda a, b: round((mk[a] - mk[b]).length, 3)
         info[name] = dict(thigh=seg('joint-l-upper-leg', 'joint-l-knee'), shin=seg('joint-l-knee', 'joint-l-ankle'),
                           upperarm=seg('joint-l-shoulder', 'joint-l-elbow'), forearm=seg('joint-l-elbow', 'joint-l-hand'),
@@ -367,12 +621,12 @@ def main():
                           head_h=round(mk['joint-head'].y, 3), tris=tri_count([ob]))
     for i, (ob, ao) in enumerate(zip(objs, rigs)):
         ao.location.x = i * 2.0
-    bake_ao_to_vertex_colors(objs, samples=48, distance=0.12, strength=0.65, floor=0.4)
+    bake_ao_to_vertex_colors(objs + [o for o in gears if not o.name.endswith(('_eyes', '_pompom'))], samples=48, distance=0.12, strength=0.65, floor=0.4)
     for ao in rigs:
         ao.location.x = 0
     print('HUMANS', json.dumps(info))
     bpy.ops.object.select_all(action='DESELECT')
-    export_glb(rigs + objs, 'skiers_real.glb')
+    export_glb(rigs + objs + gears, 'skiers_real.glb')
 
 
 if __name__ == '__main__':
