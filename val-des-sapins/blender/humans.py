@@ -190,7 +190,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
 
     JK, PT, GL, SK = hexrgb(opts['jacket']), hexrgb(opts['pants']), hexrgb('#1b1d22'), hexrgb(SKIN_TONES[opts['skin']])
     ACC = hexrgb(opts['accent'])
-    verts_out, cols, tints, wout, polys, fcol, psrc = [], [], [], [], [], [], []
+    verts_out, cols, tints, wout, polys, fcol, psrc, skin_base = [], [], [], [], [], [], [], {}
 
     def add_shell(kind, offset_fn, col_fn, tint_fn):
         idx, start = {}, len(polys)
@@ -204,6 +204,8 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             for i in f:
                 if i not in idx:
                     idx[i] = len(verts_out)
+                    if kind == 'skin':
+                        skin_base[len(verts_out)] = i
                     p = V[i] + nrm[i] * offset_fn(i)
                     verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(weights.get(i, {'pelvis': 1.0}))
                 ids.append(idx[i])
@@ -458,8 +460,21 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                 uvl.data[li].uv = WHITE_UV
     for p in me.polygons:
         p.use_smooth = True
+    sa = me.attributes.new('src', 'INT', 'POINT')
+    for k in range(len(me.vertices)):
+        sa.data[k].value = k
+    me_face = me.copy(); me_face.name = name + '_face'
+    for mesh_, keep_skin in ((me, False), (me_face, True)):
+        bm = bmesh.new(); bm.from_mesh(mesh_)
+        bm.faces.ensure_lookup_table()
+        dead = [fc for fc in bm.faces if (psrc[fc.index][0] == 'skin') != keep_skin]
+        bmesh.ops.delete(bm, geom=dead, context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bm.to_mesh(mesh_); bm.free(); mesh_.update()
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
+    face = bpy.data.objects.new(name + '_face', me_face)
+    bpy.context.scene.collection.objects.link(face)
 
     arm = bpy.data.armatures.new(name + '_rig')
     ao = bpy.data.objects.new(name + '_rig', arm)
@@ -476,15 +491,19 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             b.parent = eb[par]
         eb[bn] = b
     bpy.ops.object.mode_set(mode='OBJECT')
-    for bn, *_ in BONES:
-        ob.vertex_groups.new(name=bn)
-    for k, wd in enumerate(wout):
-        tot = sum(wd.values()) or 1
-        for bn, x in sorted(wd.items(), key=lambda kv: -kv[1])[:4]:
-            if bn in ob.vertex_groups:
-                ob.vertex_groups[bn].add([k], x / tot, 'REPLACE')
-    ob.parent = ao
-    mod = ob.modifiers.new('arm', 'ARMATURE'); mod.object = ao
+    for o_ in (ob, face):
+        for bn, *_ in BONES:
+            o_.vertex_groups.new(name=bn)
+        src = o_.data.attributes['src']
+        for v in o_.data.vertices:
+            wd = wout[src.data[v.index].value]
+            tot = sum(wd.values()) or 1
+            for bn, x in sorted(wd.items(), key=lambda kv: -kv[1])[:4]:
+                if bn in o_.vertex_groups:
+                    o_.vertex_groups[bn].add([v.index], x / tot, 'REPLACE')
+        o_.parent = ao
+        m_ = o_.modifiers.new('arm', 'ARMATURE'); m_.object = ao
+    face['skin_base'] = {str(k): v for k, v in skin_base.items()}
     # ---- head gear meshes on the same rig
     gobs = []
     for gname, P in gear_parts.items():
@@ -511,10 +530,10 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         go.vertex_groups.new(name='head').add(list(range(len(P['v']))), 1.0, 'REPLACE')
         go.parent = ao; m2 = go.modifiers.new('arm', 'ARMATURE'); m2.object = ao
         gobs.append(go)
-    return ob, ao, mk, gobs
+    return ob, ao, mk, gobs, face
 
 
-def finish(ob, ratio):
+def finish(ob, ratio, protect=None):
     import bmesh as bm_
     bpy.context.view_layer.objects.active = ob
     bm = bm_.new(); bm.from_mesh(ob.data)
@@ -524,6 +543,8 @@ def finish(ob, ratio):
     ob.data.color_attributes.active_color = ob.data.color_attributes['Color']
     if ratio < 1:
         d = ob.modifiers.new('dec', 'DECIMATE'); d.ratio = ratio
+        if protect:                                   # the group's vertices are kept (inverted weights)
+            d.vertex_group = protect; d.invert_vertex_group = True; d.vertex_group_factor = 1.0
         bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
         bpy.ops.object.modifier_apply(modifier='dec')
 
@@ -574,6 +595,62 @@ def skin_texture(src, out, brows, size=512):
     im.save()
 
 
+EXPRESSIONS = {             # morph name: [(expression unit, weight)]
+    'blink': [('eye-left-closure', 1.0), ('eye-right-closure', 1.0)],
+    'smile': [('mouth-corner-puller', 0.9), ('mouth-elevation', 0.12), ('eye-left-slit', 0.22), ('eye-right-slit', 0.22)],
+    'open': [('mouth-open', 1.0)],
+    'brows': [('eyebrows-left-up', 1.0), ('eyebrows-right-up', 1.0)],
+    'squint': [('eye-left-slit', 0.6), ('eye-right-slit', 0.6), ('eyebrows-left-down', 0.25), ('eyebrows-right-down', 0.25)],
+}
+
+
+def expression_units():
+    units = {}
+    for combo in EXPRESSIONS.values():
+        for u, _ in combo:
+            if u not in units:
+                off = {}
+                with gzip.open(os.path.join(DATA, 'targets', 'expression', 'units', 'caucasian', u + '.target.gz'), 'rt') as fh:
+                    for line in fh:
+                        if line.strip() and line[0] != '#':
+                            i, x, y, z = line.split(); off[int(i)] = (float(x), float(y), float(z))
+                units[u] = off
+    return units
+
+
+def protect_expressions(face):
+    """vertex group 'expr' on everything the expressions move: decimation leaves eyelids, lips and brows intact"""
+    moved = set()
+    for off in expression_units().values():
+        moved |= {i for i, d in off.items() if abs(d[0]) + abs(d[1]) + abs(d[2]) > 0.004}
+    base = {int(k): v for k, v in face['skin_base'].items()}
+    src = face.data.attributes['src']
+    g = face.vertex_groups.new(name='expr')
+    g.add([v.index for v in face.data.vertices if base.get(src.data[v.index].value) in moved], 1.0, 'REPLACE')
+
+
+def add_expressions(face):
+    """shape keys on the face mesh (after any vertex merge): each vertex finds its base-mesh vertex through 'src'"""
+    units = expression_units()
+    me = face.data
+    base = {int(k): v for k, v in face['skin_base'].items()}
+    src = me.attributes['src']
+    face.shape_key_add(name='Basis', from_mix=False)
+    for name, combo in EXPRESSIONS.items():
+        sk = face.shape_key_add(name=name, from_mix=False)
+        for v in me.vertices:
+            bi = base.get(src.data[v.index].value)
+            if bi is None:
+                continue
+            d = Vector((0, 0, 0))
+            for u, w in combo:
+                o = units[u].get(bi)
+                if o:
+                    d += Vector(o) * (w * S)
+            if d.length > 0.0004:                  # sub-millimetre drift left out (keeps the morphs sparse)
+                sk.data[v.index].co = v.co + G(d.x, d.y, d.z)
+
+
 CAST = [   # the game varies jacket colour, skin tone and build per skier
     ('hm_male', 'male', 0.6, 0.5, (0.2, 0.2, 0.6), dict(jacket='#ffffff', pants='#24272e', accent='#c8ccd2', skin='light', helmet='#ffffff', lens='#d9772a', iris='#4a3524',
                                                      skin_tex='young_caucasian_male/young_lightskinned_male_diffuse.png')),
@@ -592,8 +669,13 @@ def main():
     objs, rigs, info, gears = [], [], {}, []
     for name, g, mus, wei, eth, opts in CAST:
         mv = morph(verts, character(g, mus, wei, eth))
-        ob, ao, mk, gobs = build(name, mv, faces, fgroup, weights, opts, rnd)
+        ob, ao, mk, gobs, face = build(name, mv, faces, fgroup, weights, opts, rnd)
         finish(ob, float(os.environ.get('HM_RATIO', '0.5')))
+        protect_expressions(face)
+        finish(face, float(os.environ.get('HM_FACE_RATIO', '0.35')), protect='expr')
+        face.vertex_groups.remove(face.vertex_groups['expr'])
+        add_expressions(face)
+        gobs.append(face)
         for go in gobs:
             if go.name.endswith(('_helmet', '_beanie', '_goggles')):
                 finish(go, 0.3 if go.name.endswith('_goggles') else 0.45)
@@ -630,7 +712,19 @@ def main():
         ao.location.x = 0
     print('HUMANS', json.dumps(info))
     bpy.ops.object.select_all(action='DESELECT')
-    export_glb(rigs + objs + gears, 'skiers_real.glb')
+    for o_ in objs + gears:
+        if 'src' in o_.data.attributes:
+            o_.data.attributes.remove(o_.data.attributes['src'])
+    bpy.ops.object.select_all(action='DESELECT')
+    for o_ in rigs + objs + gears:
+        o_.select_set(True)
+    bpy.context.view_layer.objects.active = rigs[0]
+    path = os.path.join(ASSETS_DIR, 'skiers_real.glb')
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_materials='NONE',
+                              export_vertex_color='ACTIVE', export_normals=True, export_texcoords=True, export_yup=True,
+                              export_animations=False, export_attributes=True, export_morph=True, export_morph_normal=False,
+                              export_try_sparse_sk=True)
+    print('wrote', path, os.path.getsize(path), 'bytes')
 
 
 if __name__ == '__main__':

@@ -36,9 +36,19 @@ def slim(path, keep_uv=False):
     def copy_acc(ai):
         if ai in remap:
             return remap[ai]
-        a = dict(acc[ai]); v = views[a['bufferView']]; fmt, sz = CT[a['componentType']]; n = NC[a['type']]
-        off = v.get('byteOffset', 0) + a.get('byteOffset', 0)
-        a['bufferView'] = put(bin_[off:off + a['count'] * sz * n], v.get('target')); a.pop('byteOffset', None)
+        a = dict(acc[ai]); fmt, sz = CT[a['componentType']]; n = NC[a['type']]
+        if 'bufferView' in a:
+            v = views[a['bufferView']]
+            off = v.get('byteOffset', 0) + a.get('byteOffset', 0)
+            a['bufferView'] = put(bin_[off:off + a['count'] * sz * n], v.get('target')); a.pop('byteOffset', None)
+        if 'sparse' in a:                        # morph targets: only the moved vertices are stored
+            sp = dict(a['sparse']); cnt = sp['count']
+            for key, width in (('indices', 1), ('values', n)):
+                part = dict(sp[key]); pv = views[part['bufferView']]; psz = CT[part.get('componentType', a['componentType'])][1]
+                po = pv.get('byteOffset', 0) + part.get('byteOffset', 0)
+                part['bufferView'] = put(bin_[po:po + cnt * psz * width]); part.pop('byteOffset', None)
+                sp[key] = part
+            a['sparse'] = sp
         remap[ai] = len(new_acc); new_acc.append(a); return remap[ai]
 
     def quant(ai, kind):
@@ -74,6 +84,8 @@ def slim(path, keep_uv=False):
             p['attributes'] = na
             if 'indices' in p:
                 p['indices'] = copy_acc(p['indices'])
+            if 'targets' in p:
+                p['targets'] = [{k: copy_acc(v) for k, v in t.items()} for t in p['targets']]
     for sk in js.get('skins', []):           # skinned models: keep the bind matrices pointing at their (moved) accessor
         if 'inverseBindMatrices' in sk:
             sk['inverseBindMatrices'] = copy_acc(sk['inverseBindMatrices'])
