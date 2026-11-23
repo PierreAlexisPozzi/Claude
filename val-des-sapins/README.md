@@ -67,7 +67,7 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
 - Liaisons rouge ↔ noire : Traversée du Col (bleue, de la Grande Combe vers le Couloir, ~2 250 m) et Traversée des Chamois (rouge, du Couloir vers la Grande Combe, plus bas). Chronos de référence du Couloir (88 s) et de la Grande Combe (82 s) re-mesurés.
 
 ## Commandes tactiles (mobile)
-- **Joystick flottant** (pouce gauche, n'importe où dans la moitié gauche basse) : direction analogique (zone morte, courbe progressive), pousser = schuss / accélérer la remontée, tirer = frein. La base suit le pouce s'il dépasse le bord.
+- **Joystick fixe** (en bas à gauche) : la base ne bouge jamais, la manette reste dans son cercle même si le pouce glisse au-delà ; direction analogique (zone morte, courbe progressive), pousser = schuss / accélérer la remontée, tirer = frein.
 - **Saut** : maintenir pour charger (anneau doré), relâcher pour sauter ; **double tape** = switch (180° sur la neige). Un tap rapide attend ~0,23 s une éventuelle deuxième tape ; un saut chargé part sans délai. En l'air : joystick = vrilles, Saut maintenu + haut / bas = flips.
 - **Grab** : maintenir = mute grab ; + joystick bas en l'air = tail grab ; + haut / bas au sol = nose / tail press (avec ←/→ : butter).
 - **Bouton doré contextuel** : n'apparaît que s'il y a quelque chose à faire (Monter, Parler, Passer la montée, Rejoindre après une chute ou un blocage). Le bandeau d'information est aussi touchable.

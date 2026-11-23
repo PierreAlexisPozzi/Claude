@@ -183,8 +183,8 @@ body.touch #tools,body.touch .ctrls,body.touch #help{display:none}
 body.touch .tctrls{display:block}
 body.touch #prompt .key,body.touch #dlg .key{display:none}
 body.touch #prompt{pointer-events:auto;cursor:pointer}
-#joyZone{position:absolute;left:0;bottom:0;width:52%;height:60%;pointer-events:auto;touch-action:none}
-#joy{position:absolute;left:calc(env(safe-area-inset-left,0px) + 94px);top:calc(100% - env(safe-area-inset-bottom,0px) - 108px);width:136px;height:136px;margin:-68px 0 0 -68px;border-radius:50%;box-sizing:border-box;background:radial-gradient(circle,rgba(11,19,31,.12) 0 48%,rgba(11,19,31,.34) 49% 100%);border:1.5px solid rgba(255,255,255,.4);opacity:.5;transition:opacity .2s}
+#joyZone{position:absolute;left:calc(env(safe-area-inset-left,0px) + 4px);bottom:calc(env(safe-area-inset-bottom,0px) + 4px);width:200px;height:200px;pointer-events:auto;touch-action:none}
+#joy{position:absolute;left:50%;top:50%;width:136px;height:136px;margin:-68px 0 0 -68px;border-radius:50%;box-sizing:border-box;background:radial-gradient(circle,rgba(11,19,31,.12) 0 48%,rgba(11,19,31,.34) 49% 100%);border:1.5px solid rgba(255,255,255,.4);opacity:.75;transition:opacity .2s}
 #joy.on{opacity:1;transition:none}
 #joy .h{position:absolute;left:50%;transform:translateX(-50%);font:700 9.5px var(--display);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.8);font-style:normal;text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none}
 #joy .h.u{top:7px}#joy .h.d{bottom:7px}
@@ -223,7 +223,6 @@ body.touch #prompt{pointer-events:auto;cursor:pointer}
 }
 @media (pointer:coarse) and (max-height:500px){
   body.touch #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 14px);max-width:38vw;white-space:normal;font-size:12.5px}
-  #joyZone{height:72%}
   #trick{top:46%}
   #mini{width:118px;height:118px}
   #score{left:auto;right:calc(env(safe-area-inset-right,0px) + 158px);transform:none;font-size:12px;padding:5px 10px}
@@ -342,7 +341,7 @@ body.touch #miniWrap .cap{display:none}
       <div><span class="ks"><span class="key">G</span></span>Qualité d'image</div>
     </div>
     <ul class="tctrls">
-      <li><b>Joystick</b> (pouce gauche, où vous voulez) : diriger · pousser = schuss · tirer = frein</li>
+      <li><b>Joystick</b> (fixe, en bas à gauche) : diriger · pousser = schuss · tirer = frein</li>
       <li><b>Saut</b> : maintenir puis relâcher · <b>2 tapes</b> = switch</li>
       <li><b>En l'air</b> : joystick = vrilles · Saut maintenu + haut / bas = flips</li>
       <li><b>Grab</b> : maintenir · + bas en l'air = tail · + haut / bas au sol = press</li>
@@ -5832,22 +5831,18 @@ function stickEnd() {
   if (!stick.on) return;
   stick.on = false; stick.id = null; stick.x = stick.y = 0;
   input.left = input.right = input.up = input.down = false;
-  joy.classList.remove('on'); joy.style.left = joy.style.top = ''; joyK.style.transform = '';
+  joy.classList.remove('on'); joyK.style.transform = '';
 }
 joyZone.addEventListener('pointerdown', e => {
   e.preventDefault(); if (stick.on) return;
-  const r = joyZone.getBoundingClientRect();
-  stick.on = true; stick.id = e.pointerId; joyC = { x: e.clientX, y: e.clientY };
-  joy.style.left = (e.clientX - r.left) + 'px'; joy.style.top = (e.clientY - r.top) + 'px'; joy.classList.add('on');
+  const r = joy.getBoundingClientRect();   // fixed base: deflection is measured from its centre
+  stick.on = true; stick.id = e.pointerId; joyC = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; joy.classList.add('on');
   try { joyZone.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }
-  stickApply(0, 0);
+  stickApply(e.clientX - joyC.x, e.clientY - joyC.y);
 });
 joyZone.addEventListener('pointermove', e => {
   if (!stick.on || e.pointerId !== stick.id) return; e.preventDefault();
-  let dx = e.clientX - joyC.x, dy = e.clientY - joyC.y; const len = Math.hypot(dx, dy);
-  // the base follows a thumb that slides past the rim, so the stick never "sticks" at full lock
-  if (len > JOY_R * 1.6) { const m = (len - JOY_R * 1.6) / len; joyC.x += dx * m; joyC.y += dy * m; dx -= dx * m; dy -= dy * m; const r = joyZone.getBoundingClientRect(); joy.style.left = (joyC.x - r.left) + 'px'; joy.style.top = (joyC.y - r.top) + 'px'; }
-  stickApply(dx, dy);
+  stickApply(e.clientX - joyC.x, e.clientY - joyC.y);   // the knob stays clamped to the rim, the base never moves
 });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) joyZone.addEventListener(ev, e => { if (e.pointerId === stick.id) stickEnd(); });
 
