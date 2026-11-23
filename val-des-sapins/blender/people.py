@@ -315,14 +315,13 @@ def npc_rig_parts():
         ellipsoid(mb, (0, -0.3, 0.01), 0.05, 0.06, 0.055, DARK, segs=10, rings=6)               # glove
     mk('npcp_forearm', forearm)
 
+    mk('npcp_boot', lambda mb: capsule(mb, (0, 0.1, -0.02), (0, -0.02, 0.06), 0.07, 0.075, DARK, segs=10))   # boot shell (separate: shopkeepers stand without skis)
+
     def ski(mb):
-        capsule(mb, (0, 0.1, -0.02), (0, -0.02, 0.06), 0.07, 0.075, DARK, segs=10)              # boot shell
         a = mb.vert(G(-0.045, -0.1, -0.78)); b = mb.vert(G(0.045, -0.1, -0.78)); c = mb.vert(G(0.045, -0.1, 0.72)); e = mb.vert(G(-0.045, -0.1, 0.72))
         mb.face((e, c, b, a), col=WHITE)
         a2 = mb.vert(G(-0.045, -0.04, 0.92)); b2 = mb.vert(G(0.045, -0.04, 0.92))
         mb.face((a2, b2, c, e), col=WHITE)                                                     # rockered tip
-        for z0, z1 in ((-0.78, 0.72), (0.72, 0.92)):
-            pass
     mk('npcp_ski', ski)
 
     def pole(mb):
@@ -387,7 +386,7 @@ def main():
     bake_ao_to_vertex_colors(rig, samples=48, distance=0.08, strength=0.6, floor=0.45)
     for ob in rig:
         ob.location = Vector((0, 0, 0))
-    print('rig tris', {o.name: tri_count([o]) for o in rig}, 'per skier ~', sum(tri_count([o]) * (2 if o.name in ('npcp_upperarm', 'npcp_forearm', 'npcp_thigh', 'npcp_shin', 'npcp_ski', 'npcp_pole') else 1) for o in rig if not o.name.endswith('_b')))
+    print('rig tris', {o.name: tri_count([o]) for o in rig}, 'per skier ~', sum(tri_count([o]) * (2 if o.name in ('npcp_upperarm', 'npcp_forearm', 'npcp_thigh', 'npcp_shin', 'npcp_ski', 'npcp_boot', 'npcp_pole') else 1) for o in rig if not o.name.endswith('_b')))
     export_glb(rig, 'skiers_rig.glb')
 
 
