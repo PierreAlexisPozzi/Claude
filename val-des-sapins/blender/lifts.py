@@ -126,6 +126,8 @@ def cabin(mb_body, mb_glass):
             return WHITE
         if c.y < -3.3:
             return hexrgb('#7a8494')
+        if -2.42 < c.y < -1.72:
+            return hexrgb('#1f2833')          # behind the glazing: a dark interior, not the red shell
         return RED
     secs = []
     for j in range(13):

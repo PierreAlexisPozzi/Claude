@@ -85,6 +85,17 @@ Références étudiées sur BlendSwap (catalogue « ski », aperçus publics ; a
 | Alpine skiing beginner / intermediate / carving / racer (13118, 12381, 15045, 12945, ViSki, CC0) | Postures par niveau : chasse-neige, parallèle, angulation du carving, position de géant | Styles des skieurs du domaine selon la piste et le niveau : chasse-neige bras écartés, parallèle, carving (jambe intérieure fléchie, buste contre-incliné, main intérieure devant), coureur (très bas, pieds écartés, bâtons sous les bras) |
 | Penguin Ski Trip (23302, CC-BY) | Seule motoneige du catalogue (dessin animé) | Non utilisée : motoneige moderne modélisée de zéro (`blender/vehicles.py`) |
 
+
+Autres éléments trouvés dans le catalogue (recherche : sapin, épicéa, chalet, montagne, neige, snowboard, masque, humain) :
+
+| Élément (id, licence) | Décision |
+|---|---|
+| Lodgepole Pine Set (34925, CC-BY), Midwest Trees (34474, CC-BY), Background spruces (16912, CC-BY) | Non retenus : nos épicéas Blender (atlas d'aiguilles rendu sous Cycles) sont déjà à ce niveau, et la CC-BY imposerait une attribution |
+| Wooden building game Swiss chalet (24158, CC-BY) | Non retenu : les chalets et résidences du jeu sont déjà modélisés pièce par pièce |
+| Procedural Snowy Mountains (20101, CC0) | Non retenu : shader de déplacement pour Cycles, inutilisable en temps réel ; les montagnes lointaines utilisent la matière « massif » |
+| snowboard (13506, CC-BY), goggles on the snow (17304, CC-BY) | Non retenus : snowboards déjà modélisés (balcons) ; masques trop petits à l'écran |
+| Human Base Meshes (33726, CC0), Rigged male character (32509, CC0) | Piste pour un prochain lot (corps du joueur plus détaillé) : téléchargement bloqué côté BlendSwap pendant ce lot |
+
 - **Motoneige** (`blender/vehicles.py`) : capot galbé avec bande latérale, selle longue, tunnel et marchepieds ajourés, chenille à crampons et galets, suspension avant à triangles et combinés ressort-amortisseur, skis à spatule relevée, guidon avec protège-mains, pare-brise, phares émissifs. Les points d'appui du pilote sont ceux de l'ancien modèle.
 - Les pieds des skieurs sont recalés sur la neige quand le corps s'incline (le ski intérieur ne s'enfonce plus, l'extérieur ne flotte plus).
 - `tools/glb_slim.py` (lancé par `embed_assets.py`) : couleurs de sommets sur 8 bits, normales sur 8 bits (KHR_mesh_quantization), UV supprimées quand elles ne servent pas — tous les modèles tiennent dans le budget de 6 Mo.
