@@ -334,7 +334,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         c = hdir(i).z
         return eye_y + (side + (front - side) * c if c > 0 else side + (back - side) * -c)
 
-    def gear(name, sel, offset, colf, tintf, smooth_it, rim=0.0):
+    def gear(name, sel, offset, colf, tintf, smooth_it, rim=0.0, rim_col=None):
         """a skinned shell (weights head = 1) over the selected head faces, smoothed, with an optional rim band"""
         P = {'v': [], 'c': [], 't': [], 'p': [], 'fc': []}
         idx = {}
@@ -357,7 +357,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                         ia, ib = src[a], src[b]
                         na, nb = len(P['v']), len(P['v']) + 1
                         P['v'] += [V[ia] + nrm[ia] * rim, V[ib] + nrm[ib] * rim]; P['t'] += [P['t'][a], P['t'][b]]
-                        P['p'].append([b, a, na, nb]); P['fc'].append(hexrgb('#1a1c21'))
+                        P['p'].append([b, a, na, nb]); P['fc'].append(rim_col or hexrgb('#1a1c21'))
         P['smooth'] = smooth_it
         return P
 
@@ -385,7 +385,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         a = math.atan2(c.x - head_c.x, c.z - head_c.z)
         cuff = c.y < bl(f[0]) + 0.04
         return (0.78, 0.78, 0.78) if cuff and int((a + 4) * 26) % 2 else (1.0, 1.0, 1.0)
-    beanie = gear('beanie', lambda i: V[i].y >= bl(i), lambda i: 0.012 + (0.005 if V[i].y < bl(i) + 0.04 else 0.0), b_col, lambda i: 4.0, 4, rim=0.003)
+    beanie = gear('beanie', lambda i: V[i].y >= bl(i), lambda i: 0.019 + (0.006 if V[i].y < bl(i) + 0.04 else 0.0), b_col, lambda i: 4.0, 1, rim=0.004, rim_col=(0.78, 0.78, 0.78))
     topv = max(hv, key=lambda i: V[i].y)
     pp = V[topv] + Vector((0, 0.035, -0.01))
     pom = {'v': [], 't': [], 'p': [], 'fc': [], 'smooth': 0}
@@ -445,11 +445,15 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     for k, t in enumerate(tints):
         ta.data[k].value = t
     uvl = me.uv_layers.new(name='UVMap')
+    fh = min((i for i in used if dom[i] == 'head' and V[i].z > head_c.z), key=lambda i: (V[i].x - head_c.x) ** 2 + (V[i].y - (eye_y + 0.055)) ** 2)
+    plain_skin_uv = next(skin_uv(UVS[FUV[fi][j]]) for fi, f in enumerate(faces) for j, i in enumerate(f) if i == fh and FUV[fi][j] >= 0)   # forehead
     for poly in me.polygons:
         kind, fi = psrc[poly.index]
         for j, li in enumerate(poly.loop_indices):
             if kind == 'skin' and fi >= 0 and FUV[fi][j] >= 0 and all(-0.001 <= c <= 1.001 for c in skin_uv(UVS[FUV[fi][j]])):
                 uvl.data[li].uv = skin_uv(UVS[FUV[fi][j]])
+            elif kind == 'skin':
+                uvl.data[li].uv = plain_skin_uv
             else:
                 uvl.data[li].uv = WHITE_UV
     for p in me.polygons:
