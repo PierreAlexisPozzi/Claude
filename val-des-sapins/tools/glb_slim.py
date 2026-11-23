@@ -4,7 +4,7 @@ Usage: python3 tools/glb_slim.py assets/snowmobile.glb [...]"""
 import json, struct, sys
 
 CT = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
+NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
 
 
 def slim(path, keep_uv=False):
@@ -70,10 +70,14 @@ def slim(path, keep_uv=False):
                     continue
                 if k.startswith('TEXCOORD'):
                     na[k] = copy_acc(ai); continue
-                na[k] = quant(ai, 'color') if k.startswith('COLOR') else quant(ai, 'normal') if k == 'NORMAL' else copy_acc(ai)
+                na[k] = quant(ai, 'color') if k.startswith(('COLOR', 'WEIGHTS')) else quant(ai, 'normal') if k == 'NORMAL' else copy_acc(ai)
             p['attributes'] = na
             if 'indices' in p:
                 p['indices'] = copy_acc(p['indices'])
+    for sk in js.get('skins', []):           # skinned models: keep the bind matrices pointing at their (moved) accessor
+        if 'inverseBindMatrices' in sk:
+            sk['inverseBindMatrices'] = copy_acc(sk['inverseBindMatrices'])
+    assert not js.get('animations'), 'animations are not remapped'
     js['accessors'], js['bufferViews'] = new_acc, new_views
     while len(out) % 4:
         out.append(0)
