@@ -193,8 +193,22 @@ def snowpack(net):
     return col, h
 
 
+def massif(net):
+    """Distant mountain faces: vertical gullies packed with snow, rock ribs between them, a few ledges holding snow.
+    U runs across the face, V up it (the game projects it vertically on steep backdrop slopes)."""
+    gully = noise4(net, 3.2, 0.35, 1.0, detail=6, rough=0.62)                  # long vertical streaks
+    fine = noise4(net, 6.0, 1.2, 3.0, detail=8, rough=0.6, off=(4, 2))
+    ledge = noise4(net, 0.4, 5.0, 1.0, detail=3, rough=0.5, off=(8, 5))          # horizontal bands
+    snowy = net.math('ADD', net.math('MULTIPLY', gully, val=1.0), net.math('MULTIPLY', ledge, val=0.35))
+    snowy = net.math('ADD', snowy, net.math('MULTIPLY', fine, val=0.25))
+    snowy = net.math('MULTIPLY', snowy, val=0.62)                                # sum of three noises -> about 0..1
+    col = ramp(net, snowy, [(0.40, (0.24, 0.23, 0.22)), (0.47, (0.38, 0.36, 0.33)), (0.51, (0.55, 0.56, 0.6)), (0.54, (0.88, 0.91, 0.97)), (0.62, (0.97, 0.98, 1.0))])
+    h = net.math('SUBTRACT', net.math('MULTIPLY', fine, val=0.5), net.math('MULTIPLY', gully, val=0.8))
+    return col, h
+
+
 def main():
-    for name, fn, nstr, neutralize in (('rock', rock, 6.0, False), ('timber', timber, 5.0, True), ('masonry', masonry, 4.0, True), ('snowpack', snowpack, 3.0, True)):
+    for name, fn, nstr, neutralize in (('rock', rock, 6.0, False), ('timber', timber, 5.0, True), ('masonry', masonry, 4.0, True), ('snowpack', snowpack, 3.0, True), ('massif', massif, 5.0, False)):
         r = bake(fn, name)
         alb = to_display(r['albedo'])
         if neutralize:
