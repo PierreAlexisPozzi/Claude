@@ -118,8 +118,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 .stats div{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:500 13px var(--body);color:var(--ink-dim)}
 .stats b{color:var(--ink);font-variant-numeric:tabular-nums}
 @media (max-width:760px){
-  #track{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 200px);width:min(280px,calc(100vw - 28px))}
-  #toasts{top:calc(env(safe-area-inset-top,0px) + 120px)}
+  #track{top:calc(env(safe-area-inset-top,0px) + 228px);width:calc(100vw - 28px);padding:8px 11px}
+  #toasts{top:calc(env(safe-area-inset-top,0px) + 330px)}
   #chrono{top:calc(env(safe-area-inset-top,0px) + 10px);left:auto;right:calc(env(safe-area-inset-right,0px) + 14px);transform:none}
   .jbox{padding:12px}.jid h2{font-size:20px}.badge{width:52px;height:52px}
 }
@@ -172,6 +172,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 #touch .grp{display:flex;gap:10px;align-items:flex-end;pointer-events:auto}
 #touch .col{display:flex;flex-direction:column;gap:8px}
 #touch .rcol{flex-direction:column;align-items:flex-end;gap:8px}
+#touch .lcol{flex-direction:column;align-items:flex-start;gap:8px}
 #touch .row{display:flex;gap:6px;align-items:flex-end}
 body.touch #tools,body.touch .ctrls{display:none}
 .tb{width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(11,19,31,.5);color:var(--ink);font:700 13px var(--display);letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-tap-highlight-color:transparent}
@@ -184,7 +185,7 @@ body.touch #tools,body.touch .ctrls{display:none}
   #hud .tl{min-width:0;padding:8px 10px}
   #score{top:calc(env(safe-area-inset-top,0px) + 180px);left:auto;right:calc(env(safe-area-inset-right,0px) + 14px);transform:none;font-size:12px;padding:5px 10px}
   #score b{font-size:15px}
-  #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 150px);font-size:13px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box}
+  #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 238px);font-size:13px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box}
   #start{background:rgba(7,12,22,.84)}
   .ctrls{grid-template-columns:1fr}
 }
@@ -260,12 +261,12 @@ body.touch #tools,body.touch .ctrls{display:none}
 </div>
 
 <div id="touch" hidden>
-  <div class="grp">
-    <button class="tb big" data-k="left" type="button" aria-label="Gauche">◀</button>
-    <button class="tb big" data-k="right" type="button" aria-label="Droite">▶</button>
+  <div class="grp lcol">
+    <div class="row"><button class="tb sm" data-a="journal" type="button">Carnet</button><button class="tb sm" data-a="map" type="button">Carte</button></div>
+    <div class="row"><button class="tb big" data-k="left" type="button" aria-label="Gauche">◀</button><button class="tb big" data-k="right" type="button" aria-label="Droite">▶</button></div>
   </div>
   <div class="grp rcol">
-    <div class="row"><button class="tb sm" data-a="journal" type="button">Carnet</button><button class="tb sm" data-a="map" type="button">Carte</button><button class="tb sm" data-a="revert" type="button">180°</button><button class="tb sm" data-a="action" type="button">Monter</button><button class="tb sm" data-a="sled" type="button">Moto</button><button class="tb sm" data-k="grab" type="button">Grab</button></div>
+    <div class="row"><button class="tb sm" data-a="revert" type="button">180°</button><button class="tb sm" data-a="action" type="button">Monter</button><button class="tb sm" data-a="sled" type="button">Moto</button><button class="tb sm" data-k="grab" type="button">Grab</button></div>
     <div class="row"><div class="col"><button class="tb" data-k="up" type="button">Schuss</button><button class="tb" data-k="down" type="button">Frein</button></div><button class="tb big" data-k="jump" type="button">Saut</button></div>
   </div>
 </div>
