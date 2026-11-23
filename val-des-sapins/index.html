@@ -392,7 +392,7 @@ function gridH(x, z) {
 }
 function H(x, z) { return gridH(x, z) + featH(x, z); }
 function normalAt(x, z, out) {
-  const e = nearKicker(x, z) ? 0.1 : 0.45;
+  const e = nearKicker(x, z) || inPipe(x, z) ? 0.1 : 0.45;
   const hx = H(x + e, z) - H(x - e, z), hz = H(x, z + e) - H(x, z - e);
   return out.set(-hx, 2 * e, -hz).normalize();
 }
@@ -413,6 +413,9 @@ const PISTES = [
   { name: 'Les Écureuils', lvl: 'bleue', w: 28, pts: [[560, 902], [400, 1010], [190, 1112]] },
   { name: 'Liaison Snowpark', lvl: 'bleue', w: 24, pts: [[-295, -330], [-420, -200], [-515, -70]], tunnel: 'Tunnel des Marmottes' },
   { name: 'Snowpark', lvl: 'park', w: 56, pts: [[-515, -60], [-510, 140], [-495, 390]], minGrade: 0.16, cross: 0.06 },
+  { name: 'Half-pipe', lvl: 'park', w: 30, pts: [[-572, 22], [-572, 176]], minGrade: 0.14, cross: 0.0, pipe: true, noLink: true },
+  { name: 'Sortie half-pipe', lvl: 'bleue', w: 18, pts: [[-572, 178], [-567, 212], [-543, 248], [-518, 272]], minGrade: 0.04, cross: 0.08, noLink: true },   // rejoins the Snowpark
+  { name: 'Accès half-pipe', lvl: 'verte', w: 16, pts: [[-514, -42], [-545, -14], [-570, 12]], minGrade: 0.03, cross: 0.1 },
   { name: 'Les Marmottes', lvl: 'verte', w: 40, pts: [[-245, 950], [-200, 1150]] },
 ];
 const LIFTS = [
@@ -426,6 +429,7 @@ const LIFTS = [
 (() => {
   const ends = PISTES.map(p => ({ p, e: p.pts[p.pts.length - 1] }));
   for (const { p, e } of ends) {
+    if (p.noLink) continue;   // ends into another piste
     let best = null, bd = 260;
     for (const L of LIFTS) {
       const dl = Math.hypot(L.t[0] - L.b[0], L.t[1] - L.b[1]), dx = (L.t[0] - L.b[0]) / dl, dz = (L.t[1] - L.b[1]) / dl, sx = dz, sz = -dx;
@@ -508,6 +512,27 @@ const pisteHeading = (p, i) => { const S = p.samples, a = S[Math.max(0, i - 1)],
 
 /* features: kickers (analytic) + mogul patches (0.5 m height grids), shared by physics and meshes */
 const kickers = [], rails = [], patches = [];
+/* ---------------- Natural half-pipe ----------------
+   Dug along the fall line west of the park: flat bottom 6 m wide, quarter-circle transitions (r 4.3 m) standing to
+   80° at the lip, 3.5 m deep, 14.5 m lip to lip, decks on both sides. The profile is exact in featH (physics) and is
+   drawn by its own fine mesh; the coarse terrain inside the trench is discarded in the terrain shader. */
+const PIPE = { F: 3.0, R: 4.3, lip: 80 * Math.PI / 180, on: false };
+PIPE.halfW = PIPE.F + PIPE.R * Math.sin(PIPE.lip); PIPE.depth = PIPE.R * (1 - Math.cos(PIPE.lip));
+function pipeLocal(x, z) {   // s along the pipe from its top, w across (signed)
+  const dx = x - PIPE.ax, dz = z - PIPE.az; return { s: dx * PIPE.dx + dz * PIPE.dz, w: -dx * PIPE.dz + dz * PIPE.dx };
+}
+function pipeProfile(aw) {   // height of the pipe surface relative to the deck (<= 0)
+  if (aw >= PIPE.halfW) return 0;
+  if (aw <= PIPE.F) return -PIPE.depth;
+  const th = Math.asin(Math.min(1, (aw - PIPE.F) / PIPE.R)); return -PIPE.depth + PIPE.R * (1 - Math.cos(th));
+}
+function pipeH(x, z) {
+  if (!PIPE.on) return 0;
+  const q = pipeLocal(x, z); if (q.s < 0 || q.s > PIPE.L || Math.abs(q.w) >= PIPE.halfW) return 0;
+  const fade = smoothstep(0, 14, q.s) * (1 - smoothstep(PIPE.L - 10, PIPE.L, q.s));   // drop-in at the top, run-out at the bottom
+  return pipeProfile(Math.abs(q.w)) * fade;
+}
+function inPipe(x, z, m = 1) { if (!PIPE.on) return false; const q = pipeLocal(x, z); return q.s > -m && q.s < PIPE.L + m && Math.abs(q.w) < PIPE.halfW + m; }
 function nearKicker(x, z) { for (const k of kickers) { const dx = x - k.x, dz = z - k.z; if (dx * dx + dz * dz < k.R2 + 40) return true; } return false; }
 function patchSample(p, arr, x, z) {
   const gx = (x - p.x0) / p.res, gz = (z - p.z0) / p.res;
@@ -532,7 +557,7 @@ function featH(x, z) {
     if (p > h) h = p;
   }
   for (let i = 0; i < patches.length; i++) { const p = patches[i]; if (x >= p.x0 && z >= p.z0 && x < p.x1 && z < p.z1) h += patchSample(p, p.h, x, z); }
-  return h;
+  return h + pipeH(x, z);
 }
 
 /* tunnels: a piste segment that runs under a ridge; physics follows an explicit "in tunnel" flag */
@@ -658,6 +683,20 @@ function drainPistes(onlyLinks) {
     }
     for (const [vi, o] of best) if (heights[vi] > o.y) heights[vi] -= (heights[vi] - o.y) * o.w;
   }
+}
+function shapePipe() {
+  const p = PISTES.find(q => q.pipe); if (!p) return;
+  const A = p.samples[0], B = p.samples[p.samples.length - 1], L = Math.hypot(B.x - A.x, B.z - A.z);
+  Object.assign(PIPE, { ax: A.x, az: A.z, dx: (B.x - A.x) / L, dz: (B.z - A.z) / L, L });
+  const hA = gridH(A.x, A.z), grade = Math.max(0.22, (hA - gridH(B.x, B.z)) / L); PIPE.hA = hA; PIPE.grade = grade;
+  const reach = PIPE.halfW + 16;
+  rasterSeg(CELL, N, A.x - PIPE.dx * 22, A.z - PIPE.dz * 22, B.x + PIPE.dx * 22, B.z + PIPE.dz * 22, reach, (ix, iz) => {
+    const x = -HALF + ix * CELL, z = -HALF + iz * CELL, q = pipeLocal(x, z), vi = iz * VN + ix;
+    const target = hA - grade * clamp(q.s, -22, L + 22);
+    const w = (1 - smoothstep(PIPE.halfW + 6, reach, Math.abs(q.w))) * smoothstep(-22, -8, q.s) * (1 - smoothstep(L + 8, L + 22, q.s));
+    heights[vi] = lerp(heights[vi], target, w);
+  });
+  PIPE.on = true;
 }
 function carvePortals() {
   // a cutting in front of each portal down to the tunnel floor, and solid ground kept above the tube
@@ -1113,6 +1152,37 @@ const metal = (o = {}) => pbr(Object.assign({ roughness: 0.42, metalness: 0.8 },
 const lambertVC = (opts = {}) => pbr(Object.assign({ vertexColors: true }, opts));
 
 /* ---------------- Terrain material: blended snow surfaces ---------------- */
+// boxes (world -> local: x along, y up, z across) inside which the coarse terrain is not drawn: tunnel mouths, pipe trench
+function terrainCutouts() {
+  const PM = [], PS = [];
+  for (const T of tunnels) for (const end of [0, 1]) {
+    const i = end ? T.i1 : T.i0, j = end ? Math.max(T.i0, i - 2) : Math.min(T.i1, i + 2), A = T.S[i], B = T.S[j];
+    const d = new V3(B.x - A.x, 0, B.z - A.z).normalize(), lat = new V3().crossVectors(d, AX_Y).normalize();
+    PM.push(new THREE.Matrix4().makeBasis(d, AX_Y, lat).setPosition(A.x, T.hs[i], A.z).invert()); PS.push(new THREE.Vector4(14, T.hw - 0.02, T.ceil + 0.3, 0));
+  }
+  if (PIPE.on) {   // sloped frame following the decks
+    const d = new V3(PIPE.dx, -PIPE.grade, PIPE.dz).normalize(), lat = new V3().crossVectors(d, AX_Y).normalize(), up = new V3().crossVectors(lat, d).normalize();
+    // starts 0.8 m inside the pipe mesh at both ends (the cut-out test begins at -0.3 m): no sliver of sky between them
+    PM.push(new THREE.Matrix4().makeBasis(d, up, lat).setPosition(PIPE.ax + PIPE.dx * 0.8, PIPE.hA - PIPE.grade * 0.8, PIPE.az + PIPE.dz * 0.8).invert()); PS.push(new THREE.Vector4((PIPE.L - 1.6) * Math.hypot(1, PIPE.grade), PIPE.halfW - 0.05, 0.6, 0));
+  }
+  if (PM.length > 6) throw new Error('too many terrain cut-outs: enlarge uPortal');
+  while (PM.length < 6) { PM.push(new THREE.Matrix4()); PS.push(new THREE.Vector4(0, 0, 0, 0)); }
+  return { PM, PS };
+}
+// the same cut-outs in the shadow pass, otherwise the invisible terrain "lid" would shade the pipe and the tunnel mouths
+function terrainDepthMaterial() {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), { PM, PS } = terrainCutouts();
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uPortal = { value: PM }; sh.uniforms.uPortalSize = { value: PS };
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nvarying vec3 vCutW;', 'terrain depth');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <project_vertex>', '#include <project_vertex>\n  vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;', 'terrain depth');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nvarying vec3 vCutW;\nuniform mat4 uPortal[6];\nuniform vec4 uPortalSize[6];', 'terrain depth');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  for (int i = 0; i < 6; i++) { vec3 q = (uPortal[i] * vec4(vCutW, 1.0)).xyz; vec4 ps = uPortalSize[i];
+    if (q.x > -0.3 && q.x < ps.x && abs(q.z) < ps.y && q.y < ps.z && q.y > -3.0) discard; }`, 'terrain depth');
+  };
+  return m;
+}
 function makeTerrainMaterial() {
   srgbTex(TEX.rockA); srgbTex(TEX.needle);   // colour images (normal maps stay as data)
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0 });
@@ -1122,27 +1192,22 @@ function makeTerrainMaterial() {
       if (!sh.fragmentShader.includes(a)) throw new Error('terrain shader anchor missing: ' + a);
     // tunnel mouths: the terrain grid (6.25 m cells) cannot follow the step between the cutting and the ground above the
     // tube, so its triangles would ramp across the opening; they are discarded inside the tube for 14 m from each portal
-    const PM = [], PS = [];
-    for (const T of tunnels) for (const end of [0, 1]) {
-      const i = end ? T.i1 : T.i0, j = end ? Math.max(T.i0, i - 2) : Math.min(T.i1, i + 2), A = T.S[i], B = T.S[j];
-      const d = new V3(B.x - A.x, 0, B.z - A.z).normalize(), lat = new V3().crossVectors(d, AX_Y).normalize();
-      PM.push(new THREE.Matrix4().makeBasis(d, AX_Y, lat).setPosition(A.x, T.hs[i], A.z).invert()); PS.push(new THREE.Vector4(14, T.hw - 0.02, T.ceil + 0.3, 0));
-    }
-    while (PM.length < 4) { PM.push(new THREE.Matrix4()); PS.push(new THREE.Vector4(0, 0, 0, 0)); }
-    if (PM.length > 4) throw new Error('more than two tunnels: enlarge uPortal');
-    sh.uniforms.uPortal = { value: PM.slice(0, 4) }; sh.uniforms.uPortalSize = { value: PS.slice(0, 4) };
+    const { PM, PS } = terrainCutouts();
+    sh.uniforms.uPortal = { value: PM }; sh.uniforms.uPortalSize = { value: PS };
     Object.assign(sh.uniforms, { tNG: { value: TEX.groom }, tNP: { value: TEX.powder }, tNC: { value: TEX.crud }, tNR: { value: BLEND.tex.rock_normal || TEX.rockN }, tRA: { value: BLEND.tex.rock_albedo || TEX.rockA } });
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aSnow; attribute float aDir; attribute float aSun; attribute float aIce;\nvarying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n vSnow = aSnow; vDir = aDir; vSun = aSun; vIce = aIce; vWPos = (modelMatrix * vec4(position, 1.0)).xyz; vWNorm = normalize(mat3(modelMatrix) * normal);');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform sampler2D tNG; uniform sampler2D tNP; uniform sampler2D tNC; uniform sampler2D tNR; uniform sampler2D tRA; uniform mat4 uPortal[4]; uniform vec4 uPortalSize[4];
+uniform sampler2D tNG; uniform sampler2D tNP; uniform sampler2D tNC; uniform sampler2D tNR; uniform sampler2D tRA; uniform mat4 uPortal[6]; uniform vec4 uPortalSize[6];
 varying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;
 vec3 tsN(sampler2D t, vec2 uv) { return texture2D(t, uv).xyz * 2.0 - 1.0; }`)
       .replace('#include <map_fragment>', `
-  for (int i = 0; i < 4; i++) { vec3 q = (uPortal[i] * vec4(vWPos, 1.0)).xyz; vec4 ps = uPortalSize[i];
+  #ifndef NO_CUTOUT
+  for (int i = 0; i < 6; i++) { vec3 q = (uPortal[i] * vec4(vWPos, 1.0)).xyz; vec4 ps = uPortalSize[i];
     if (q.x > -0.3 && q.x < ps.x && abs(q.z) < ps.y && q.y < ps.z && q.y > -3.0) discard; }
+  #endif
   vec4 W = vSnow / max(1e-3, vSnow.x + vSnow.y + vSnow.z + vSnow.w);
   float ca = cos(vDir), sa = sin(vDir);
   vec2 uvG = vec2(ca * vWPos.x - sa * vWPos.z, sa * vWPos.x + ca * vWPos.z) * 0.25;
@@ -1243,7 +1308,7 @@ function buildTerrainMesh() {
   geo.setAttribute('aIce', new THREE.BufferAttribute(aIce, 1));
   geo.setAttribute('aSun', new THREE.BufferAttribute(sunArr, 1));
   const mesh = new THREE.Mesh(geo, terrainMat);
-  mesh.receiveShadow = true; mesh.castShadow = !IS_TOUCH; terrainMesh = mesh; mesh.layers.set(TERRAIN_LAYER);   // not in the far shadow map
+  mesh.receiveShadow = true; mesh.castShadow = !IS_TOUCH; terrainMesh = mesh; mesh.layers.set(TERRAIN_LAYER); mesh.customDepthMaterial = terrainDepthMaterial();   // not in the far shadow map
   scene.add(mesh);
 }
 let terrainMesh = null;
@@ -1255,6 +1320,31 @@ function sunAt(x, z) {
 let terrainMat = null;
 
 /* ---------------- Mogul fields: fine mesh over the same height grid the physics reads ---------------- */
+function buildPipeMesh() {
+  if (!PIPE.on) return;
+  const ds = 1.0, dw = 0.3, W = PIPE.halfW + 1.6, ns = Math.ceil(PIPE.L / ds) + 1, nw = Math.ceil(2 * W / dw) + 1, n = ns * nw;
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), aSnow = new Float32Array(n * 4), aDir = new Float32Array(n), aSun = new Float32Array(n), aIce = new Float32Array(n);
+  const heading = Math.atan2(PIPE.dx, PIPE.dz);
+  for (let j = 0; j < ns; j++) for (let i = 0; i < nw; i++) {
+    const k = j * nw + i, sAl = Math.min(PIPE.L, j * ds), w = -W + i * (2 * W / (nw - 1));
+    const x = PIPE.ax + PIPE.dx * sAl - PIPE.dz * w, z = PIPE.az + PIPE.dz * sAl + PIPE.dx * w;
+    pos[k * 3] = x; pos[k * 3 + 1] = H(x, z) + 0.03; pos[k * 3 + 2] = z;
+    const wall = Math.abs(w) < PIPE.halfW ? smoothstep(PIPE.F, PIPE.halfW, Math.abs(w)) : 0;
+    col[k * 3] = 0.95; col[k * 3 + 1] = 0.965; col[k * 3 + 2] = 1.0;
+    aSnow[k * 4] = 1; aDir[k] = heading; aSun[k] = sunAt(x, z); aIce[k] = wall * 0.45;   // walls polished by the riders
+  }
+  const idx = new Uint32Array((ns - 1) * (nw - 1) * 6); let q = 0;
+  for (let j = 0; j < ns - 1; j++) for (let i = 0; i < nw - 1; i++) { const a = j * nw + i, b = a + 1, c = a + nw, d = c + 1; idx.set([a, b, c, b, d, c], q); q += 6; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeVertexNormals();
+  // faces must point up (see the ski tracks bug): flip the winding if the bottom of the pipe faces down
+  if (g.attributes.normal.getY(Math.floor(ns / 2) * nw + Math.floor(nw / 2)) < 0) { for (let t = 0; t < idx.length; t += 3) { const x = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = x; } g.index.needsUpdate = true; g.computeVertexNormals(); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aSnow', new THREE.BufferAttribute(aSnow, 4)); g.setAttribute('aDir', new THREE.BufferAttribute(aDir, 1));
+  g.setAttribute('aSun', new THREE.BufferAttribute(aSun, 1)); g.setAttribute('aIce', new THREE.BufferAttribute(aIce, 1));
+  const mat = terrainMat.clone(); mat.onBeforeCompile = terrainMat.onBeforeCompile; mat.polygonOffset = true; mat.polygonOffsetFactor = -1; mat.polygonOffsetUnits = -4;
+  mat.defines = Object.assign({}, mat.defines, { NO_CUTOUT: '' });   // the pipe surface is exactly what the cut-out makes room for
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.castShadow = true; m.layers.set(TERRAIN_LAYER); scene.add(m);
+}
 function buildMogulMeshes() {
   for (const p of patches) {
     const { nx, nz, res, x0, z0 } = p, pos = new Float32Array(nx * nz * 3), col = new Float32Array(nx * nz * 3), aSnow = new Float32Array(nx * nz * 4), aDir = new Float32Array(nx * nz), aSun = new Float32Array(nx * nz), aIce = new Float32Array(nx * nz);
@@ -2043,7 +2133,7 @@ const NPC_N = IS_TOUCH ? 24 : 60;
 const npcs = [], npcMesh = {};
 const JACKETS = ['#d6332a', '#2f6fe0', '#f2a12c', '#2fa84f', '#7a3fb0', '#ece8df', '#151a22', '#e0398a', '#14a3a3', '#f2d22c', '#ff6b2c', '#5a7d2a'];
 const npcSpeed = { verte: [5.5, 8.5], bleue: [7.5, 11.5], rouge: [9, 13.5], noire: [10, 15], park: [7, 10] };
-const skiPistes = () => PISTES.filter(p => !p.hidden && !p.link);
+const skiPistes = () => PISTES.filter(p => !p.hidden && !p.link && !p.pipe);   // the other skiers stay out of the half-pipe
 function npcStartOn(n, p, s) {
   const r = npcSpeed[p.lvl] || [7, 10];
   Object.assign(n, { mode: 'ski', p, s, v: lerp(r[0], r[1], n.skill), phase: rnd() * 6.28, turn: 11 + rnd() * 12, amp: (p.w / 2 - 2.5) * (0.35 + rnd() * 0.5) });
@@ -3441,6 +3531,18 @@ function buildPark() {
     rails.push({ a, b, dx: (bx - ax) / lenH, dz: (bz - az) / lenH, lenH, slope: (b.y - a.y) / lenH, d3, len3, type, h });
   };
   Rl(112, 13, 9, 0.45, 'box'); Rl(232, -14, 10, 0.7, 'rail'); Rl(345, 13, 12, 0.55, 'box');
+  // a real park: a small line for beginners, and a jib line (down rail, kinked rail, rainbow, long box)
+  K(120, -20, 0.8, 4.5, 2.5, 4); K(205, -21, 0.9, 4.5, 2.5, 4); K(330, 19, 1.0, 5, 2.5, 4.5);
+  const Rh = (dist, lat, len, h0, h1, type) => {   // rail with its own heights at both ends (down rails, rainbows)
+    const f = pisteFrame(park, dist), ax = f.x - f.dz * lat, az = f.z + f.dx * lat, bx = ax + f.dx * len, bz = az + f.dz * len;
+    const a = new V3(ax, gridH(ax, az) + h0, az), b = new V3(bx, gridH(bx, bz) + h1, bz);
+    const lenH = Math.hypot(bx - ax, bz - az), d3 = b.clone().sub(a); const len3 = d3.length(); d3.normalize();
+    rails.push({ a, b, dx: (bx - ax) / lenH, dz: (bz - az) / lenH, lenH, slope: (b.y - a.y) / lenH, d3, len3, type, h: Math.max(h0, h1) });
+  };
+  Rh(60, 18, 9, 1.0, 0.35, 'rail');                                                 // down rail
+  Rh(150, 20, 5, 0.45, 0.55, 'rail'); Rh(155, 20, 6, 0.55, 0.2, 'rail');           // kinked rail: flat, then down
+  Rh(260, 20, 3.5, 0.35, 0.85, 'rail'); Rh(263.5, 20, 3, 0.85, 0.85, 'rail'); Rh(266.5, 20, 3.5, 0.85, 0.35, 'rail');   // rainbow
+  Rh(375, -18, 16, 0.4, 0.4, 'box');                                                // long box
   // kicker meshes
   const mat = lambertVC({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   for (const k of kickers) {
@@ -3823,10 +3925,27 @@ function groundBasis(x, z) {
 }
 function currentSnow() { return P.tunnel ? SN.TUNNEL : FORCE.snow != null ? FORCE.snow : snowAt(P.pos.x, P.pos.z); }
 const FORCE = { snow: null };
+// half-pipe flow: remember the last wall, and without ← / → point the skis diagonally at the opposite wall
+function pipeSteer(dt) {
+  if (!PIPE.on) return;
+  const q = pipeLocal(P.pos.x, P.pos.z);
+  if (q.s < 6 || q.s > PIPE.L - 8 || Math.abs(q.w) > PIPE.halfW + 0.5) return;
+  if (Math.abs(q.w) > PIPE.halfW * 0.6) PIPE.lastSide = Math.sign(q.w);
+  // pumping: coming down a transition the rider pushes the skis into it and gains a little speed
+  const lat = -P.vel.x * PIPE.dz + P.vel.z * PIPE.dx, aw = Math.abs(q.w);
+  if (aw > PIPE.F && aw < PIPE.halfW && lat * q.w < 0 && P.vel.length() < 13) P.vel.multiplyScalar(1 + 1.6 * dt / Math.max(4, P.vel.length()));
+  if (input.left || input.right || !PIPE.lastSide) return;
+  const along = Math.sign(P.vel.x * PIPE.dx + P.vel.z * PIPE.dz) || 1, to = -PIPE.lastSide;
+  const tx = -PIPE.dz * to + PIPE.dx * along * 0.45, tz = PIPE.dx * to + PIPE.dz * along * 0.45;
+  const h = Math.atan2(tx, tz), d1 = wrapPi(h - P.yaw), d2 = wrapPi(h + Math.PI - P.yaw);
+  const d = P.revertT > 0 ? 0 : Math.abs(d1) <= Math.abs(d2) ? d1 : d2;   // keep riding forward or switch, whichever you are in
+  P.yaw += Math.sign(d) * Math.min(Math.abs(d), 1.8 * dt);
+}
 function stepSki(dt) {
   const st = currentSnow(), S = SNOW[st];
   P.snow = st; P.zone = P.tunnel ? P.tunnel.piste.idx : zoneAt(P.pos.x, P.pos.z);
   P.offPiste = st === SN.POUDREUSE || st === SN.TRAFOLLE;
+  pipeSteer(dt);
   groundBasis(P.pos.x, P.pos.z);
   let speed = P.vel.length();
   const along = P.vel.dot(_f);
@@ -3974,8 +4093,15 @@ function stepAir(dt) {
   const spinIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
   // flips need Space held with ↑ / ↓, so holding ↑ to tuck over an unexpected bump does not start a frontflip
   const flipIn = input.jump ? (input.up ? 1 : 0) - (input.down ? 1 : 0) : 0;
+  const pq = PIPE.on ? pipeLocal(P.pos.x, P.pos.z) : null, inPipeAir = pq && pq.s > 0 && pq.s < PIPE.L && Math.abs(pq.w) > PIPE.F * 0.8 && Math.abs(pq.w) < PIPE.halfW + 2.5;
   if (spinIn) { const d = spinIn * 6.3 * dt; P.yaw += d; a.spin += d; }
-  else {
+  else if (inPipeAir) {
+    // pipe air: turn the skis back down the fall line of the wall (forward or switch, whichever is closer), not scored
+    const along = Math.sign(P.vel.x * PIPE.dx + P.vel.z * PIPE.dz) || 1, inw = -Math.sign(pq.w);
+    const tx = -PIPE.dz * inw + PIPE.dx * along * 0.35, tz = PIPE.dx * inw + PIPE.dz * along * 0.35;
+    const h1 = Math.atan2(tx, tz), d1 = wrapPi(h1 - P.yaw), d2 = wrapPi(h1 + Math.PI - P.yaw), d = Math.abs(d1) < Math.abs(d2) ? d1 : d2;
+    P.yaw += Math.sign(d) * Math.min(Math.abs(d), 3.5 * dt);
+  } else {
     const vh = Math.hypot(P.vel.x, P.vel.z);
     if (vh > 2) {
       const vy = Math.atan2(P.vel.x, P.vel.z), d1 = wrapPi(vy - P.yaw), d2 = wrapPi(vy + Math.PI - P.yaw);
@@ -3986,6 +4112,14 @@ function stepAir(dt) {
   if (flipIn) { const d = flipIn * 5.0 * dt; P.pitch += d; a.flip += d; }
   else { const w = wrapPi(P.pitch); if (Math.abs(w) < 0.9) { const s = Math.sign(w) * Math.min(Math.abs(w), 2.8 * dt); P.pitch -= s; a.flip -= s; } }
   if (input.grab) { a.grab = 'Mute Grab'; a.grabT += dt; } else if (input.tail) { a.grab = 'Tail Grab'; a.grabT += dt; }
+  if (PIPE.on) {   // half-pipe air: drift back over the transition, like a rider steering the landing
+    const q = pipeLocal(P.pos.x, P.pos.z);
+    if (q.s > 0 && q.s < PIPE.L && Math.abs(q.w) > PIPE.F && Math.abs(q.w) < PIPE.halfW + 2.5) {
+      const inward = -Math.sign(q.w), lat = -P.vel.x * PIPE.dz + P.vel.z * PIPE.dx;          // current across speed (+w)
+      const want = inward * Math.min(2.2, 0.8 + (Math.abs(q.w) - PIPE.F) * 0.35), dv = (want - lat) * Math.min(1, dt * 2.5);
+      P.vel.x += -PIPE.dz * dv; P.vel.z += PIPE.dx * dv;
+    }
+  }
   P.pos.addScaledVector(P.vel, dt); clampWorld(); updateTunnel();
   if (checkRails()) return;
   const gh = groundY(P.pos.x, P.pos.z);
@@ -4014,7 +4148,12 @@ function trickName(a, landedSwitch) {
 function land(n) {
   const a = P.air, vhx = P.vel.x, vhz = P.vel.z, sp = Math.hypot(vhx, vhz);
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw);
-  const align = sp > 2 ? (fx * vhx + fz * vhz) / sp : 1;
+  let align = sp > 2 ? (fx * vhx + fz * vhz) / sp : 1;
+  if (inPipe(P.pos.x, P.pos.z, 2)) {   // on a pipe wall compare in the plane of the surface: falling back down the wall, forward or switch
+    const vn = P.vel.dot(n), tx = P.vel.x - n.x * vn, ty = P.vel.y - n.y * vn, tz = P.vel.z - n.z * vn, fn = fx * n.x + fz * n.z;
+    const sx = fx - n.x * fn, sy = -n.y * fn, sz = fz - n.z * fn, lt = Math.hypot(tx, ty, tz), ls = Math.hypot(sx, sy, sz);
+    if (lt > 1 && ls > 1e-3) align = (sx * tx + sy * ty + sz * tz) / (lt * ls);
+  }
   const pitchErr = Math.abs(wrapPi(P.pitch));
   const impact = P.vel.dot(n);
   let fail = '';
@@ -4851,7 +4990,7 @@ $('go').addEventListener('click', startGame);
 /* ---------------- Boot ---------------- */
 const steps = [
   ['Sculpture du relief…', () => { genTerrain(); }],
-  ['Damage des pistes…', () => { genPistes(); carvePortals(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); drainPistes(); gradeLinks(); genMoguls(); }],
+  ['Damage des pistes…', () => { genPistes(); carvePortals(); LIFTS.forEach(L => { const b0 = new V3(L.b[0], 0, L.b[1]), t0 = new V3(L.t[0], 0, L.t[1]), d = t0.clone().sub(b0).normalize(); flattenPad(b0.x - d.x * 3, b0.z - d.z * 3, 9, 20); flattenPad(t0.x + d.x * 4, t0.z + d.z * 4, 9, 20); }); /* pipe first: drainage then smooths its run-out into the exit */ shapePipe(); drainPistes(); gradeLinks(); genMoguls(); }],
   ['Installation des remontées…', () => {
     LIFTS.forEach(L => { layoutLift(L); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.T.x, L.T.z, L.off + 7, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.B.x, L.B.z, L.B.x, L.B.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); rasterSeg(ZR, ZN - 1, L.T.x, L.T.z, L.T.x, L.T.z, 26, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); });
     rasterSeg(ZR, ZN - 1, -232, 128, -232, 128, 22, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; });
@@ -4868,7 +5007,7 @@ const steps = [
   ['Textures de neige…', () => { buildTextures(); initFarGrid(); terrainMat = makeTerrainMaterial(); buildSkier(); }],
   ['Construction des villages…', () => { buildVillages(); buildCannonMeshes(); initPlumes(); }],
   ['Plantation des sapins…', () => { placeTrees(); placeRocks(); }],
-  ['Calcul de l\'ensoleillement…', () => { buildTerrainMesh(); buildMogulMeshes(); buildTunnels(); buildBackdrop(); }],
+  ['Calcul de l\'ensoleillement…', () => { buildTerrainMesh(); buildMogulMeshes(); buildPipeMesh(); buildTunnels(); buildBackdrop(); }],
   ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); initNPCs(); buildSled(); initNearTrees(); initNearRocks(); buildFurniture(); initFauna(); fillFacts(); }],
 ];
 function boot(i) {
@@ -4896,7 +5035,7 @@ window.__ski = {
   trailTick(dt) { clock += dt; updateTrails(dt, clock); }, trailStats() { return { me: trailsMe ? trailsMe.i : 0, others: trailsOthers ? trailsOthers.i : 0 }; },
   track: trackChallenges, tunnelLocal, progress, CHALLENGES, unlockAll() { CHALLENGES.forEach(c => { progress.done[c.id] = true; }); fillMapLists(); }, resetChallenges() { progress.done = {}; saveProgress(); fillMapLists(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
-  quality(n) { applyQuality(n); }, post, BLEND, scene, sunFar, trailMat: TRAIL_MAT,
+  quality(n) { applyQuality(n); }, post, BLEND, scene, sunFar, trailMat: TRAIL_MAT, PIPE, pipeLocal,
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
   clear() { for (const k in input) input[k] = false; },
   ready: false
