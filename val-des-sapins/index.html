@@ -34,9 +34,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 #score{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);padding:6px 14px;font:600 14px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap}
 #score .chal{margin-left:14px;padding-left:12px;border-left:1px solid var(--line)}
 #score b{color:var(--gold);font-size:18px;font-variant-numeric:tabular-nums;margin-left:6px}
-#miniWrap{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 14px);padding:6px;border-radius:12px}
-#mini{display:block;width:170px;height:170px;border-radius:8px}
-#miniWrap .cap{display:flex;justify-content:space-between;font:600 11px var(--display);letter-spacing:.1em;color:var(--ink-dim);padding:5px 2px 0;text-transform:uppercase}
+#miniWrap{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 14px);padding:5px;border-radius:50%;cursor:pointer;pointer-events:auto;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+#mini{display:block;width:170px;height:170px;border-radius:50%}
+#miniWrap .cap{position:absolute;left:0;right:0;top:100%;margin-top:5px;text-align:center;font:600 10.5px var(--display);letter-spacing:.1em;color:var(--ink-dim);text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 #trick{position:fixed;left:50%;top:22%;transform:translate(-50%,0);text-align:center;pointer-events:none;opacity:0;transition:opacity .25s,transform .25s}
 #trick.show{opacity:1;transform:translate(-50%,-6px)}
 #trick .t{font:800 clamp(28px,5vw,46px)/1 var(--display);text-transform:uppercase;letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.7),0 2px 18px rgba(0,0,0,.45)}
@@ -174,28 +174,67 @@ html,body{height:100%;margin:0;overflow:hidden;background:#0b1320;color:var(--in
 #go:not(:disabled):hover{background:#c6e9ff}
 #loadmsg{font:500 13px var(--body);color:var(--ink-faint);min-height:1.2em}
 
-/* Touch controls */
-#touch{position:fixed;inset:auto 0 0 0;padding:0 max(12px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 12px) max(12px,env(safe-area-inset-left,0px));display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;z-index:10}
-#touch .grp{display:flex;gap:10px;align-items:flex-end;pointer-events:auto}
-#touch .col{display:flex;flex-direction:column;gap:8px}
-#touch .rcol{flex-direction:column;align-items:flex-end;gap:8px}
-#touch .lcol{flex-direction:column;align-items:flex-start;gap:8px}
-#touch .row{display:flex;gap:6px;align-items:flex-end}
-body.touch #tools,body.touch .ctrls{display:none}
-.tb{width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(11,19,31,.5);color:var(--ink);font:700 13px var(--display);letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-tap-highlight-color:transparent}
-.tb.big{width:70px;height:70px;font-size:15px}
-.tb.sm{width:48px;height:48px;font-size:11px}
-.tb.on{background:rgba(166,220,255,.45)}
+/* Touch controls: floating stick (left thumb), gesture buttons (right thumb), context button */
+#touch{position:fixed;inset:0;pointer-events:none;z-index:10;-webkit-user-select:none;user-select:none}
+#touch.off{display:none}
+body.touch #tools,body.touch .ctrls,body.touch #help{display:none}
+.tctrls{display:none;margin:0 0 14px;padding:0;list-style:none;font:500 13px/1.4 var(--body);color:var(--ink-dim)}
+.tctrls li{padding:3px 0}.tctrls b{color:var(--ink)}
+body.touch .tctrls{display:block}
+body.touch #prompt .key,body.touch #dlg .key{display:none}
+body.touch #prompt{pointer-events:auto;cursor:pointer}
+#joyZone{position:absolute;left:0;bottom:0;width:52%;height:60%;pointer-events:auto;touch-action:none}
+#joy{position:absolute;left:calc(env(safe-area-inset-left,0px) + 94px);top:calc(100% - env(safe-area-inset-bottom,0px) - 108px);width:136px;height:136px;margin:-68px 0 0 -68px;border-radius:50%;box-sizing:border-box;background:radial-gradient(circle,rgba(11,19,31,.12) 0 48%,rgba(11,19,31,.34) 49% 100%);border:1.5px solid rgba(255,255,255,.4);opacity:.5;transition:opacity .2s}
+#joy.on{opacity:1;transition:none}
+#joy .h{position:absolute;left:50%;transform:translateX(-50%);font:700 9.5px var(--display);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.8);font-style:normal;text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none}
+#joy .h.u{top:7px}#joy .h.d{bottom:7px}
+#joyK{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#cfdff0);box-shadow:0 3px 12px rgba(0,0,0,.4);will-change:transform}
+#acts{position:absolute;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:196px;height:200px}
+.tb{position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.38);background:rgba(11,19,31,.52);color:var(--ink);font:800 14px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.tb small{font:600 9px var(--display);letter-spacing:.08em;color:var(--ink-dim);text-transform:none}
+.tb.on{background:rgba(166,220,255,.5);transform:scale(.94)}
+#bJump{right:0;bottom:0;width:92px;height:92px;font-size:16px;background:conic-gradient(rgba(255,201,77,.85) calc(var(--c,0)*360deg),rgba(11,19,31,.52) 0)}
+#bJump::after{content:"";position:absolute;inset:6px;border-radius:50%;background:rgba(11,19,31,.55);z-index:-1}
+#bJump span,#bJump small{position:relative}
+#bGrab{right:106px;bottom:4px;width:66px;height:66px}
+#bCtx{right:8px;bottom:108px;width:76px;height:76px;font-size:13px;background:rgba(255,201,77,.9);color:#0b1320;border-color:#fff;animation:ctxp 1.6s ease-in-out infinite}
+#bCtx small{color:#0b1320;opacity:.75}
+#bCtx[hidden]{display:none}
+@keyframes ctxp{0%,100%{box-shadow:0 0 0 0 rgba(255,201,77,.55)}50%{box-shadow:0 0 0 10px rgba(255,201,77,0)}}
+#util{position:absolute;left:calc(env(safe-area-inset-left,0px) + 14px);top:calc(env(safe-area-inset-top,0px) + 128px);display:flex;flex-wrap:wrap;gap:6px;max-width:230px;pointer-events:auto}
+.pill{font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 12px;min-height:34px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pill.on{background:rgba(166,220,255,.45)}
+#more{display:flex;gap:6px;flex-wrap:wrap}
+#more[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){#bCtx{animation:none}}
 @media (max-width:700px){
   .speed{font-size:40px}
   #mini{width:118px;height:118px}
   #hud .tl{min-width:0;padding:8px 10px}
   #score{top:calc(env(safe-area-inset-top,0px) + 180px);left:auto;right:calc(env(safe-area-inset-right,0px) + 14px);transform:none;font-size:12px;padding:5px 10px}
   #score b{font-size:15px}
-  #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 238px);font-size:13px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box}
+  #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 232px);font-size:13px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box}
+  #trick{top:44%;width:max-content;max-width:92vw}
+  #trick .t{font-size:28px}
+  #trick .s{font-size:13px}
+  #miniWrap .cap{display:none}
   #start{background:rgba(7,12,22,.84)}
   .ctrls{grid-template-columns:1fr}
 }
+@media (pointer:coarse) and (max-height:500px){
+  body.touch #prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 14px);max-width:38vw;white-space:normal;font-size:12.5px}
+  #joyZone{height:72%}
+  #trick{top:46%}
+  #mini{width:118px;height:118px}
+  #score{left:auto;right:calc(env(safe-area-inset-right,0px) + 158px);transform:none;font-size:12px;padding:5px 10px}
+  #score b{font-size:15px}
+  #track{top:calc(env(safe-area-inset-top,0px) + 58px);left:50%;transform:translateX(-50%);width:min(300px,40vw)}
+  #toasts{top:calc(env(safe-area-inset-top,0px) + 150px);right:50%;transform:translateX(50%);width:min(300px,40vw)}
+  .pill{padding:6px 9px;min-height:30px;font-size:10.5px}
+}
+body.touch #miniWrap .cap{display:none}
+@media (max-width:700px){#trick.low{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 296px)}}
+@media (pointer:coarse) and (max-height:500px){#trick.low{top:62%}}
 @media (prefers-reduced-motion:reduce){#trick{transition:none}}
 </style>
 
@@ -212,7 +251,7 @@ body.touch #tools,body.touch .ctrls{display:none}
   <div id="chrono" class="panel" hidden><span id="chP"></span><b id="chT">0:00.0</b><span id="chM"></span></div>
   <div id="track" class="panel" hidden><div class="th"><span class="tag">Mission</span><b id="trT"></b></div><div id="trS"></div><div class="tdist"><span id="trA" aria-hidden="true">▲</span><span id="trD"></span></div></div>
   <div id="toasts" aria-live="polite"></div>
-  <div id="miniWrap" class="panel"><canvas id="mini" width="340" height="340"></canvas><div class="cap"><span>Plan</span><span>M · carte</span></div></div>
+  <div id="miniWrap" class="panel"><canvas id="mini" width="340" height="340"></canvas><div class="cap">M · carte</div></div>
   <div id="trick"><div class="t" id="trickT"></div><div class="s" id="trickS"></div></div>
   <div id="prompt" class="panel" hidden></div>
   <div id="help" class="panel">
@@ -269,13 +308,15 @@ body.touch #tools,body.touch .ctrls{display:none}
 </div>
 
 <div id="touch" hidden>
-  <div class="grp lcol">
-    <div class="row"><button class="tb sm" data-a="journal" type="button">Carnet</button><button class="tb sm" data-a="map" type="button">Carte</button></div>
-    <div class="row"><button class="tb big" data-k="left" type="button" aria-label="Gauche">◀</button><button class="tb big" data-k="right" type="button" aria-label="Droite">▶</button></div>
+  <div id="util">
+    <button class="pill" data-u="journal" type="button">Carnet</button><button class="pill" data-u="sled" type="button">Moto</button><button class="pill" id="moreBtn" type="button" aria-expanded="false" aria-controls="more">Plus</button>
+    <div id="more" hidden><button class="pill" data-u="cam" type="button">Caméra</button><button class="pill" data-u="mute" id="tMute" type="button">Son : oui</button><button class="pill" data-u="qual" type="button">Image</button><button class="pill" data-u="respawn" type="button">Remontée</button></div>
   </div>
-  <div class="grp rcol">
-    <div class="row"><button class="tb sm" data-a="revert" type="button">180°</button><button class="tb sm" data-a="action" type="button">Monter</button><button class="tb sm" data-a="sled" type="button">Moto</button><button class="tb sm" data-k="grab" type="button">Grab</button></div>
-    <div class="row"><div class="col"><button class="tb" data-k="up" type="button">Schuss</button><button class="tb" data-k="down" type="button">Frein</button></div><button class="tb big" data-k="jump" type="button">Saut</button></div>
+  <div id="joyZone" aria-label="Joystick : diriger, schuss, frein"><div id="joy"><i class="h u">Schuss</i><i class="h d">Frein</i><div id="joyK"></div></div></div>
+  <div id="acts">
+    <button class="tb" id="bCtx" type="button" hidden><span>Monter</span></button>
+    <button class="tb" id="bGrab" type="button"><span>Grab</span><small>+ bas : tail</small></button>
+    <button class="tb" id="bJump" type="button"><span>Saut</span><small>2× : switch</small></button>
   </div>
 </div>
 
@@ -300,6 +341,14 @@ body.touch #tools,body.touch .ctrls{display:none}
       <div><span class="ks"><span class="key">V</span></span>Motoneige</div>
       <div><span class="ks"><span class="key">G</span></span>Qualité d'image</div>
     </div>
+    <ul class="tctrls">
+      <li><b>Joystick</b> (pouce gauche, où vous voulez) : diriger · pousser = schuss · tirer = frein</li>
+      <li><b>Saut</b> : maintenir puis relâcher · <b>2 tapes</b> = switch</li>
+      <li><b>En l'air</b> : joystick = vrilles · Saut maintenu + haut / bas = flips</li>
+      <li><b>Grab</b> : maintenir · + bas en l'air = tail · + haut / bas au sol = press</li>
+      <li><b>Bouton doré</b> : monter, parler, passer la montée, se débloquer</li>
+      <li><b>Mini-carte</b> : toucher pour ouvrir le plan</li>
+    </ul>
     <div class="qual" role="radiogroup" aria-label="Qualité d'image"><span>Image</span>
       <button type="button" role="radio" data-q="low" id="q-low">Basse</button><button type="button" role="radio" data-q="medium" id="q-medium">Moyenne</button><button type="button" role="radio" data-q="high" id="q-high">Haute</button>
     </div>
@@ -2576,7 +2625,7 @@ function skierSkis(on) { if (!skier) return; skier.feet.forEach(f => f.g.childre
 function stepSled(dt) {
   const speed = P.vel.length();
   groundBasis(P.pos.x, P.pos.z);
-  const along = P.vel.dot(_f), steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const along = P.vel.dot(_f), steer = steerIn();
   const thr = input.up ? 1 : 0, brk = input.down ? 1 : 0;
   sled.engine = lerp(sled.engine, thr, Math.min(1, dt * 4));
   if (!sled.air) {
@@ -4043,6 +4092,10 @@ function updateSpray(dt) {
 
 /* ---------------- Simulation ---------------- */
 const input = { left: false, right: false, up: false, down: false, jump: false, grab: false, tail: false };
+// touch stick (kept outside `input` so keyboard / bots stay digital): x, y in -1..1 after deadzone and curve
+const stick = { on: false, x: 0, y: 0, id: null };
+let jumpHold = false;   // a quick tap waits for a possible second tap: the jump is held without charging
+function steerIn() { return stick.on && stick.x !== 0 ? -stick.x : (input.left ? 1 : 0) - (input.right ? 1 : 0); }
 const queued = new Set();
 const P = {
   pos: new V3(), vel: new V3(), yaw: 0, pitch: 0, state: 'ski', edge: 0, charge: 0, prevJump: false,
@@ -4150,7 +4203,7 @@ function pipeSteer(dt) {
   // pumping: coming down a transition the rider pushes the skis into it and gains a little speed
   const lat = -P.vel.x * PIPE.dz + P.vel.z * PIPE.dx, aw = Math.abs(q.w);
   if (aw > PIPE.F && aw < PIPE.halfW && lat * q.w < 0 && P.vel.length() < 13) P.vel.multiplyScalar(1 + 1.6 * dt / Math.max(4, P.vel.length()));
-  if (input.left || input.right || !PIPE.lastSide) return;
+  if (steerIn() !== 0 || !PIPE.lastSide) return;
   const along = Math.sign(P.vel.x * PIPE.dx + P.vel.z * PIPE.dz) || 1, to = -PIPE.lastSide;
   const tx = -PIPE.dz * to + PIPE.dx * along * 0.45, tz = PIPE.dx * to + PIPE.dz * along * 0.45;
   const h = Math.atan2(tx, tz), d1 = wrapPi(h - P.yaw), d2 = wrapPi(h + Math.PI - P.yaw);
@@ -4165,7 +4218,7 @@ function stepSki(dt) {
   groundBasis(P.pos.x, P.pos.z);
   let speed = P.vel.length();
   const along = P.vel.dot(_f);
-  const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const steer = steerIn();
   // Shift + ↑ / ↓ on the ground: nose press (tails up) / tail press (tips up); with ← / → it becomes a butter
   const pressDir = input.grab && speed > 0.5 ? (input.up ? 1 : input.down ? -1 : 0) : 0;
   P.pressV += (pressDir - P.pressV) * Math.min(1, dt * 9);
@@ -4228,7 +4281,7 @@ function stepSki(dt) {
   P.sinkT = S.sink * SKI.float * (1 - smoothstep(3, 18, speed) * 0.75);
   if (P.eatJump && !input.jump) { P.eatJump = false; }
   else if (!P.eatJump) {
-    if (input.jump) P.charge = Math.min(1, P.charge + dt / 0.55);
+    if (input.jump && !jumpHold) P.charge = Math.min(1, P.charge + dt / 0.55);
     if (!input.jump && P.prevJump) { doJump(); return; }
   }
   sprayFor(st, speed, braking);
@@ -4306,7 +4359,7 @@ function stepAir(dt) {
   P.pressV += (0 - P.pressV) * Math.min(1, dt * 6);
   P.vel.y -= 9.81 * dt;
   const sp = P.vel.length(); P.vel.multiplyScalar(1 - 0.0025 * sp * dt);
-  const spinIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const sIn = steerIn(), spinIn = Math.abs(sIn) > 0.3 ? Math.sign(sIn) : 0;   // spins at full rate, whatever the stick deflection
   // flips need Space held with ↑ / ↓, so holding ↑ to tuck over an unexpected bump does not start a frontflip
   const flipIn = input.jump ? (input.up ? 1 : 0) - (input.down ? 1 : 0) : 0;
   const pq = PIPE.on ? pipeLocal(P.pos.x, P.pos.z) : null, inPipeAir = pq && pq.s > 0 && pq.s < PIPE.L && Math.abs(pq.w) > PIPE.F * 0.8 && Math.abs(pq.w) < PIPE.halfW + 2.5;
@@ -4666,7 +4719,7 @@ function updateSkier(dt, time) {
     T.pelH = 0.74; T.spPitch = 0.38; T.headP = -0.3;
     for (const a of [T.aL, T.aR]) { a.p = -0.75; a.o = 0.7; a.e = -0.45; a.pole = 0.55; }
     if (P.state === 'rail') { T.pelH = 0.86; for (const a of [T.aL, T.aR]) a.o = 1.0; if (Math.abs(P.pressV) > 0.02) pressPose(T, P.pressV); }
-    const spin = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    const spin = steerIn();
     if (P.air && spin) { T.spYaw = spin * 0.45; T.aL.o = T.aR.o = 0.35; }
     if (P.air && input.grab) { T.pelH = 0.58; T.spPitch = 0.95; T.aR.p = -1.55; T.aR.e = -0.15; T.aR.o = 0.08; T.headP = -0.45; T.aL.o = 0.9; }
     if (P.air && input.tail) { T.pelH = 0.62; T.spPitch = 0.6; T.aL.p = 0.95; T.aL.e = -0.1; T.spYaw = 0.35; }
@@ -4674,7 +4727,7 @@ function updateSkier(dt, time) {
     // seated astride, feet on the footrests, hands on the bars, leaning into the turn
     rate = 30; _quat.copy(sled.q);
     _rootP.set(0, 1.37, -0.1).applyQuaternion(_quat).add(P.pos);
-    const st = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    const st = steerIn();
     T.pelH = 0.42; T.pelZ = -0.4; T.pelPitch = 0.12; T.spPitch = 0.3 + sled.engine * 0.15; T.headP = -0.32; T.spRoll = st * 0.25; T.pelX = st * 0.08;
     T.fL.x = 0.36; T.fR.x = -0.36; T.fL.z = T.fR.z = 0.05;
     for (const a of [T.aL, T.aR]) { a.p = -1.1; a.e = -0.45; a.o = 0.3; a.pole = 0; }
@@ -4963,15 +5016,29 @@ function mapPin(g, x, y, kind, r, target) {
 }
 function drawMini() {
   if (!minimapImg) return;
-  const S = minimapImg.width, W = mini.width, span = 900, src = span / WORLD * S;
+  const S = minimapImg.width, W = mini.width, R = W / 2, span = 900, src = span / WORLD * S;
   const cx = (P.pos.x + HALF) / WORLD * S, cz = (P.pos.z + HALF) / WORLD * S;
+  mctx.clearRect(0, 0, W, W);
+  mctx.save(); mctx.beginPath(); mctx.arc(R, R, R, 0, Math.PI * 2); mctx.clip();
   mctx.fillStyle = '#dfe7f1'; mctx.fillRect(0, 0, W, W);
   mctx.drawImage(minimapImg, cx - src / 2, cz - src / 2, src, src, 0, 0, W, W);
-  // people with a mission (!), and the mission target (gold, pinned to the edge when off the map)
-  const toM = (x, z) => [W / 2 + (x - P.pos.x) / span * W, W / 2 + (z - P.pos.z) / span * W];
-  for (const d of PEOPLE) if (d.n && d.markKind && !d.hidden) { const [x, y] = toM(d.n.x, d.n.z); if (x < 0 || y < 0 || x > W || y > W) continue; mapPin(mctx, x, y, d.markKind, 9); }
-  for (const t of missionTargets()) { let [x, y] = toM(t[0], t[1]); const out = x < 8 || y < 8 || x > W - 8 || y > W - 8; x = clamp(x, 8, W - 8); y = clamp(y, 8, W - 8); mapPin(mctx, x, y, out ? '›' : '◆', out ? 8 : 10, true); }
-  drawArrow(mctx, W / 2, W / 2, headingAngle(), 14);
+  // soft vignette towards the rim so the edge reads as a lens, not a cut
+  const vg = mctx.createRadialGradient(R, R, R * 0.72, R, R, R); vg.addColorStop(0, 'rgba(11,19,32,0)'); vg.addColorStop(1, 'rgba(11,19,32,.35)');
+  mctx.fillStyle = vg; mctx.fillRect(0, 0, W, W);
+  // people with a mission (!), and the mission target (gold, pinned to the rim when off the map)
+  const toM = (x, z) => [R + (x - P.pos.x) / span * W, R + (z - P.pos.z) / span * W];
+  for (const d of PEOPLE) if (d.n && d.markKind && !d.hidden) { const [x, y] = toM(d.n.x, d.n.z); if (Math.hypot(x - R, y - R) > R - 10) continue; mapPin(mctx, x, y, d.markKind, 9); }
+  for (const t of missionTargets()) {
+    let [x, y] = toM(t[0], t[1]); const dx = x - R, dy = y - R, d = Math.hypot(dx, dy), lim = R - 13, out = d > lim;
+    if (out) { x = R + dx / d * lim; y = R + dy / d * lim; }
+    mapPin(mctx, x, y, out ? '›' : '◆', out ? 9 : 10, true);
+  }
+  drawArrow(mctx, R, R, headingAngle(), 14);
+  mctx.restore();
+  // rim and north mark
+  mctx.beginPath(); mctx.arc(R, R, R - 2, 0, Math.PI * 2); mctx.lineWidth = 4; mctx.strokeStyle = 'rgba(255,255,255,.85)'; mctx.stroke();
+  mctx.beginPath(); mctx.arc(R, 15, 12, 0, Math.PI * 2); mctx.fillStyle = '#0b1320'; mctx.fill();
+  mctx.fillStyle = '#fff'; mctx.font = '800 16px "Bahnschrift SemiCondensed", "Roboto Condensed", sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle'; mctx.fillText('N', R, 16);
 }
 function drawBigMap() {
   const c = $('bigmap'), g = c.getContext('2d'), W = c.width;
@@ -5487,7 +5554,7 @@ function updatePeopleFx(time) {
 /* ---- dialogue ---- */
 let dlgOpen = false, dlgActs = [];
 function openDialog(d) {
-  for (const k in input) input[k] = false; queued.clear(); P.vel.set(0, 0, 0);
+  for (const k in input) input[k] = false; queued.clear(); P.vel.set(0, 0, 0); if (IS_TOUCH) touchRelease();
   const lvl = riderLevel(), a = RIDER.active, s = missionStep(), m = MISSIONS.find(q => q.giver === d.id);
   let text = d.idle, rew = '', acts = [['Au revoir', closeDialog]];
   if (s && s.do === 'talk' && s.npc === d.id) { text = s.say; acts = [['Continuer', () => { closeDialog(); advanceMission(' '); }]]; }
@@ -5633,12 +5700,13 @@ function updateHud(dt) {
   $('pts').textContent = fmt(P.score);
   const pr = $('prompt');
   const L = nearLift(12), who = nearPerson();
-  const ta = document.querySelector('#touch [data-a="action"]'); if (ta) ta.textContent = P.state === 'lift' ? 'Passer' : who ? 'Parler' : 'Monter';
   if (P.state === 'lift') { pr.innerHTML = '<span class="key">↑</span> Accélérer toute la remontée · <span class="key">E</span> Passer la montée'; pr.hidden = false; }
   else if (who && !dlgOpen) { pr.innerHTML = '<span class="key">E</span> Parler à ' + who.name + ' · ' + who.role + (who.markKind === '!' ? ' <b class="bang">!</b>' : who.markKind === '?' ? ' <b class="bang q">?</b>' : ''); pr.hidden = false; }
   else if (L && P.state === 'ski') { const lk = lockOf(L); pr.innerHTML = lk ? '🔒 ' + L.code + ' ' + L.name + ' · ' + lk.goal.toLowerCase() : '<span class="key">E</span> Monter · ' + L.code + ' ' + L.name; pr.hidden = false; }
   else if (P.state === 'ski' && P.stillT > 5 && P.offPiste) { pr.innerHTML = '<span class="key">R</span> Bloqué ? Rejoindre la remontée la plus proche'; pr.hidden = false; }
   else pr.hidden = true;
+  if (IS_TOUCH) touchHud(L, who);
+  $('trick').classList.toggle('low', $('toasts').childElementCount > 0);   // a toast owns the band under the tracker on phones
   drawMini();
 }
 
@@ -5676,7 +5744,7 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup', e => { const k = keyOf(e); if (k) { input[k] = false; e.preventDefault(); } });
-window.addEventListener('blur', () => { for (const k in input) input[k] = false; });
+window.addEventListener('blur', () => { for (const k in input) input[k] = false; touchRelease(); });
 $('mapBtn').onclick = () => toggleMap();
 $('jnlBtn').onclick = () => toggleJournal();
 $('jClose').onclick = () => toggleJournal(false);
@@ -5685,13 +5753,108 @@ $('closeMap').onclick = () => toggleMap(false);
 $('camBtn').onclick = () => { camMode = (camMode + 1) % 3; canvas.focus(); };
 $('qualBtn').onclick = () => { cycleQuality(); canvas.focus(); };
 $('muteBtn').onclick = () => { $('muteBtn').textContent = 'Son : ' + (sfx.toggle() ? 'oui' : 'non'); canvas.focus(); };
-document.querySelectorAll('#touch [data-k]').forEach(b => {
-  const k = b.dataset.k;
-  const on = e => { e.preventDefault(); input[k] = true; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
-  const off = e => { e.preventDefault(); input[k] = false; b.classList.remove('on'); };
-  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+/* ---------------- Touch controls ---------------- */
+const vib = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (_) { /* not supported */ } };
+const joyZone = $('joyZone'), joy = $('joy'), joyK = $('joyK'), bJump = $('bJump'), bGrab = $('bGrab'), bCtx = $('bCtx');
+const JOY_R = 52;   // knob travel, px
+let joyC = { x: 0, y: 0 }, grabHeld = false, ctxAct = null;
+function stickApply(dx, dy) {
+  const len = Math.hypot(dx, dy), k = len > JOY_R ? JOY_R / len : 1;
+  joyK.style.transform = 'translate(' + (dx * k).toFixed(1) + 'px,' + (dy * k).toFixed(1) + 'px)';
+  const shape = v => { const a = Math.abs(v), dz = 0.14; return a < dz ? 0 : Math.sign(v) * Math.pow(Math.min(1, (a - dz) / (1 - dz)), 1.35); };
+  const nx = dx * k / JOY_R, ny = dy * k / JOY_R;
+  stick.x = shape(nx); stick.y = shape(ny);
+  // digital views for flips, presses, the lift boost and the pipe: up / down need a mostly vertical push
+  input.left = nx < -0.45; input.right = nx > 0.45;
+  input.up = ny < -0.5 && -ny > Math.abs(nx) * 0.7; input.down = ny > 0.5 && ny > Math.abs(nx) * 0.7;
+}
+function stickEnd() {
+  if (!stick.on) return;
+  stick.on = false; stick.id = null; stick.x = stick.y = 0;
+  input.left = input.right = input.up = input.down = false;
+  joy.classList.remove('on'); joy.style.left = joy.style.top = ''; joyK.style.transform = '';
+}
+joyZone.addEventListener('pointerdown', e => {
+  e.preventDefault(); if (stick.on) return;
+  const r = joyZone.getBoundingClientRect();
+  stick.on = true; stick.id = e.pointerId; joyC = { x: e.clientX, y: e.clientY };
+  joy.style.left = (e.clientX - r.left) + 'px'; joy.style.top = (e.clientY - r.top) + 'px'; joy.classList.add('on');
+  try { joyZone.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }
+  stickApply(0, 0);
 });
-document.querySelectorAll('#touch [data-a]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); const a = b.dataset.a; if (a === 'map') toggleMap(); else if (a === 'journal') toggleJournal(); else queued.add(a); }));
+joyZone.addEventListener('pointermove', e => {
+  if (!stick.on || e.pointerId !== stick.id) return; e.preventDefault();
+  let dx = e.clientX - joyC.x, dy = e.clientY - joyC.y; const len = Math.hypot(dx, dy);
+  // the base follows a thumb that slides past the rim, so the stick never "sticks" at full lock
+  if (len > JOY_R * 1.6) { const m = (len - JOY_R * 1.6) / len; joyC.x += dx * m; joyC.y += dy * m; dx -= dx * m; dy -= dy * m; const r = joyZone.getBoundingClientRect(); joy.style.left = (joyC.x - r.left) + 'px'; joy.style.top = (joyC.y - r.top) + 'px'; }
+  stickApply(dx, dy);
+});
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) joyZone.addEventListener(ev, e => { if (e.pointerId === stick.id) stickEnd(); });
+
+// Jump: hold = charge (gold ring), release = jump · quick double tap = switch (180° on the snow)
+let jDownT = 0, jTapT = 0, jTimer = 0, jDouble = false, jId = null;
+function jumpRelease() { jumpHold = false; input.jump = false; }
+bJump.addEventListener('pointerdown', e => {
+  e.preventDefault(); jId = e.pointerId; try { bJump.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ }
+  bJump.classList.add('on'); const now = performance.now();
+  if (jTimer && now - jTapT < 280) {   // second tap: no jump, switch instead
+    clearTimeout(jTimer); jTimer = 0; jDouble = true;
+    jumpHold = false; input.jump = false; P.prevJump = false; P.charge = 0;
+    queued.add('revert'); vib([8, 30, 8]); return;
+  }
+  if (jTimer) { clearTimeout(jTimer); jTimer = 0; jumpRelease(); }
+  jDouble = false; jDownT = now; jumpHold = false; input.jump = true; vib(6);
+});
+function jumpUp(e) {
+  if (e.pointerId !== jId) return; jId = null; bJump.classList.remove('on');
+  if (jDouble) { jDouble = false; return; }
+  if (!input.jump) return;
+  const now = performance.now();
+  if (now - jDownT > 170 || P.charge > 0.3 || P.state !== 'ski') { jumpRelease(); vib(12); return; }   // charged jump, air, rail: no delay
+  // quick tap on the snow: hold the (uncharged-further) jump a moment, in case a second tap asks for a switch
+  jumpHold = true; jTapT = now; jTimer = setTimeout(() => { jTimer = 0; jumpRelease(); vib(12); }, 230);
+}
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) bJump.addEventListener(ev, jumpUp);
+
+// Grab: hold = mute grab · in the air with the stick pulled down = tail grab · on the snow with up / down = nose / tail press
+bGrab.addEventListener('pointerdown', e => { e.preventDefault(); grabHeld = true; bGrab.classList.add('on'); try { bGrab.setPointerCapture(e.pointerId); } catch (_) { /* old browsers */ } vib(6); });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) bGrab.addEventListener(ev, () => { if (!grabHeld) return; grabHeld = false; input.grab = input.tail = false; bGrab.classList.remove('on'); });
+function touchFrame() {
+  if (grabHeld) { const tail = P.state === 'air' && stick.y > 0.5; input.tail = tail; input.grab = !tail; }
+  bJump.style.setProperty('--c', P.state === 'ski' ? P.charge.toFixed(2) : 0);
+}
+function touchRelease() { stickEnd(); if (jTimer) { clearTimeout(jTimer); jTimer = 0; } jumpHold = false; grabHeld = false; jId = null; bJump.classList.remove('on'); bGrab.classList.remove('on'); }
+
+// context button: what E would do right now (board, talk, skip the ride, get unstuck)
+bCtx.addEventListener('pointerdown', e => { e.preventDefault(); if (ctxAct) { queued.add(ctxAct); vib(10); } });
+$('prompt').addEventListener('click', () => { if (IS_TOUCH && ctxAct) queued.add(ctxAct); });
+function touchHud(L, who) {
+  const off = dlgOpen || mapOpen || jnlOpen, tc = $('touch');
+  if (off !== tc.classList.contains('off')) { tc.classList.toggle('off', off); if (off) touchRelease(); }
+  let lab = null; ctxAct = 'action';
+  if (P.state === 'lift') lab = 'Passer';
+  else if (who && !dlgOpen) lab = 'Parler';
+  else if (L && P.state === 'ski' && !lockOf(L)) lab = 'Monter';
+  else if ((P.state === 'ski' && P.stillT > 5 && P.offPiste) || P.state === 'crash') { lab = 'Rejoindre'; ctxAct = 'respawn'; }
+  if (!lab) ctxAct = null;
+  bCtx.hidden = !lab; if (lab && bCtx.firstChild.textContent !== lab) bCtx.firstChild.textContent = lab;
+  $('util').querySelector('[data-u="sled"]').classList.toggle('on', P.state === 'sled');
+}
+document.querySelectorAll('#util [data-u]').forEach(b => b.addEventListener('click', () => {
+  const u = b.dataset.u;
+  if (u === 'journal') toggleJournal(); else if (u === 'sled') queued.add('sled'); else if (u === 'respawn') queued.add('respawn');
+  else if (u === 'cam') camMode = (camMode + 1) % 3; else if (u === 'qual') cycleQuality();
+  else if (u === 'mute') { const on = sfx.toggle(); b.textContent = 'Son : ' + (on ? 'oui' : 'non'); $('muteBtn').textContent = b.textContent; }
+}));
+$('moreBtn').addEventListener('click', () => { const m = $('more'); m.hidden = !m.hidden; $('moreBtn').setAttribute('aria-expanded', String(!m.hidden)); $('moreBtn').classList.toggle('on', !m.hidden); });
+$('miniWrap').addEventListener('click', () => { if (running) toggleMap(); });
+// park the shortcut pills just under the speed panel, whatever its height
+function placeUtil() {
+  const r = document.querySelector('#hud .tl').getBoundingClientRect(), u = $('util'); if (!r.height) return;
+  if (innerHeight < 500) { u.style.top = Math.round(r.top) + 'px'; u.style.left = Math.round(r.right + 10) + 'px'; u.style.maxWidth = '200px'; }   // landscape: beside the speed panel
+  else { u.style.top = Math.round(r.bottom + 8) + 'px'; u.style.left = ''; u.style.maxWidth = ''; }
+}
+window.addEventListener('resize', placeUtil);
 
 /* ---------------- Main loop ---------------- */
 let acc = 0, clock = 0, introT = 0;
@@ -5701,6 +5864,7 @@ function frame(now) {
   timer.update(now); const dt = Math.min(0.1, timer.getDelta()); clock += dt;
   if (running && !mapOpen && !dlgOpen && !jnlOpen) {
     acc += dt; let n = 0;
+    if (IS_TOUCH) touchFrame();
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
     if (n === 12) acc = 0;
   }
@@ -5773,7 +5937,7 @@ window.addEventListener('resize', resize);
 function startGame() {
   if (running) return;
   running = true; $('start').hidden = true; $('hud').hidden = false;
-  if (IS_TOUCH) { $('touch').hidden = false; $('help').hidden = true; }
+  if (IS_TOUCH) { $('touch').hidden = false; $('help').hidden = true; requestAnimationFrame(placeUtil); }
   if (window.innerWidth < 760) $('help').hidden = true;
   setTimeout(() => { if (!helpTouched) $('help').hidden = true; }, 15000);
   sfx.init();
@@ -5809,7 +5973,7 @@ const steps = [
 function boot(i) {
   if (i >= steps.length) {
     const L = LIFTS[1]; P.pos.set(L.exit[0], 0, L.exit[1]); P.pos.y = H(P.pos.x, P.pos.z); P.yaw = L.exitYaw;
-    $('loadmsg').textContent = IS_TOUCH ? 'Commandes tactiles en bas de l\'écran.' : 'Entrée ou clic pour commencer.';
+    $('loadmsg').textContent = IS_TOUCH ? 'Touchez « Chausser les skis » pour commencer.' : 'Entrée ou clic pour commencer.';
     $('go').disabled = false;
     window.__ski.ready = true;
     return;
@@ -5818,7 +5982,7 @@ function boot(i) {
   setTimeout(() => { steps[i][1](); boot(i + 1); }, 16);
 }
 window.__ski = {
-  P, H, input, queued, camera, skier, LIFTS, PISTES, kickers, rails, trees, zoneAt, normalAt, stepSim, STEP, ALT0, startGame,
+  P, H, input, queued, camera, skier, LIFTS, PISTES, kickers, rails, trees, zoneAt, normalAt, stepSim, STEP, ALT0, startGame, stick, steerIn, touchFrame, get jumpHold() { return jumpHold; },
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
   teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },

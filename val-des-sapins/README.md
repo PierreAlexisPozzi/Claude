@@ -65,3 +65,11 @@ Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul 
 - Décors lointains : montagnes hors domaine redessinées (crêtes secondaires, arêtes nettes, maillage plus fin près du domaine). Nouvelle matière Blender « massif » (`massif_albedo` / `massif_normal` : couloirs neigeux verticaux, vires, gradient de neige) projetée verticalement sur les parois, mélangée à deux échelles et déformée à basse fréquence pour éviter toute répétition ; forêts lointaines, neige des pentes douces et rugosité variable.
 - Sommet : plateau d'arrivée rehaussé (2 311 m, +17 m) au départ commun de la rouge et de la noire ; le Couloir part désormais de l'arrivée du Télésiège du Sommet (début plus doux, puis passe vers l'est avant le mur).
 - Liaisons rouge ↔ noire : Traversée du Col (bleue, de la Grande Combe vers le Couloir, ~2 250 m) et Traversée des Chamois (rouge, du Couloir vers la Grande Combe, plus bas). Chronos de référence du Couloir (88 s) et de la Grande Combe (82 s) re-mesurés.
+
+## Commandes tactiles (mobile)
+- **Joystick flottant** (pouce gauche, n'importe où dans la moitié gauche basse) : direction analogique (zone morte, courbe progressive), pousser = schuss / accélérer la remontée, tirer = frein. La base suit le pouce s'il dépasse le bord.
+- **Saut** : maintenir pour charger (anneau doré), relâcher pour sauter ; **double tape** = switch (180° sur la neige). Un tap rapide attend ~0,23 s une éventuelle deuxième tape ; un saut chargé part sans délai. En l'air : joystick = vrilles, Saut maintenu + haut / bas = flips.
+- **Grab** : maintenir = mute grab ; + joystick bas en l'air = tail grab ; + haut / bas au sol = nose / tail press (avec ←/→ : butter).
+- **Bouton doré contextuel** : n'apparaît que s'il y a quelque chose à faire (Monter, Parler, Passer la montée, Rejoindre après une chute ou un blocage). Le bandeau d'information est aussi touchable.
+- Raccourcis : Carnet, Moto, Plus (Caméra, Son, Image, Remontée) ; mini-carte **ronde** (repère Nord, objectif épinglé sur le bord), touchable pour ouvrir le plan. Vibrations courtes aux appuis, au saut et au switch.
+- Les commandes se masquent pendant un dialogue, le plan ou le carnet. Mises en page portrait, paysage et petits écrans ; touches clavier masquées sur mobile. Le clavier et les tests automatiques gardent le pilotage numérique inchangé.
