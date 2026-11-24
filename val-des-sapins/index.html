@@ -1110,11 +1110,20 @@ const post = (() => {
   const ao = new GTAOPass(scene, camera, w * Q.pr, h * Q.pr);
   ao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.6, thickness: 1.5, scale: 1.0, samples: 12, distanceFallOff: 1.0 }); ao.blendIntensity = 0.8;
   const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.2, 0.5, 2.4);
+  // a single NaN / Inf pixel (any shader, any GPU) would be smeared by the bloom's blur chain into large black
+  // rectangles that come and go with the camera angle: clean the frame before the bloom and the AO blur see it
+  const clean = new ShaderPass({ uniforms: { tDiffuse: { value: null } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+      bool bad(float v) { return isnan(v) || isinf(v) || !(v >= 0.0 || v < 0.0); }
+      void main() { vec4 c = texture2D(tDiffuse, vUv);
+        if (bad(c.r) || bad(c.g) || bad(c.b) || bad(c.a)) c = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragColor = clamp(c, vec4(0.0), vec4(512.0)); }` });
   const out = new OutputPass(), fxaa = new FXAAPass(), film = new ShaderPass(FilmShader);
-  for (const p of [render, ao, bloom, out, fxaa, film]) composer.addPass(p);
+  for (const p of [render, ao, clean, bloom, out, fxaa, film]) composer.addPass(p);
   composer.setPixelRatio(Q.pr); composer.setSize(w, h);
   ao.enabled = T.ao; bloom.enabled = T.bloom; fxaa.enabled = T.fxaa;
-  return { composer, render, ao, bloom, out, fxaa, film };
+  return { composer, render, ao, clean, bloom, out, fxaa, film };
 })();
 
 /* ---------------- Procedural textures ---------------- */
@@ -2533,7 +2542,7 @@ function updateRig(time) {
       }
       rigBone(rig.thigh, j, R.H, R.up.subVectors(R.H, R.K), F);
       rigBone(rig.shin, j, R.K, R.up.subVectors(R.K, R.A), F);
-      if (J) { J.hip[sd].copy(R.H); J.knee[sd].copy(R.K); J.ankle[sd].copy(R.A).y += 0.1; J.kneeFwd[sd].copy(F); J.footUp[sd].copy(AX_Y); J.footFwd[sd].copy(sty.wedge && skiing ? R.fw : F); if (sit) { J.footFwd[sd].set(0, Math.sin(0.35), Math.cos(0.35)); J.footUp[sd].set(0, Math.cos(0.35), -Math.sin(0.35)); } }
+      if (J) { J.hip[sd].copy(R.H); J.knee[sd].copy(R.K); J.ankle[sd].copy(R.A).y += 0.1; J.kneeFwd[sd].copy(F); J.thighFwd[sd].copy(F); J.footUp[sd].copy(AX_Y); J.footFwd[sd].copy(sty.wedge && skiing ? R.fw : F); if (sit) { J.footFwd[sd].set(0, Math.sin(0.35), Math.cos(0.35)); J.footUp[sd].set(0, Math.cos(0.35), -Math.sin(0.35)); } }
     }
     // ---- torso: forward lean with the flex, more upright than the legs into the turn, counter-rotated
     const pitch = sit ? -0.12 : skiing ? sty.pitch + flex : tbar ? -0.05 : 0.08, side = -roll * (skiing ? sty.counter : 0.55), twist = skiing ? -roll * sty.twist : 0;
@@ -2570,7 +2579,7 @@ function updateRig(time) {
       R.E.copy(Sh).addScaledVector(ad, 0.29); const hand = R.T.copy(R.E).addScaledVector(fd, 0.27);
       rigBone(rig.upperarm, j, Sh, R.up.copy(ad).negate(), tz);
       rigBone(rig.forearm, j, R.E, R.up.copy(fd).negate(), ty);
-      if (J) { J.sh[sd].copy(Sh); J.el[sd].copy(R.E); J.hand[sd].copy(hand); J.armFwd[sd].copy(tz); J.handDir[sd].copy(fd); J.handFwd[sd].copy(tz); }
+      if (J) { J.sh[sd].copy(Sh); J.el[sd].copy(R.E); J.hand[sd].copy(hand); J.armFwd[sd].copy(tz); J.foreFwd[sd].copy(ty); J.handDir[sd].copy(fd); J.handFwd[sd].copy(tz); }
       // pole: from the hand to a tip on the snow (ahead and outside when planting, trailing otherwise)
       const tip = skiing && n.style === 'race' ? new V3(hand.x + s * 0.12, hand.y - 0.5, hand.z - 1.0)                         // poles tucked under the arms
         : skiing && n.style === 'plow' ? new V3(hand.x + s * 0.3, 0.0, hand.z - 0.45)                                                // dragged wide
@@ -2582,7 +2591,7 @@ function updateRig(time) {
       for (const key of ['hipMid']) J[key].applyMatrix4(M);
       for (const key of ['up', 'fwd', 'spineUp', 'spineFwd', 'headUp', 'headFwd']) J[key].transformDirection(M);
       for (const key of ['hip', 'knee', 'ankle', 'sh', 'el', 'hand']) for (const v of J[key]) v.applyMatrix4(M);
-      for (const key of ['kneeFwd', 'footFwd', 'footUp', 'armFwd', 'handDir', 'handFwd']) for (const v of J[key]) v.transformDirection(M);
+      for (const key of ['thighFwd', 'kneeFwd', 'footFwd', 'footUp', 'armFwd', 'foreFwd', 'handDir', 'handFwd']) for (const v of J[key]) v.transformDirection(M);
       // people of the resort look at you when you come near (head turns up to ~65 deg, eased)
       if (n.mode === 'npc') {
         const dx = P.pos.x - n.x, dz = P.pos.z - n.z, d = Math.hypot(dx, dz);
@@ -4064,7 +4073,11 @@ let skier = null;
 const H_CHILD = { pelvis: 'spine_01', spine_01: 'spine_02', spine_02: 'spine_03', spine_03: 'neck_01', neck_01: 'head', clavicle_l: 'upperarm_l', clavicle_r: 'upperarm_r', upperarm_l: 'lowerarm_l', upperarm_r: 'lowerarm_r', lowerarm_l: 'hand_l', lowerarm_r: 'hand_r', thigh_l: 'calf_l', thigh_r: 'calf_r', calf_l: 'foot_l', calf_r: 'foot_r' };
 const _hm1 = new THREE.Matrix4(), _hm2 = new THREE.Matrix4(), _hq1 = new THREE.Quaternion(), _hq2 = new THREE.Quaternion(), _hv = [0, 1, 2, 3, 4, 5].map(() => new V3());
 function humanBasis(m, d, r) {   // rotation whose columns are (d, r orthogonalised, d x r)
-  const a = _hv[4].copy(d).normalize(), b = _hv[5].copy(r).addScaledVector(a, -r.dot(a)).normalize(), c = _hv[3].crossVectors(a, b);
+  const a = _hv[4].copy(d); if (a.lengthSq() < 1e-10) a.set(0, 1, 0); a.normalize();
+  const b = _hv[5].copy(r).addScaledVector(a, -r.dot(a));
+  if (b.lengthSq() < 1e-6) { b.set(Math.abs(a.y) < 0.9 ? 0 : 1, Math.abs(a.y) < 0.9 ? 1 : 0, 0); b.addScaledVector(a, -b.dot(a)); }   // reference along the limb (knee or elbow at 90 deg): any perpendicular
+  b.normalize();
+  const c = _hv[3].crossVectors(a, b);
   return m.makeBasis(a, b, c);
 }
 function humanUniforms(skinTone, jacket, shade) {
@@ -4118,6 +4131,7 @@ function makeHuman(kind, o = {}) {
   }
   const hipMid = rest.thigh_l.pos.clone().add(rest.thigh_r.pos).multiplyScalar(0.5);
   const face = parts.face, md = face && face.morphTargetDictionary;
+  for (const b of Object.values(bones)) b.userData.rest = { q: b.quaternion.clone(), p: b.position.clone() };
   const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1,
     face: face && md ? { m: face, idx: md, cur: { blink: 0, smile: 0, open: 0, brows: 0, squint: 0 }, blinkT: 9, next: 1 + Math.random() * 3, talk: 0 } : null };
   setGear(H, o.gear || 'helmet');
@@ -4174,14 +4188,17 @@ function poseHuman(H, J) {
   ['l', 'r'].forEach((s, i) => {
     if (b['clavicle_' + s]) b['clavicle_' + s].updateWorldMatrix(false, false);
     aimBone(H, 'upperarm_' + s, _hv[0].subVectors(J.el[i], J.sh[i]), J.armFwd[i]);
-    aimBone(H, 'lowerarm_' + s, _hv[0].subVectors(J.hand[i], J.el[i]), J.armFwd[i]);
+    aimBone(H, 'lowerarm_' + s, _hv[0].subVectors(J.hand[i], J.el[i]), J.foreFwd[i]);
     aimBone(H, 'hand_' + s, J.handDir[i], J.handFwd[i]);
-    aimBone(H, 'thigh_' + s, _hv[0].subVectors(J.knee[i], J.hip[i]), J.kneeFwd[i]);
+    aimBone(H, 'thigh_' + s, _hv[0].subVectors(J.knee[i], J.hip[i]), J.thighFwd[i]);
     aimBone(H, 'calf_' + s, _hv[0].subVectors(J.ankle[i], J.knee[i]), J.kneeFwd[i]);
     if (H.rest['foot_' + s]) aimBone(H, 'foot_' + s, _hv[0].copy(J.footFwd[i]).addScaledVector(J.footUp[i], -0.35), J.footUp[i]);
   });
+  let broken = !Number.isFinite(root.position.x + root.position.y + root.position.z);
+  for (const bn of Object.values(b)) { const q = bn.quaternion, p = bn.position; if (!Number.isFinite(q.x + q.y + q.z + q.w + p.x + p.y + p.z)) { broken = true; q.copy(bn.userData.rest.q); p.copy(bn.userData.rest.p); } }
+  if (broken) { if (!Number.isFinite(root.position.x + root.position.y + root.position.z)) root.position.set(0, -1000, 0); root.updateMatrixWorld(true); }
 }
-function newJoints() { const v = () => new V3(), p = () => [v(), v()]; return { hipMid: v(), up: v(), fwd: v(), spineUp: v(), spineFwd: v(), headUp: v(), headFwd: v(), hip: p(), knee: p(), ankle: p(), kneeFwd: p(), footFwd: p(), footUp: p(), sh: p(), el: p(), hand: p(), armFwd: p(), handDir: p(), handFwd: p() }; }
+function newJoints() { const v = () => new V3(), p = () => [v(), v()]; return { hipMid: v(), up: v(), fwd: v(), spineUp: v(), spineFwd: v(), headUp: v(), headFwd: v(), hip: p(), knee: p(), ankle: p(), thighFwd: p(), kneeFwd: p(), footFwd: p(), footUp: p(), sh: p(), el: p(), hand: p(), armFwd: p(), foreFwd: p(), handDir: p(), handFwd: p() }; }
 const AXY = new V3(0, 1, 0), AXZ = new V3(0, 0, 1), AXNY = new V3(0, -1, 0);
 const axisW = (o, a, out) => out.copy(a).transformDirection(o.matrixWorld);
 let playerHuman = null; const playerJ = newJoints();
@@ -4192,13 +4209,13 @@ function playerHumanSync(dt = 1 / 60) {
   S.legs.forEach((L, k) => {
     const i = L.foot.sd > 0 ? 0 : 1;
     L.thigh.getWorldPosition(J.hip[i]); L.knee.getWorldPosition(J.knee[i]); J.ankle[i].set(0, 0.2, -0.02).applyMatrix4(L.foot.g.matrixWorld);
-    axisW(L.knee, AXZ, J.kneeFwd[i]); axisW(L.foot.g, AXZ, J.footFwd[i]); axisW(L.foot.g, AXY, J.footUp[i]);
+    axisW(L.thigh, AXZ, J.thighFwd[i]); axisW(L.knee, AXZ, J.kneeFwd[i]); axisW(L.foot.g, AXZ, J.footFwd[i]); axisW(L.foot.g, AXY, J.footUp[i]);
   });
   J.hipMid.copy(J.hip[0]).add(J.hip[1]).multiplyScalar(0.5);
   S.arms.forEach(A => {
     const i = A.sd > 0 ? 0 : 1;
     A.sh.getWorldPosition(J.sh[i]); A.el.getWorldPosition(J.el[i]); A.hand.getWorldPosition(J.hand[i]);
-    axisW(A.sh, AXZ, J.armFwd[i]); axisW(A.hand, AXNY, J.handDir[i]); axisW(A.hand, AXZ, J.handFwd[i]);
+    axisW(A.sh, AXZ, J.armFwd[i]); axisW(A.el, AXZ, J.foreFwd[i]); axisW(A.hand, AXNY, J.handDir[i]); axisW(A.hand, AXZ, J.handFwd[i]);
   });
   poseHuman(H, J);
 }
