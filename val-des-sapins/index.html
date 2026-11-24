@@ -3173,7 +3173,11 @@ function assembleBuilding(b) {
   CUR_BLD = b; if (!SHOP_ANCHORS.length && PEOPLE.some(d => d.shop !== undefined)) placePeople();
   const A = { chalet: assembleChalet, woodres: assembleChalet, paquebot: assemblePaquebot, tower: assembleTower, block: assembleBlock, church: assembleChurch, bridge: assembleBridge }[b.type](b);
   const g = A.toGroup(Math.hypot(b.w, b.d) / 2 + (b.floors || 6) * 3 + 30);
-  g.position.set(b.x, b.type === 'church' || b.type === 'bridge' ? b.top : 0, b.z); g.rotation.y = b.rot; g.userData.atoms = A.count;
+  const lifted = b.type === 'church' || b.type === 'bridge';
+  g.position.set(b.x, lifted ? b.top : 0, b.z); g.rotation.y = b.rot; g.userData.atoms = A.count;
+  // the atoms sit at absolute heights (the group is at y = 0): centre the culling sphere on the building itself,
+  // otherwise buildings high up the domain were culled when the camera looked level (invisible, yet still solid)
+  if (!lifted) { const cy = ((b.y0 ?? b.top) + b.top + (b.floors || 6) * FLOOR + 6) / 2; g.children.forEach(m => { m.geometry.boundingSphere.center.set(0, cy, 0); }); }
   return g;
 }
 function updateNearBuildings(cam, budgetMs) {
@@ -4204,6 +4208,8 @@ const axisW = (o, a, out) => out.copy(a).transformDirection(o.matrixWorld);
 let playerHuman = null; const playerJ = newJoints();
 function playerHumanSync(dt = 1 / 60) {
   const S = skier, H = playerHuman, J = playerJ; if (!H) return;
+  H.root.visible = S.root.visible;          // hidden inside the gondola cabin, like the rigid rig
+  if (!H.root.visible) return;
   S.root.updateMatrixWorld(true);
   axisW(S.pelvis, AXY, J.up); axisW(S.pelvis, AXZ, J.fwd); axisW(S.spine, AXY, J.spineUp); axisW(S.spine, AXZ, J.spineFwd); axisW(S.head, AXY, J.headUp); axisW(S.head, AXZ, J.headFwd);
   S.legs.forEach((L, k) => {
@@ -4794,6 +4800,7 @@ function collideObstacles() {
     for (const i of l) {
       const r = 0.5 * trees.s[i] + 0.3, ex = P.pos.x - trees.x[i], ez = P.pos.z - trees.z[i];
       if (ex * ex + ez * ez < r * r) {
+        P.lastHit = { kind: 'tree', i, x: trees.x[i], z: trees.z[i], r };
         if (sp > 4.5 && P.state !== 'crash') { P.vel.multiplyScalar(0.15); crash('Sapin percuté'); return true; }
         const d = Math.hypot(ex, ez) || 1, nx = ex / d, nz = ez / d; P.pos.x = trees.x[i] + nx * r; P.pos.z = trees.z[i] + nz * r;
         const vr = P.vel.x * nx + P.vel.z * nz; if (vr < 0) { P.vel.x -= vr * nx; P.vel.z -= vr * nz; }   // slide around the trunk
@@ -4804,6 +4811,7 @@ function collideObstacles() {
   for (const o of obstacles) {
     const ex = P.pos.x - o.x, ez = P.pos.z - o.z;
     if (ex * ex + ez * ez < o.r * o.r) {
+      P.lastHit = { kind: 'obstacle', x: o.x, z: o.z, r: o.r };
       if (sp > 7 && P.state !== 'crash') { P.vel.multiplyScalar(0.1); crash('Choc contre un chalet'); return true; }
       const d = Math.hypot(ex, ez) || 1; P.pos.x = o.x + ex / d * o.r; P.pos.z = o.z + ez / d * o.r; P.vel.set(0, 0, 0); return true;
     }
@@ -6283,7 +6291,7 @@ window.__ski = {
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, npcs, sled,
   advance(dt) { clock += dt; updateNPCs(dt, clock); },
-  NEAR, BUILDINGS, firPrototype, assembleBuilding, get playerHuman() { return playerHuman; }, set faceHold(v) { faceHold = v; }, humanPool, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
+  NEAR, BUILDINGS, obstacleList: obstacles, THREE, firPrototype, assembleBuilding, get playerHuman() { return playerHuman; }, set faceHold(v) { faceHold = v; }, humanPool, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
   camNow() { updateCamera(0, true); },
   nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateFauna(0.016, clock, camera.position); },
   fauna, FURN, rocks,
