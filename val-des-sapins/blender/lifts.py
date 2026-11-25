@@ -16,6 +16,7 @@ import bpy  # noqa: F401  (loads mathutils)
 from mathutils import Vector, Matrix
 from vds_common import reset, hexrgb, bake_ao_to_vertex_colors, export_glb, tri_count
 from vehicles import B, squircle, loft, tube, box, lerp, smoothstep, finish
+import gear
 
 STEEL, DARK, GRIP = hexrgb('#8b939e'), hexrgb('#2b3038'), hexrgb('#3c4350')
 SEAT, BACK, PIPE = hexrgb('#2c313a'), hexrgb('#2457c9'), hexrgb('#c8ccd2')
@@ -160,8 +161,14 @@ def cabin(mb_body, mb_glass):
         box(mb_body, (sx * 1.07, -3.2, 0), (0.1, 0.06, 1.3), DARK)
         for z in (-0.6, 0.6):
             box(mb_body, (sx * 1.07, -2.95, z), (0.08, 0.55, 0.05), DARK)
-        for k, (z, c) in enumerate(((-0.4, '#d8342b'), (-0.28, '#d8342b'), (0.1, '#2f8be0'), (0.22, '#2f8be0'), (0.45, '#f1c232'))):
-            box(mb_body, (sx * 1.09, -2.6, z), (0.025, 1.5, 0.075), hexrgb(c), pitch=0.04 * (k - 2))
+        # three pairs of real skis (blender/gear.py), strapped base to base, standing on their tails in the basket
+        for k, (z, c) in enumerate(((-0.42, '#d8342b'), (0.02, '#2f8be0'), (0.44, '#f1c232'))):
+            tilt = 0.05 * (k - 1) * sx
+            def X(p, z=z, tilt=tilt):
+                # local ski frame: x across the ski (-> cabin z), y along it (-> up), z out of its top sheet (-> cabin x)
+                y = -3.36 + p[1]
+                return (sx * (1.1 + p[2]) + tilt * p[1], y, z + p[0])
+            gear.ski_pair(mb_body, X, top=hexrgb(c), accent=hexrgb('#f2f2f2'), poles=False, seg=10, binding=False)
     # roof light and the cabin number
     box(mb_body, (0, -1.37, 0.0), (0.5, 0.06, 0.5), hexrgb('#dfe3e8'))
     box(mb_body, (0.6, -1.8, 0.86), (0.28, 0.18, 0.02), WHITE)

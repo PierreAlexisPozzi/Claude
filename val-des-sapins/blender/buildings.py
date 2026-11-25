@@ -157,29 +157,20 @@ def boxg(mb, c, s, col):
 
 
 def skis():
-    """A pair of skis with bindings and two poles, standing on their tails (origin on the deck, leaning done by the game)."""
-    mb = MeshBuilder()
-    WHITE, DARK, GREY = (1, 1, 1), (0.12, 0.12, 0.14), (0.6, 0.62, 0.66)
-    stripe = lambda t: (0.25, 0.25, 0.28) if abs(t - 0.62) < 0.05 or abs(t - 0.3) < 0.02 else WHITE
-    for x in (-0.055, 0.055):
-        plank(mb, x, board_outline(1.72, 0.04, 0.056), 0.016, 0.05, stripe, DARK)
-        boxg(mb, (x, 0.72, 0.035), (0.07, 0.12, 0.04), DARK); boxg(mb, (x, 0.95, 0.035), (0.07, 0.08, 0.05), GREY)   # heel and toe pieces
-    for x in (-0.17, 0.17):                                                       # poles beside the skis
-        boxg(mb, (x, 0.6, 0.08), (0.016, 1.2, 0.016), GREY); boxg(mb, (x, 1.17, 0.08), (0.035, 0.14, 0.035), DARK)
-        boxg(mb, (x, 0.1, 0.08), (0.09, 0.008, 0.09), DARK)
+    """A pair of skis strapped base to base, with two poles, standing on their tails (blender/gear.py). Top sheets are
+    white with dark stripes so the game's per-instance colour tints them; the game leans them against the wall."""
+    import gear
+    from vehicles import B
+    mb = B()
+    gear.ski_pair(mb, top=(1, 1, 1), accent=(0.25, 0.25, 0.28))
     return mb.obj('skis')
 
 
 def snowboard():
-    mb = MeshBuilder()
-    WHITE, DARK, GREY = (1, 1, 1), (0.1, 0.1, 0.12), (0.5, 0.52, 0.56)
-    graphic = lambda t: (0.2, 0.2, 0.24) if (t * 9) % 2 < 0.35 else WHITE
-    plank(mb, 0.0, board_outline(1.55, 0.122, 0.148), 0.013, 0.06, graphic, DARK)
-    for y in (0.53, 1.02):                                                        # bindings: base, highback, two straps
-        boxg(mb, (0, y, 0.025), (0.22, 0.2, 0.02), DARK)
-        boxg(mb, (0, y - 0.08, 0.1), (0.2, 0.03, 0.16), DARK)
-        for dy in (0.02, 0.09):
-            boxg(mb, (0, y + dy, 0.06), (0.2, 0.035, 0.05), GREY)
+    import gear
+    from vehicles import B
+    mb = B()
+    gear.snowboard(mb, top=(1, 1, 1), band=(0.22, 0.22, 0.26))
     return mb.obj('snowboard')
 
 
@@ -309,7 +300,8 @@ def baluster_mask(ob):
 
 
 def main():
-    rooms_atlas()
+    if not os.environ.get('GEAR_ONLY'):
+        rooms_atlas()
     reset()
     slab = snowslab()
     slab.scale = (10, 0.6, 6) if False else slab.scale
@@ -322,8 +314,9 @@ def main():
         ob.location.x = 0
     print('tris', {o.name: tri_count([o]) for o in [slab] + gear})
     export_glb([slab] + gear, 'building_parts.glb')
-    reset()
-    baluster_mask(baluster())
+    if not os.environ.get('GEAR_ONLY'):
+        reset()
+        baluster_mask(baluster())
 
 
 main()
