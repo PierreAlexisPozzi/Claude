@@ -59,10 +59,42 @@ def features(nodes, ways):
             lifts.append({'id': wid, 'name': tags.get('name') or '', 'kind': LIFT_TYPES[tags['aerialway']], 'osm': tags['aerialway'], 'll': [pts[0], pts[-1]]})
         elif 'building' in tags and len(pts) >= 4:
             blds.append({'ll': pts, 'levels': tags.get('building:levels'), 'kind': tags.get('building'), 'name': tags.get('name') or ''})
+    _peaks(nodes, peaks)
+    return runs, lifts, blds, peaks
+
+
+def piste_areas(path, nodes):
+    """groomed surfaces drawn as areas: closed ways with area=yes, and the outer rings of multipolygon relations"""
+    root = ET.parse(path).getroot()
+    wayref = {w.get('id'): [nd.get('ref') for nd in w.iter('nd')] for w in root.iter('way')}
+    out = []
+    for w in root.iter('way'):
+        t = {x.get('k'): x.get('v') for x in w.iter('tag')}
+        if t.get('piste:type') == 'downhill' and t.get('area') == 'yes':
+            out.append({'name': t.get('piste:name') or t.get('name') or '', 'diff': t.get('piste:difficulty', ''), 'll': [nodes[r][:2] for r in wayref[w.get('id')] if r in nodes]})
+    for rl in root.iter('relation'):
+        t = {x.get('k'): x.get('v') for x in rl.iter('tag')}
+        if t.get('piste:type') != 'downhill' or t.get('type') != 'multipolygon':
+            continue
+        segs = [wayref[m.get('ref')] for m in rl.iter('member') if m.get('type') == 'way' and m.get('role') in ('outer', '') and m.get('ref') in wayref]
+        while segs:                                             # chain the outer ways into rings
+            ring = list(segs.pop(0))
+            grown = True
+            while grown and ring[0] != ring[-1]:
+                grown = False
+                for k, sg in enumerate(segs):
+                    if sg[0] == ring[-1]: ring += sg[1:]
+                    elif sg[-1] == ring[-1]: ring += sg[::-1][1:]
+                    else: continue
+                    segs.pop(k); grown = True; break
+            out.append({'name': t.get('piste:name') or t.get('name') or '', 'diff': t.get('piste:difficulty', ''), 'll': [nodes[r][:2] for r in ring if r in nodes]})
+    return [a for a in out if len(a['ll']) >= 4]
+
+
+def _peaks(nodes, peaks):
     for nid, (lat, lon, tags) in nodes.items():
         if tags.get('natural') == 'peak' or tags.get('place') in ('village', 'hamlet', 'locality', 'neighbourhood'):
             peaks.append({'name': tags.get('name', ''), 'ele': tags.get('ele'), 'll': (lat, lon), 'kind': tags.get('natural') or tags.get('place')})
-    return runs, lifts, blds, peaks
 
 
 def inside(p, m=0.0):
@@ -252,7 +284,7 @@ def build(a, runs, lifts, blds, peaks):
             if hgt(*sg[0]) < hgt(*sg[-1]):
                 sg = sg[::-1]
             L = sum(math.hypot(b[0] - a_[0], b[1] - a_[1]) for a_, b in zip(sg, sg[1:]))
-            if L < 120:
+            if L < 60:
                 continue
             pts = simplify(resample(sg, 4.0), 3.0)
             R.append({'name': r['name'], 'lvl': DIFF.get(r['diff'], 'bleue'), 'len': round(L), 'drop': round(hgt(*sg[0]) - hgt(*sg[-1])),
@@ -300,7 +332,24 @@ def build(a, runs, lifts, blds, peaks):
             'attribution': 'Secteur Plagne Centre – Aime 2000, adaptation libre et non officielle, sans lien avec la station. '
                            'Relief : IGN RGE ALTI (Licence Ouverte Etalab 2.0) et Copernicus DEM GLO-30, via Mapterhorn et TerraPrinter. '
                            'Pistes, remontées et bâtiments : © les contributeurs d\u2019OpenStreetMap (ODbL). Snowpark et half-pipe ajoutés pour le jeu.'}
+    if os.environ.get('PL_RAW'):
+        json.dump(R, open(os.environ['PL_RAW'], 'w'), ensure_ascii=False)
     data = curate({'meta': meta, 'runs': R, 'lifts': Lf, 'buildings': B, 'places': places}, hgt)
+    # groomed areas (wide slopes, snow fronts): polygons clamped to the box, named after their run
+    A = []
+    for ar in getattr(a, 'areas', []):
+        xy = [P.xz(*q) for q in ar['ll']]
+        cx, cz = sum(p[0] for p in xy) / len(xy), sum(p[1] for p in xy) / len(xy)
+        if not inside((cx, cz), 0):
+            continue
+        ring = [(max(-HALF, min(HALF, x)), max(-HALF, min(HALF, z))) for x, z in xy]
+        if ring[0] == ring[-1]: ring = ring[:-1]
+        far_k = max(range(len(ring)), key=lambda k: math.hypot(ring[k][0] - ring[0][0], ring[k][1] - ring[0][1]))   # a ring is simplified as two halves
+        poly = simplify(ring[:far_k + 1], 2.0)[:-1] + simplify(ring[far_k:] + [ring[0]], 2.0)[:-1]
+        if len(poly) >= 3:
+            A.append({'name': ar['name'], 'lvl': DIFF.get(ar['diff'], 'bleue'), 'poly': [[round(x, 1), round(z, 1)] for x, z in poly]})
+    data['areas'] = A
+    print('piste areas: %d' % len(A))
     meta['enc'] = 'd2'                                           # grids: second-order deltas, see pack_grid
     os.makedirs(a.out, exist_ok=True)
     json.dump(data, open(os.path.join(a.out, 'plagne.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
@@ -310,6 +359,7 @@ def build(a, runs, lifts, blds, peaks):
     return P, H, data
 
 
+ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX']
 LIFT_LABEL = {'chair': ('Télésiège', 'TSD'), 'gondola': ('Télécabine', 'TC'), 'tbar': ('Téléski', 'TK')}
 
 
@@ -357,40 +407,40 @@ def curate(data, hgt):
                 return True
         return False
     out = []
-    for r in runs:
+    for r in runs:                                              # every surveyed run is kept whole, up to the box edge
         pts = r['pts']
-        if edge(pts[-1]):                                       # runs off the box: cut back to the last junction
-            k = len(pts) - 1
-            while k > 1 and not anchored(r, pts[k], True):
-                k -= 1
-            pts = pts[:k + 1]
-        if edge(pts[0]):
-            k = 0
-            while k < len(pts) - 2 and not anchored(r, pts[k], False):
-                k += 1
-            pts = pts[k:]
         L = plen(pts)
-        if L < (250 if not r['name'] else 150):
+        if L < 60:
             continue
         out.append(dict(r, pts=pts, len=round(L), drop=round(hgt(*pts[0]) - hgt(*pts[-1]))))
     # accessibility: from any lift top, down the runs. A run is reached from its first point that meets a lift top
     # (150 m: stations sit back from the run heads) or a reached run; the part above it is cut (hike-only)
-    K, grew = {}, True                                          # run -> first reached vertex (fixed point: earliest wins)
+    # spatial hash of the reached runs' points (every 10 m): "near a reached run" becomes a few dictionary lookups
+    dense = [resample([tuple(p) for p in r['pts']], 10.0) for r in out]
+    cellsz, grid = 30.0, {}
+    key = lambda p: (int(math.floor(p[0] / cellsz)), int(math.floor(p[1] / cellsz)))
+    def near_reached(q, i):
+        cx, cz = key(q)
+        for gx in (cx - 1, cx, cx + 1):
+            for gz in (cz - 1, cz, cz + 1):
+                for j, p in grid.get((gx, gz), ()):
+                    if j != i and d2(p, q) < 30:
+                        return True
+        return False
+    def add(i, k0):
+        for p in dense[i][max(0, int(k0)):]:
+            grid.setdefault(key(p), []).append((i, p))
+    K, grew = {}, True
+    tops = [L['t'] for L in lifts]
     while grew:
         grew = False
         for i, r in enumerate(out):
-            for k, q in enumerate(r['pts'][:-1]):
-                if k >= K.get(i, 1e9):
-                    break
-                if any(d2(q, L['t']) < 150 for L in lifts) or any(dline(q, out[j]['pts'][K[j]:]) < 30 for j in K if j != i):
-                    K[i] = k; grew = True; break
-    reach = set()
-    for i, k in K.items():
-        r = out[i]
-        if k:
-            pts = r['pts'][k:]; r['pts'] = pts; r['len'] = round(plen(pts)); r['drop'] = round(hgt(*pts[0]) - hgt(*pts[-1]))
-        if r['len'] >= 150:
-            reach.add(i)
+            if i in K:
+                continue
+            for k, q in enumerate(dense[i][:-1]):
+                if any(d2(q, t) < 150 for t in tops) or near_reached(q, i):
+                    K[i] = k; add(i, k); grew = True; break
+    reach = set(K)                                              # runs reached from a lift (the others: from outside the sector)
     lost = [r['name'] or '?' for i, r in enumerate(out) if i not in reach]
     if os.environ.get('PL_DEBUG'):
         for i, r in enumerate(out):
@@ -398,14 +448,14 @@ def curate(data, hgt):
                 s0 = r['pts'][0]
                 print('  lost %s start %s: top %.0f m, run %.0f m (%s)' % (r['name'], s0, min(d2(s0, L['t']) for L in lifts),
                       *min(((dline(s0, out[j]['pts']), out[j]['name']) for j in reach), default=(0, ''))))
-    print('unreachable runs (dropped):', lost)
-    out = [r for i, r in enumerate(out) if i in reach]
+    print('runs not reached from a lift of the sector (kept, flagged):', lost)
+    for i, r in enumerate(out):
+        if i not in reach: r['outside'] = 1
     for r in out:
         g = r['drop'] / max(1, r['len'])
         if g < 0.06:
             r['flat'] = round(g, 3)                             # cat-track: follow the real grade, do not dig a ramp
-    out.sort(key=lambda r: -r['len'])                          # twin ways (same start and end): keep the longer
-    out = [r for i, r in enumerate(out) if not any(d2(r['pts'][0], o['pts'][0]) < 15 and d2(r['pts'][-1], o['pts'][-1]) < 15 for o in out[:i])]
+    out.sort(key=lambda r: -r['len'])
     places = [p for p in data['places'] if p['kind'] != 'peak']
     seen = {L['name'] for L in lifts}
     for r in sorted(out, key=lambda r: -r['len']):
@@ -415,7 +465,7 @@ def curate(data, hgt):
             r['name'] = 'Liaison ' + near
         base, k = r['name'], 1
         while r['name'] in seen:
-            k += 1; r['name'] = '%s %s' % (base, ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][min(k, 8)])
+            k += 1; r['name'] = '%s %s' % (base, ROMAN[k] if k < len(ROMAN) else k)
         seen.add(r['name'])
     out.sort(key=lambda r: -r['len'])
     for r in out:
@@ -517,6 +567,7 @@ def main():
     a = ap.parse_args()
     nodes, ways = load_osm(a.osm)
     runs, lifts, blds, peaks = features(nodes, ways)
+    a.areas = piste_areas(a.osm, nodes)
     print('osm: runs %d, lifts %d, buildings %d, named places %d' % (len(runs), len(lifts), len(blds), len(peaks)))
     if a.cmd == 'score':
         best = []

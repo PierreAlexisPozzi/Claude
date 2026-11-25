@@ -171,3 +171,22 @@ Les références sont huit photos de Wikimedia Commons (Plagne Centre, Aime 2000
 On les retrouve sur les balcons, aux râteliers des remontées, sur les nouveaux râteliers devant les commerces (deux devant la location et le magasin de sport) et dans les paniers des télécabines (trois paires par côté).
 
 **Tests** : le robot donne des résultats identiques à la version précédente. Le nombre de triangles augmente d'environ 25 %, et les appels de dessin restent au même niveau (environ 1 600 à Plagne Centre sur ordinateur, 400 sur mobile).
+
+### Tracés des pistes contrôlés avec le modèle TerraPrinter
+L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par couleur de piste. Ces bandes sont projetées vue de dessus à 2,5 m et comparées aux tracés du jeu (`tools/plagne_data.py` ; scripts de comparaison hors dépôt).
+
+**Position**
+- Les axes des pistes du jeu tombent sur les bandes : écart médian nul, et 1 % seulement des points à plus de 15 m.
+- Exception : deux noires, Grande Pente (environ 40 m) et Les Coqs (jusqu'à 80 m). Pour elles, les bandes de TerraPrinter s'écartent des données OpenStreetMap brutes utilisées par le jeu.
+
+**Couverture** : elle était insuffisante, et c'est ce que le lot corrige.
+- Le tri des données écartait les pistes venant d'une remontée hors secteur (Grande Rochette) et coupait celles qui touchaient le bord de la carte. Il gardait aussi un seul tracé quand deux pistes avaient le même départ et la même arrivée, et ignorait les **zones de pistes** d'OpenStreetMap (66 surfaces et 6 multipolygones).
+- Désormais :
+  - toutes les pistes du secteur sont gardées en entier : 94 tronçons, 43,4 km (Rochette, Verdons, Petite Rochette, Les Arolles, Mira et Mont Saint-Sauveur complètes, etc.) ;
+  - les 45 zones de pistes situées dans le secteur sont damées sur leur vrai contour (pas d'arbres, neige damée, rattachées à la piste du même nom) et dessinées sur le plan.
+- Résultat : la surface des bandes damée dans le jeu passe de 54 % à 77 %, et la part sans aucune piste du jeu de 33 % à 15 %. Seulement 2 % de la surface damée tombe hors d'une bande.
+
+**Tests** :
+- 117 tronçons sur 118 descendus par le robot ; Les Coqs s'arrête au bord de la carte, où la piste sort du secteur ;
+- les 17 remontées fonctionnent ;
+- chronos remesurés : Mont Saint-Sauveur 155 s, Émile Allais 60 s.
