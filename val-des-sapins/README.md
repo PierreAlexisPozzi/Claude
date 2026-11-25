@@ -187,7 +187,7 @@ L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par co
   - toutes les pistes du secteur sont gardées en entier : 94 tronçons, 43,4 km (Rochette, Verdons, Petite Rochette, Les Arolles, Mira et Mont Saint-Sauveur complètes, etc.) ;
   - les 49 zones de pistes qui touchent le secteur sont damées sur leur vrai contour (pas d'arbres, neige damée, rattachées à la piste du même nom) et dessinées sur le plan ;
   - sur le plan et dans la liste, seules les pistes nommées sont étiquetées (52). Les tronçons sans nom et les tronçons secondaires gardent leur nom au HUD quand on skie dessus.
-- Résultat : la surface des bandes damée dans le jeu passe de 54 % à 77 %, et la part sans aucune piste du jeu de 33 % à 15 %. Le reste tient surtout à la largeur : 35 m pour les bandes, 24 à 30 m pour les pistes du jeu. Seulement 2 % de la surface damée tombe hors d'une bande.
+- Résultat : la surface des bandes damée dans le jeu passe de 54 % à 77 %, et la part sans aucune piste ni zone du jeu à moins de 30 m de 33 % à 2 %. Le reste tient surtout à la largeur : 35 m pour les bandes, 24 à 30 m pour les pistes du jeu. Seulement 2 % de la surface damée tombe hors d'une bande.
 
 **Tests** :
 - 116 tronçons sur 118 descendus par le robot. Les Coqs sort de la carte au bord du secteur, et Chevrette bloque à quelques mètres de son arrivée ;
