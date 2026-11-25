@@ -128,7 +128,7 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 
 - **Contenu** : 48 pistes réelles (31 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
 - **Pistes réelles** : le damage suit le profil du terrain et ne creuse jamais plus de 2,5 m. Les replats et les bosses sont donc conservés, et les chemins de liaison restent des chemins.
-- **Ajouts du jeu** (absents des relevés) : le **snowpark** occupe la piste SuperSlalom, le long du téléski du Dromadaire (sauts, box et rails). Le **half-pipe** est creusé à côté de Golf II, sur une pente rectiligne à 28 %.
+- **Ajouts du jeu** (absents des relevés) : le **snowpark** occupe la piste SuperSlalom, le long du téléski du Dromadaire (sauts, box et rails). Le **half-pipe** est creusé à côté de Lovatière, au-dessus de Plagne Centre, sur une pente rectiligne à 26 % sans dévers, à l'écart de toutes les pistes et zones de pistes. Il a été déplacé après la restauration des pistes.
 - **Personnages et missions** : ils sont déplacés dans les lieux réels.
   - Les commerces du bas sont à Plagne 1800, ceux de la mi-station à Plagne Centre.
   - René conduit le Télésiège Bécoin et Élodie attend à son sommet. Le berger est au départ de Java.
@@ -176,17 +176,21 @@ On les retrouve sur les balcons, aux râteliers des remontées, sur les nouveaux
 L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par couleur de piste. Ces bandes sont projetées vue de dessus à 2,5 m et comparées aux tracés du jeu (`tools/plagne_data.py` ; scripts de comparaison hors dépôt).
 
 **Position**
-- Les axes des pistes du jeu tombent sur les bandes : écart médian nul, et 1 % seulement des points à plus de 15 m.
-- Exception : deux noires, Grande Pente (environ 40 m) et Les Coqs (jusqu'à 80 m). Pour elles, les bandes de TerraPrinter s'écartent des données OpenStreetMap brutes utilisées par le jeu.
+- Les bandes font environ 35 m de large, une limite due à la résolution du modèle imprimable : c'est la précision maximale de la comparaison.
+- Par rapport à l'axe des bandes, les tracés du jeu s'écartent de 6 m en médiane, et 90 % des points sont à moins de 17 m (ces derniers surtout aux jonctions, où les bandes s'élargissent).
+- Un balayage de recalage de ±20 m donne le meilleur accord à 0 m : il n'y a pas de décalage d'ensemble.
+- Près de Grande Pente et des Coqs, les bandes noires sans tracé du jeu sont en fait les **zones de pistes** Morbleu et Palsembleu, que TerraPrinter dessine à cet endroit. Les tracés de ces deux pistes ne sont pas en cause, et ces zones sont maintenant damées.
 
 **Couverture** : elle était insuffisante, et c'est ce que le lot corrige.
 - Le tri des données écartait les pistes venant d'une remontée hors secteur (Grande Rochette) et coupait celles qui touchaient le bord de la carte. Il gardait aussi un seul tracé quand deux pistes avaient le même départ et la même arrivée, et ignorait les **zones de pistes** d'OpenStreetMap (66 surfaces et 6 multipolygones).
 - Désormais :
   - toutes les pistes du secteur sont gardées en entier : 94 tronçons, 43,4 km (Rochette, Verdons, Petite Rochette, Les Arolles, Mira et Mont Saint-Sauveur complètes, etc.) ;
-  - les 45 zones de pistes situées dans le secteur sont damées sur leur vrai contour (pas d'arbres, neige damée, rattachées à la piste du même nom) et dessinées sur le plan.
-- Résultat : la surface des bandes damée dans le jeu passe de 54 % à 77 %, et la part sans aucune piste du jeu de 33 % à 15 %. Seulement 2 % de la surface damée tombe hors d'une bande.
+  - les 49 zones de pistes qui touchent le secteur sont damées sur leur vrai contour (pas d'arbres, neige damée, rattachées à la piste du même nom) et dessinées sur le plan ;
+  - sur le plan et dans la liste, seules les pistes nommées sont étiquetées (52). Les tronçons sans nom et les tronçons secondaires gardent leur nom au HUD quand on skie dessus.
+- Résultat : la surface des bandes damée dans le jeu passe de 54 % à 77 %, et la part sans aucune piste du jeu de 33 % à 15 %. Le reste tient surtout à la largeur : 35 m pour les bandes, 24 à 30 m pour les pistes du jeu. Seulement 2 % de la surface damée tombe hors d'une bande.
 
 **Tests** :
-- 117 tronçons sur 118 descendus par le robot ; Les Coqs s'arrête au bord de la carte, où la piste sort du secteur ;
+- 116 tronçons sur 118 descendus par le robot. Les Coqs sort de la carte au bord du secteur, et Chevrette bloque à quelques mètres de son arrivée ;
+- le half-pipe a été déplacé à côté de Lovatière : une piste restaurée et une zone de piste passaient sur l'ancien emplacement ;
 - les 17 remontées fonctionnent ;
 - chronos remesurés : Mont Saint-Sauveur 155 s, Émile Allais 60 s.

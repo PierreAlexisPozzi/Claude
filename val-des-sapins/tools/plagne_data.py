@@ -340,7 +340,7 @@ def build(a, runs, lifts, blds, peaks):
     for ar in getattr(a, 'areas', []):
         xy = [P.xz(*q) for q in ar['ll']]
         cx, cz = sum(p[0] for p in xy) / len(xy), sum(p[1] for p in xy) / len(xy)
-        if not inside((cx, cz), 0):
+        if not any(inside(q, 0) for q in xy):                # any area reaching into the sector
             continue
         ring = [(max(-HALF, min(HALF, x)), max(-HALF, min(HALF, z))) for x, z in xy]
         if ring[0] == ring[-1]: ring = ring[:-1]
@@ -460,10 +460,12 @@ def curate(data, hgt):
     seen = {L['name'] for L in lifts}
     for r in sorted(out, key=lambda r: -r['len']):
         if not r['name']:
+            r['anon'] = 1                                       # no name in OSM: no map label, list entry or signpost
             m = r['pts'][len(r['pts']) // 2]
             near = min(places, key=lambda p: d2(m, (p['x'], p['z'])))['name'] if places else 'du secteur'
             r['name'] = 'Liaison ' + near
         base, k = r['name'], 1
+        if base in seen: r['minor'] = 1                         # a further section of a run already listed
         while r['name'] in seen:
             k += 1; r['name'] = '%s %s' % (base, ROMAN[k] if k < len(ROMAN) else k)
         seen.add(r['name'])
