@@ -10,7 +10,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'assets')
 GAME = os.path.join(ROOT, 'game.html')
 BEGIN, END = '<!-- VDS-ASSETS:BEGIN -->', '<!-- VDS-ASSETS:END -->'
-MIME = {'.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp'}
+MIME = {'.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.bin': 'application/octet-stream', '.json': None}
 BUDGET = 6 * 1024 * 1024
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,7 +26,10 @@ for name in sorted(os.listdir(ASSETS)):
         continue
     raw = open(os.path.join(ASSETS, name), 'rb').read()
     total += len(raw)
-    data[name] = 'data:%s;base64,%s' % (MIME[ext], base64.b64encode(raw).decode('ascii'))
+    if ext == '.json':
+        data[name] = json.loads(raw)                      # world data: embedded as an object, no base64
+    else:
+        data[name] = 'data:%s;base64,%s' % (MIME[ext], base64.b64encode(raw).decode('ascii'))
     print('%-28s %8d bytes' % (name, len(raw)))
 blob = json.dumps(data, separators=(',', ':')).replace('</', '<\\/')
 print('total raw %d bytes, embedded %d bytes' % (total, len(blob)))
