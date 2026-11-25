@@ -255,7 +255,7 @@ body.touch #miniWrap .cap{display:none}
   <div id="prompt" class="panel" hidden></div>
   <div id="help" class="panel">
     <span class="k"><span class="key">←</span><span class="key">→</span></span><span>Carres · vrilles en l'air (ou Q / D)</span>
-    <span class="k"><span class="key">↑</span></span><span>Schuss, patiner (ou Z)</span>
+    <span class="k"><span class="key">↑</span></span><span>Schuss, patiner (ou Z) · face à une montée : escalier</span>
     <span class="k"><span class="key">↓</span></span><span>Freiner, déraper (ou S)</span>
     <span class="k"><span class="key">Espace</span><span class="key">↑</span><span class="key">↓</span></span><span>En l'air : front / backflip</span>
     <span class="k"><span class="key">Espace</span></span><span>Maintenir puis relâcher : saut</span>
@@ -327,7 +327,7 @@ body.touch #miniWrap .cap{display:none}
     <div class="facts" id="facts"></div>
     <div class="ctrls">
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>Carres, virages</div>
-      <div><span class="ks"><span class="key">↑</span></span>Schuss, patiner</div>
+      <div><span class="ks"><span class="key">↑</span></span>Schuss, patiner · en montée : escalier</div>
       <div><span class="ks"><span class="key">↓</span></span>Freiner, déraper</div>
       <div><span class="ks"><span class="key">Espace</span></span>Saut (maintenir)</div>
       <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>En l'air : 180, 360, 540…</div>
@@ -341,7 +341,7 @@ body.touch #miniWrap .cap{display:none}
       <div><span class="ks"><span class="key">G</span></span>Qualité d'image</div>
     </div>
     <ul class="tctrls">
-      <li><b>Joystick</b> (fixe, en bas à gauche) : diriger · pousser = schuss · tirer = frein</li>
+      <li><b>Joystick</b> (fixe, en bas à gauche) : diriger · pousser = schuss · tirer = frein · pousser face à une montée = escalier</li>
       <li><b>Saut</b> : maintenir puis relâcher · <b>2 tapes</b> = switch</li>
       <li><b>En l'air</b> : joystick = vrilles · Saut maintenu + haut / bas = flips</li>
       <li><b>Grab</b> : maintenir · + bas en l'air = tail · + haut / bas au sol = press</li>
@@ -4521,6 +4521,7 @@ function stepSki(dt) {
   let speed = P.vel.length();
   const along = P.vel.dot(_f);
   const steer = steerIn();
+  if (sidestep(dt, st, speed, steer)) return;
   // Shift + ↑ / ↓ on the ground: nose press (tails up) / tail press (tips up); with ← / → it becomes a butter
   const pressDir = input.grab && speed > 0.5 ? (input.up ? 1 : input.down ? -1 : 0) : 0;
   P.pressV += (pressDir - P.pressV) * Math.min(1, dt * 9);
@@ -4589,6 +4590,39 @@ function stepSki(dt) {
   sprayFor(st, speed, braking);
   P.stillT = speed < 0.4 ? P.stillT + dt : 0;
   moveOnGround(dt, along, st);
+}
+// Sidestep ("l'escalier"): holding ↑ at walking pace against a slope too steep to skate up, the skier turns the
+// skis across the fall line and climbs sideways, uphill ski first, edges biting; ← / → slant the line (diagonal
+// sidestep). Stepping speed falls with the gradient; ↓ or letting go of ↑ ends it (the skis stay across the slope).
+const _cu = new V3(), _ct = new V3();
+function sidestep(dt, st, speed, steer) {
+  _g.set(0, -9.81, 0); _g.addScaledVector(_n, -_g.dot(_n));
+  const slope = Math.hypot(_g.x, _g.z) / 9.81;                     // ~ sine of the slope angle
+  _cu.set(-_g.x, 0, -_g.z); if (_cu.lengthSq() > 1e-8) _cu.normalize();
+  const facingUp = Math.sin(P.yaw) * _cu.x + Math.cos(P.yaw) * _cu.z;
+  if (!P.climb) {
+    const fwd = P.vel.x * Math.sin(P.yaw) + P.vel.z * Math.cos(P.yaw);   // >0 while still gliding / skating forward
+    const want = input.up && !input.grab && !input.down && speed < 3 && fwd < 0.4 && P.revertT <= 0 && P.charge < 0.05 && slope > 0.1 && slope * facingUp > 0.1;   // skating still works below ~10 %
+    P.climbWant = want ? (P.climbWant || 0) + dt : 0;              // stalled or sliding back against the slope, still pushing ↑
+    if (P.climbWant < 0.15) return false;
+    P.vel.set(0, 0, 0);                                            // the edges bite: no more sliding back
+    const upYaw = Math.atan2(_cu.x, _cu.z), a1 = upYaw + Math.PI / 2, a2 = upYaw - Math.PI / 2;
+    const d1 = Math.abs(Math.atan2(Math.sin(a1 - P.yaw), Math.cos(a1 - P.yaw))), d2 = Math.abs(Math.atan2(Math.sin(a2 - P.yaw), Math.cos(a2 - P.yaw)));
+    P.climb = { ph: 0, pick: d1 < d2 ? 1 : -1 };
+  } else if (!input.up || input.down || input.grab || slope < 0.04) { P.climb = null; return false; }
+  const c = P.climb, upYaw = Math.atan2(_cu.x, _cu.z), skiYaw = upYaw + c.pick * Math.PI / 2;
+  // skis across the fall line; the uphill side is the skier's left (side +1) or right (-1)
+  let dy = Math.atan2(Math.sin(skiYaw - P.yaw), Math.cos(skiYaw - P.yaw)); P.yaw += dy * Math.min(1, dt * 7);
+  c.side = Math.sign(Math.cos(P.yaw) * _cu.x - Math.sin(P.yaw) * _cu.z) || 1;
+  const v = clamp(1.35 - slope * 1.6, 0.3, 1.2) * (st === SN.POUDREUSE ? 0.65 : st === SN.TRAFOLLE ? 0.8 : 1);
+  _ct.copy(_cu).applyAxisAngle(AX_Y, clamp(steer, -1, 1) * 0.6);  // ← / → slant the climb
+  c.ph += v * dt / 0.26;                                           // one step every ~26 cm
+  const pulse = 0.55 + 0.9 * Math.max(0, Math.sin(c.ph * Math.PI * 2 - 0.6)) ** 2;
+  P.vel.set(_ct.x * v * pulse, 0, _ct.z * v * pulse); P.vel.addScaledVector(_n, -P.vel.dot(_n));
+  P.brake = 0; P.tuck = 0; P.skating = false; P.edge *= 1 - Math.min(1, dt * 8); P.charge = 0; P.skid = 0; P.press = null;
+  P.stillT = 0;
+  moveOnGround(dt, 0, st);
+  return true;
 }
 function sprayFor(st, speed, braking) {
   const deep = st === SN.POUDREUSE, crud = st === SN.TRAFOLLE;
@@ -5007,8 +5041,19 @@ function updateSkier(dt, time) {
       T.pelX = -0.1 * s1; T.pelRoll = 0.08 * s1; T.spPitch = 0.45; T.pelH = 0.84;
       T.aL.p = -0.45 - 0.55 * s1; T.aR.p = -0.45 + 0.55 * s1; T.aL.pole = 0.6 + 0.5 * s1; T.aR.pole = 0.6 - 0.5 * s1;
     }
-    if (P.tuck > 0.5 && !P.skating) { for (const a of [T.aL, T.aR]) { a.p = -1.1; a.e = -1.15; a.o = 0.12; a.pole = 1.45; } }
-    else if (!P.skating) { T.aL.o = 0.24 + Math.max(0, incl) * 0.35; T.aR.o = 0.24 + Math.max(0, -incl) * 0.35; }
+    if (P.climb) {
+      const c = P.climb, t = c.ph % 1, s = c.side || 1, up = s > 0 ? T.fL : T.fR, dn = s > 0 ? T.fR : T.fL;
+      const E = x => x * x * (3 - 2 * x);
+      up.x = s * (t < 0.5 ? 0.13 + 0.2 * E(t * 2) : 0.33 - 0.2 * (t - 0.5) * 2);
+      dn.x = -s * (t < 0.5 ? 0.13 + 0.2 * t * 2 : 0.33 - 0.2 * E((t - 0.5) * 2));
+      up.y = t < 0.5 ? 0.09 * Math.sin(Math.PI * t * 2) : 0; dn.y = t >= 0.5 ? 0.09 * Math.sin(Math.PI * (t - 0.5) * 2) : 0;
+      up.roll = dn.roll = s * 0.32; up.yaw = dn.yaw = 0; up.z = dn.z = 0;
+      T.pelH = 0.84 - 0.03 * Math.sin(Math.PI * 2 * t); T.pelRoll = s * 0.1; T.pelX = s * 0.04; T.spPitch = 0.12; T.spRoll = -s * 0.06; T.baseYaw = 0;
+      const au = s > 0 ? T.aL : T.aR, ad = s > 0 ? T.aR : T.aL, k = Math.sin(Math.PI * 2 * t);
+      au.p = -0.55 - 0.25 * Math.max(0, k); au.o = 0.5; au.e = -0.45; au.pole = 0.5 + 0.3 * Math.max(0, k);
+      ad.p = -0.5 - 0.25 * Math.max(0, -k); ad.o = 0.35; ad.e = -0.4; ad.pole = 0.6 + 0.3 * Math.max(0, -k);
+    } else if (P.tuck > 0.5 && !P.skating) { for (const a of [T.aL, T.aR]) { a.p = -1.1; a.e = -1.15; a.o = 0.12; a.pole = 1.45; } }
+    else if (!P.skating && !P.climb) { T.aL.o = 0.24 + Math.max(0, incl) * 0.35; T.aR.o = 0.24 + Math.max(0, -incl) * 0.35; }
     // pole plant at each turn transition, on the new inside
     const es = Math.abs(P.edge) > 0.35 ? Math.sign(P.edge) : 0;
     if (es && es !== lastEdgeSign && sp > 5 && P.tuck < 0.5) { plant.t = 0; plant.sd = es; }
@@ -6003,6 +6048,7 @@ function updateHud(dt) {
     if (P.press) st = pressName(P.press.dir, P.press.spin, false);
     if (along < -0.8) st = 'Switch · ' + st;
   }
+  if (P.climb && P.state === 'ski') st = 'Escalier';
   $('st').textContent = st;
   $('pts').textContent = fmt(P.score);
   const pr = $('prompt');
