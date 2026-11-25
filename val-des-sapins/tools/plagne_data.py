@@ -4,6 +4,7 @@ Sources (all open data, attribution shown in the game):
   - OpenStreetMap (ODbL): runs (piste:type=downhill), lifts (aerialway=*), buildings.  OSM API map call, cached.
   - Mapterhorn terrain tiles (terrarium, z14 ~3.4 m): IGN RGE ALTI (Etalab 2.0), Copernicus DEM GLO-30.
   - TerraPrinter export (user-provided STL, 8 x 8 km, same open sources) for the distant relief around the sector.
+  - Mapterhorn zoom 11 over 30 km for the horizon.
 TerraPrinter view: https://terraprinter.com/#lat=45.50258&lon=6.68362&z=13.01 (selection 6.63235,45.53876 - 6.73489,45.46641)
 
 Game frame: x = east (m), z = south (m), y = up; the sector is a WORLD x WORLD square centred on (LAT0, LON0).
@@ -11,6 +12,8 @@ Game frame: x = east (m), z = south (m), y = up; the sector is a WORLD x WORLD s
 Usage:
   python3 tools/plagne_data.py score  --osm plagne2.osm                    # rank candidate sector boxes
   python3 tools/plagne_data.py build  --osm plagne2.osm --stl terrain.stl --cache tiles/ --lat .. --lon ..
+Outputs: plagne.json (runs, lifts, buildings, places, meta), plagne_height.bin (sector), plagne_far.bin (8 km, from the
+STL), plagne_wide.bin (30 km horizon, Mapterhorn zoom 11).
 """
 import argparse, io, json, math, os, struct, sys, urllib.request, xml.etree.ElementTree as ET, zlib
 
@@ -496,6 +499,17 @@ def far(a, P, H, data, res=40.0, extent=8000.0):
     json.dump(data, open(os.path.join(a.out, 'plagne.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
 
 
+def wide(a, P, data, n=200, extent=30000.0):
+    """the horizon: the same Mapterhorn relief at zoom 11 over 30 km (Isère valley, Beaufortain, Vanoise)"""
+    G = terrarium_grid(P, a.cache, z=11, n=n, world=extent)
+    hmin = data['meta']['alt0']
+    vals = [max(0, min(65535, int(round((h - hmin + 1500) * 2)))) for h in G]    # half metres, down to 1500 m below alt0
+    open(os.path.join(a.out, 'plagne_wide.bin'), 'wb').write(pack_grid(vals, n + 1))
+    data['meta']['wide'] = {'n': n + 1, 'res': extent / n, 'extent': extent, 'offset': -1500, 'scale': 0.5}
+    json.dump(data, open(os.path.join(a.out, 'plagne.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
+    print('wide relief: %d x %d at %.0f m, %d..%d m' % (n + 1, n + 1, extent / n, min(G), max(G)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('cmd'); ap.add_argument('--osm'); ap.add_argument('--stl'); ap.add_argument('--cache', default='tiles')
@@ -522,6 +536,7 @@ def main():
         preview(P, H, data, os.path.join(a.out, 'plagne_preview.png'))
         if a.stl:
             far(a, P, H, data)
+        wide(a, P, data)
 
 
 if __name__ == '__main__':

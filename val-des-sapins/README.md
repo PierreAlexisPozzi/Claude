@@ -115,3 +115,26 @@ Autres éléments trouvés dans le catalogue (recherche : sapin, épicéa, chale
 - **Remonter à ski (escalier)** : arrêté ou en train de reculer face à une montée de plus de ~10 %, ↑ maintenu déclenche l'escalier : les skis se mettent en travers de la pente, carres plantées, et le skieur monte de côté, ski amont d'abord puis ski aval, bâtons en appui alterné. ← / → inclinent la montée en diagonale ; la cadence baisse avec la pente et dans la poudreuse. Relâcher ↑ (ou ↓) arrête : les skis restent en travers, sans glisser. Sous ~10 %, le pas de patineur reste la technique utilisée.
 - **Haut du corps du joueur** : port des bras « mains devant », la main intérieure s'avance dans le virage ; planté de bâton à chaque début de virage (changement de carres ou virage engagé depuis la ligne droite, dès ~11 km/h) en trois temps — la main se tend et la pointe part vers l'avant, le bâton reste planté pendant qu'on le dépasse, puis le bras revient — avec un léger allègement du bassin et l'épaule qui s'abaisse vers le bâton. Contre-rotation des épaules plus marquée (elles anticipent le virage) et petites oscillations naturelles du buste.
 - **Mains** : poings gantés fermés (moufle rembourrée, pouce replié, manchette) à la place des mains ouvertes ; la poignée du bâton est placée dans le poing, pour le joueur comme pour les skieurs proches. Le planté de bâton se déclenche aussi au joystick analogique et se lit depuis la caméra de dos (main qui s'écarte et s'avance, pointe vers l'avant puis traînée).
+
+## Secteur La Plagne (adaptation libre et non officielle)
+Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne Centre – Aime 2000 (45,50379 N, 6,67744 E), recréé à partir de données ouvertes. Si ces données ne sont pas embarquées dans la page, le Val des Sapins procédural est généré comme avant.
+
+| Élément | Source | Traitement (`tools/plagne_data.py`) |
+|---|---|---|
+| Relief du secteur | Tuiles Mapterhorn z14 (IGN RGE ALTI, Etalab 2.0 ; Copernicus DEM GLO-30) | Grille de 449 × 449 points à 6,25 m, 1 746 – 2 590 m |
+| Relief lointain (8 km) | Modèle TerraPrinter fourni (mêmes sources) | Recalé par moindres carrés sur le relief fin (écart médian 1,6 m) |
+| Horizon (30 km) | Tuiles Mapterhorn z11 (mêmes sources) | Grille à 150 m : vallée de l’Isère, Beaufortain, Vanoise (437 – 3 800 m) |
+| Pistes, remontées, bâtiments | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
+
+- **Contenu** : 49 pistes réelles (31,5 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
+- **Pistes réelles** : le damage suit le profil du terrain et ne creuse jamais plus de 2,5 m. Les replats et les bosses sont donc conservés, et les chemins de liaison restent des chemins.
+- **Ajouts du jeu** (absents des relevés) : le **snowpark** occupe la piste SuperSlalom, le long du téléski du Dromadaire (sauts, box et rails). Le **half-pipe** est creusé à côté de Golf II, sur une pente rectiligne à 28 %.
+- **Personnages et missions** : ils sont déplacés dans les lieux réels.
+  - Les commerces du bas sont à Plagne 1800, ceux de la mi-station à Plagne Centre.
+  - René conduit le Télésiège Bécoin et Élodie attend à son sommet. Le berger est au départ de Java.
+  - Le défi « Le Couloir » devient « La Grande Pente ».
+  - Les temps de référence des chronos ont été remesurés par le robot de test.
+- **Sauvegardes** : XP, niveau, défis et missions sont conservés.
+- **Lacs** : les plans d’eau du relief (parfaitement plats) apparaissaient en noir, un calcul de normale du shader devenant indéfini ; ils sont désormais gelés et enneigés.
+- **Crédits** : les sources sont affichées sur l’écran d’accueil et sur le plan des pistes. Seules les données dérivées (`assets/plagne*.json|bin`, 310 Ko) sont versionnées, jamais les fichiers téléchargés.
+- **Tests** : le robot descend les 68 pistes jusqu'au bout sans blocage. Il chute 3 fois, sur des bosses franchies à plus de 65 km/h. Les 17 remontées fonctionnent et 19 sauts sur 21 sont réussis.
