@@ -249,7 +249,27 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             o = 0.03
         return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     add_shell('pants', p_off, lambda i, p: PT if p.y > 0.16 else hexrgb('#16181c'), lambda i, p: 0.0)
-    add_shell('glove', lambda i: 0.012, lambda i, p: GL, lambda i, p: 0.0)
+    # gloved fists closed round the pole grip (the open MakeHuman hands are dropped): a padded mitten centred on
+    # the palm, ~7.5 cm past the wrist along the hand bone, with a gauntlet cuff over the sleeve end
+    for s_ in ('l', 'r'):
+        w_, tip = mk['joint-%s-hand' % s_], mk['joint-%s-hand-3' % s_]
+        d = (tip - w_).normalized(); a = d.cross(Vector((0, 0, 1))); a = a.normalized() if a.length > 1e-4 else Vector((1, 0, 0)); b2 = d.cross(a)
+        def ell(c, rd, ra, rb, col, wts, nl=8, nm=12):
+            base = len(verts_out)
+            for i_ in range(nl + 1):
+                la = -math.pi / 2 + math.pi * i_ / nl
+                for j_ in range(nm):
+                    lo = 2 * math.pi * j_ / nm
+                    p = c + d * (math.sin(la) * rd) + a * (math.cos(la) * math.cos(lo) * ra) + b2 * (math.cos(la) * math.sin(lo) * rb)
+                    verts_out.append(p); cols.append(col); tints.append(0.0); wout.append(wts)
+            for i_ in range(nl):
+                for j_ in range(nm):
+                    j1 = (j_ + 1) % nm
+                    polys.append([base + i_ * nm + j_, base + i_ * nm + j1, base + (i_ + 1) * nm + j1, base + (i_ + 1) * nm + j_]); fcol.append(col); psrc.append(('extra', -1))
+        hb = {'hand_' + s_: 1.0}
+        ell(w_ + d * 0.075, 0.058, 0.047, 0.043, GL, hb)                                  # fist
+        ell(w_ + d * 0.06 + b2 * 0.03 + a * 0.012, 0.03, 0.017, 0.017, GL, hb, 5, 8)        # thumb over the fingers
+        ell(w_ + d * 0.005, 0.045, 0.052, 0.05, hexrgb('#22252c'), {'hand_' + s_: 0.5, 'lowerarm_' + s_: 0.5}, 6, 12)   # gauntlet cuff
     add_shell('skin', lambda i: 0.0, lambda i, p: (1.0, 1.0, 1.0), lambda i, p: 2.0)   # colour from the skin texture
 
     head_c = (mk['joint-head'] + mk['joint-head-2']) * 0.5
