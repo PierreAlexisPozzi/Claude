@@ -138,3 +138,36 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 - **Lacs** : les plans d’eau du relief (parfaitement plats) apparaissaient en noir, un calcul de normale du shader devenant indéfini ; ils sont désormais gelés et enneigés.
 - **Crédits** : les sources sont affichées sur l’écran d’accueil et sur le plan des pistes. Seules les données dérivées (`assets/plagne*.json|bin`, 310 Ko) sont versionnées, jamais les fichiers téléchargés.
 - **Tests** : le robot descend les 68 pistes jusqu'au bout sans blocage. Il chute 3 fois, sur des bosses franchies à plus de 65 km/h. Les 17 remontées fonctionnent et 19 sauts sur 21 sont réussis.
+
+### Bâtiments d'après photos, terrasses, snowboarders, skis en 3D
+Les références sont huit photos de Wikimedia Commons (Plagne Centre, Aime 2000, Plagne Villages), consultées seulement, ni intégrées ni versionnées.
+
+**Bâtiments**
+- **Plagne Centre** : barres et tours en béton banché brun rouille. Chaque étage a des loggias, avec garde-corps en bois sombre et neige sur la main courante. Des refends séparent les loggias, les toits plats sont enneigés et certains rez-de-chaussée accueillent des commerces. Les tours montent à 11–15 étages.
+- **Aime 2000** :
+  - le **Paquebot des neiges** : environ 160 m de long (raccourci à l'arrivée de la Télécabine Télémétro), avec un faîte en trois vagues de 7 à 13 étages. Chaque étage est en retrait sur les deux façades, derrière une terrasse enneigée ;
+  - à côté, la tour crème à refends rouges.
+- **Plagne Villages, Soleil, 1800** : résidences en bois foncé sur un rez-de-chaussée en crépi crème, avec balcons sur toute la longueur et pignons sous la neige.
+- **Soubassements** : plus de pierre sous ces bâtiments, la façade descend jusqu'au sol. Seuls les chalets traditionnels gardent leur pierre.
+- Les versions lointaine et rapprochée partagent les mêmes palettes. En station dense, seuls les 12 bâtiments les plus proches (8 sur mobile) sont détaillés.
+
+**Terrasses** : deux par station (une sur mobile), devant les résidences.
+- Plancher sur pilotis, garde-corps enneigé et marche vers la neige.
+- Bar avec bouteilles, tables, chaises et parasols unis, et une rangée de transats face aux pistes.
+- Des skis plantés dans la neige au pied de la terrasse.
+- Les clients sont allongés dans les transats, assis à table ou debout au bar et au garde-corps. Ils tiennent un vin chaud, une bière, un verre de rouge ou un cornet de frites, et le portent régulièrement à la bouche. Ils portent un bonnet ou un casque et ont des chaussures de ski aux pieds.
+
+**Snowboarders** : environ un skieur sur quatre, en regular ou en goofy.
+- Ils se tiennent de profil sur la planche, genoux fléchis, en appui frontside ou backside dans les virages.
+- Les bras sont libres (le bras avant vers le nez de la planche) et ils n'ont pas de bâtons.
+- Ils laissent une seule trace dans la neige.
+- Sur le télésiège, la planche pend au pied avant.
+
+**Skis en 3D** (`blender/gear.py`) :
+- skis cambrés avec spatule relevée, chants, carres, fixations et freins, attachés par paires semelle contre semelle ;
+- bâtons ronds avec poignée, dragonne et rondelle ;
+- snowboard avec fixations et highbacks.
+
+On les retrouve sur les balcons, aux râteliers des remontées, sur les nouveaux râteliers devant les commerces (deux devant la location et le magasin de sport) et dans les paniers des télécabines (trois paires par côté).
+
+**Tests** : le robot donne des résultats identiques à la version précédente. Le nombre de triangles augmente d'environ 25 %, et les appels de dessin restent au même niveau (environ 1 600 à Plagne Centre sur ordinateur, 400 sur mobile).

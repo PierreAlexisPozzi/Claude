@@ -2338,6 +2338,98 @@ function buildPlagneBuildings() {
     claim(bx, bz, rot, spec.w, spec.d); CUR_PAL = pal; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; placed++;
   }
   console.info('La Plagne: ' + placed + ' buildings of ' + list.length);
+  buildTerraces();
+}
+/* ---- sun terraces (after the La Plagne photos: decks on stilts in front of the residences and the stations' bars)
+   Timber deck at the height of the highest ground under it, posts down the slope, plank parapet under snow with an
+   opening onto the snow, a bar against the building, tables with chairs and parasols, a row of deckchairs facing
+   the slopes; skis planted in the snow below. People: lounging in the deckchairs, sitting at the tables, standing at
+   the bar or the parapet, with a mulled wine, a beer, a glass of red or a cone of chips. */
+const TERRACE_FOLK = [];
+function buildTerraces() {
+  let n = 0;
+  for (const q of villageLabels) {
+    const cands = BUILDINGS.filter(b => b.pal && /woodres|block|paquebot/.test(b.type) && Math.hypot(b.x - q.x, b.z - q.z) < 300)
+      .sort((a, c) => Math.hypot(a.x - q.x, a.z - q.z) - Math.hypot(c.x - q.x, c.z - q.z));
+    let k = 0; for (const b of cands) { if (k >= (IS_TOUCH ? 1 : 2)) break; if (terraceAt(b)) k++; }
+    n += k;
+  }
+  console.info('La Plagne: ' + n + ' terraces, ' + TERRACE_FOLK.length + ' people on them');
+}
+function terraceAt(b) {
+  const W = clamp(b.w * 0.6, 12, 22), D = 8;
+  for (const sd of [1, -1]) {
+    const off = b.d / 2 + 1.7 + D / 2, [cx, cz] = toWorld(b.x, b.z, b.rot, 0, sd * off), rot = b.rot + (sd < 0 ? Math.PI : 0);
+    let ok = true, gmax = -1e9, gmin = 1e9, onRun = 0, cnt = 0;
+    for (let u = -W / 2; u <= W / 2 + 0.01 && ok; u += 2) for (let v = -D / 2; v <= D / 2 + 0.01; v += 2) {
+      const [px, pz] = toWorld(cx, cz, rot, u, v); cnt++;
+      if (Math.abs(px) > HALF - 30 || Math.abs(pz) > HALF - 30 || liftDist(px, pz) < 10 || obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + 0.4)) { ok = false; break; }
+      const g = gridH(px, pz); gmax = Math.max(gmax, g); gmin = Math.min(gmin, g); if (zoneAt(px, pz) >= 0) onRun++;
+    }
+    if (!ok || gmax - gmin > 4.5 || onRun > cnt * 0.4) continue;
+    buildDeck(cx, cz, rot, W, D, gmax + 0.5, hashSeed(cx, cz, 41));
+    claim(cx, cz, rot, W, D);
+    return true;
+  }
+  return false;
+}
+function buildDeck(cx, cz, rot, W, D, y, seed) {
+  const r = mulberry32(seed), parts = [], grp = new THREE.Group(); grp.position.set(cx, 0, cz); grp.rotation.y = rot;
+  const WOODT = '#8a5d3a', WOODK = '#5b3b27', at = (u, v) => toWorld(cx, cz, rot, u, v);
+  boxP(parts, W, 0.16, D, 0, y - 0.08, 0, WOODT);                                                       // deck
+  for (let k = 0; k < W / 0.6; k++) boxP(parts, 0.04, 0.02, D, -W / 2 + k * 0.6, y + 0.005, 0, WOODK);   // plank joints
+  for (let u = -W / 2 + 0.2; u <= W / 2; u += 3) for (const v of [-D / 2 + 0.2, D / 2 - 0.2]) {       // stilts down the slope
+    const g = gridH(...at(u, v)), h = y - g + 0.3; if (h > 0.2) boxP(parts, 0.25, h, 0.25, u, g + h / 2 - 0.3, v, WOODK);
+  }
+  // parapet on three sides, an opening onto the snow at the front
+  const rail = (len, x, z, along) => { if (len < 0.3) return; boxP(parts, along ? len : 0.08, 0.85, along ? 0.08 : len, x, y + 0.5, z, WOODK); boxP(parts, along ? len + 0.05 : 0.18, 0.08, along ? 0.18 : len + 0.05, x, y + 0.96, z, SNOWC); };
+  rail(W / 2 - 1.2, -W / 4 - 0.6, D / 2 - 0.05, true); rail(W / 2 - 1.2, W / 4 + 0.6, D / 2 - 0.05, true);
+  rail(D, -W / 2 + 0.05, 0, false); rail(D, W / 2 - 0.05, 0, false);
+  boxP(parts, 1.2, 0.18, 1.6, 0, y - 0.25, D / 2 + 0.8, WOODT);                                          // step down to the snow
+  // bar against the building
+  const bx = (r() - 0.5) * (W - 6);
+  boxP(parts, 4, 1.05, 0.7, bx, y + 0.52, -D / 2 + 0.6, WOODK); boxP(parts, 4.2, 0.08, 0.85, bx, y + 1.08, -D / 2 + 0.62, '#2e2a26');
+  for (let k = 0; k < 5; k++) { const c = ['#5d0f1c', '#2f6b3a', '#d9a032', '#e9e4da', '#3a2a1a'][k], b1 = new THREE.CylinderGeometry(0.035, 0.035, 0.22, 8), b2 = new THREE.CylinderGeometry(0.012, 0.03, 0.1, 8);
+    b1.translate(bx - 1.6 + k * 0.7, y + 1.23, -D / 2 + 0.5); b2.translate(bx - 1.6 + k * 0.7, y + 1.39, -D / 2 + 0.5); parts.push({ g: b1, c }, { g: b2, c }); }   // bottles
+  // deckchairs in a row along the front, facing the slopes
+  const nChairs = Math.floor((W - 3) / 1.25), folk = [];
+  for (let k = 0; k < nChairs; k++) {
+    const u = -W / 2 + 1.6 + k * 1.25; if (Math.abs(u) < 1.4) continue;
+    const vz = D / 2 - 1.7, fab = ['#2f6fe0', '#e7e2d8', '#c8321f', '#2fa84f', '#f2a12c'][Math.floor(r() * 5)];
+    boxP(parts, 0.62, 0.05, 1.0, u, y + 0.34, vz + 0.25, fab);                                         // seat sling
+    const bk = new THREE.BoxGeometry(0.62, 0.05, 0.85); bk.rotateX(0.95); bk.translate(u, y + 0.62, vz - 0.46); parts.push({ g: bk, c: fab });   // backrest
+    for (const sx of [-0.31, 0.31]) { boxP(parts, 0.04, 0.04, 1.6, u + sx, y + 0.3, vz, WOODT); boxP(parts, 0.04, 0.34, 0.04, u + sx, y + 0.17, vz + 0.65, WOODT); boxP(parts, 0.04, 0.34, 0.04, u + sx, y + 0.17, vz - 0.55, WOODT); }
+    if (r() < 0.72) folk.push({ u, v: vz + 0.1, yaw: 0, pose: 'lounge' });
+  }
+  // tables with chairs, parasols
+  const nT = Math.max(2, Math.floor(W / 6));
+  for (let k = 0; k < nT; k++) {
+    const u = -W / 2 + 2.5 + k * (W - 5) / Math.max(1, nT - 1), v = -0.6 + (r() - 0.5) * 0.8;
+    const top = new THREE.CylinderGeometry(0.45, 0.45, 0.05, 12); top.translate(u, y + 0.74, v); parts.push({ g: top, c: '#efe9de' });
+    boxP(parts, 0.07, 0.72, 0.07, u, y + 0.36, v, '#2b2b2b');
+    for (const a of [0, Math.PI]) {
+      const cu = u + Math.sin(a) * 0.85, cv = v + Math.cos(a) * 0.85;
+      boxP(parts, 0.45, 0.05, 0.45, cu, y + 0.46, cv, WOODT); boxP(parts, 0.45, 0.45, 0.05, cu, y + 0.7, cv + Math.cos(a) * 0.21, WOODT);
+      for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) boxP(parts, 0.04, 0.46, 0.04, cu + dx, y + 0.23, cv + dz, '#2b2b2b');
+      if (r() < 0.75) folk.push({ u: cu, v: cv, yaw: a + Math.PI, pose: 'chair' });
+    }
+    if (k % 2 === 0) {
+      boxP(parts, 0.05, 2.3, 0.05, u, y + 1.15, v, '#d8d2c4');
+      const sh = new THREE.ConeGeometry(1.5, 0.55, 8, 1, true); sh.translate(u, y + 2.45, v); parts.push({ g: sh, c: ['#c8321f', '#efe9de', '#2f5f8a', '#3b6b3a'][Math.floor(r() * 4)] });
+    }
+  }
+  // standing: at the bar and along the parapet
+  for (let k = 0; k < 2 + Math.floor(r() * 3); k++) folk.push({ u: bx - 1.4 + k * 0.9 + (r() - 0.5) * 0.3, v: -D / 2 + 1.45, yaw: Math.PI + (r() - 0.5) * 0.6, pose: r() < 0.3 ? 'fries' : 'stand' });
+  for (let k = 0; k < 1 + Math.floor(r() * 3); k++) folk.push({ u: (r() - 0.5) * (W - 3), v: D / 2 - 0.55, yaw: (r() - 0.5) * 0.8, pose: r() < 0.35 ? 'fries' : 'stand' });
+  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); scene.add(grp);
+  const DR = ['mug', 'beer', 'wine', 'mug', 'beer'];
+  for (const f of folk) {
+    const [x, z] = at(f.u, f.v);
+    TERRACE_FOLK.push({ x, z, y, yaw: rot + f.yaw, pose: f.pose, prop: f.pose === 'fries' ? 'fries' : r() < 0.85 ? DR[Math.floor(r() * DR.length)] : null,
+      jacket: JACKETS[Math.floor(r() * JACKETS.length)], fem: r() < 0.5, gear: r() < 0.75 ? 'beanie' : 'helmet', swing: r() * 20 });
+  }
+  // skis and boards planted in the snow in front of the steps
+  for (let k = 0; k < 3; k++) { const [x, z] = at((k - 1) * 2.2 + (r() - 0.5), D / 2 + 3.2 + r()); if (zoneAt(x, z) < 0 || true) furnitureAt('skistand', x, z, rot); }
 }
 function buildVillages() {
   if (PLAGNE) return buildPlagneBuildings();
@@ -2642,7 +2734,7 @@ function npcStyle(lvl, k) {
   return 'para';
 }
 function npcStartOn(n, p, s) {
-  const r = npcSpeed[p.lvl] || [7, 10], style = npcStyle(p.lvl, n.skill), plow = style === 'plow';
+  const r = npcSpeed[p.lvl] || [7, 10], st0 = npcStyle(p.lvl, n.skill), style = n.board && (st0 === 'plow' || st0 === 'race') ? 'carve' : st0, plow = style === 'plow';
   Object.assign(n, { mode: 'ski', p, s, style, v: lerp(r[0], r[1], n.skill) * (plow ? 0.62 : 1), phase: rnd() * 6.28, turn: (11 + rnd() * 12) * (plow ? 1.25 : 1), amp: (p.w / 2 - 2.5) * (0.35 + rnd() * 0.5) * (plow ? 0.7 : 1) });
 }
 function initNPCs() {
@@ -2671,16 +2763,22 @@ function initNPCs() {
 const RIG_PARTS = [['pelvis', 1], ['torso_a', 'A'], ['torso_b', 'B'], ['head_a', 'A'], ['head_b', 'B'], ['upperarm', 2], ['forearm', 2], ['thigh', 2], ['shin', 2], ['ski', 2], ['boot', 2], ['pole', 2]];
 const PANTS_C = ['#232a3c', '#2b2b2e', '#c9b79a', '#3b4a5e', '#1d2a22', '#5a4632'];
 function initRig() {
-  const TOT = NPC_N + PEOPLE.length, nA = Math.ceil(TOT / 2), nB = TOT - nA, rig = npcMesh.rig = {}, mat = lambertVC();   // the crowd, then the people of the resort
+  const TOT = NPC_N + PEOPLE.length + TERRACE_FOLK.length, nA = Math.ceil(TOT / 2), nB = TOT - nA, rig = npcMesh.rig = {}, mat = lambertVC();   // the crowd, the people of the resort, the terraces
   for (const [name, mult] of RIG_PARTS) {
     const cnt = mult === 'A' ? nA : mult === 'B' ? nB : TOT * mult;
     const m = new THREE.InstancedMesh(BLEND.geo['npcp_' + name], mat, cnt);
     m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.layers.set(SMALL_LAYER); scene.add(m); rig[name] = m;
   }
   npcMesh.sb = rig.pelvis;   // "ready" flag used by updateNPCs
+  if (BLEND.geo.snowboard) {   // the snowboarders' boards (blender/gear.py), one per crowd slot
+    const bm = new THREE.InstancedMesh(BLEND.geo.snowboard, pbr({ color: '#ffffff', roughness: 0.32, vertexColors: true }), NPC_N); bm.frustumCulled = false; bm.castShadow = true; bm.layers.set(SMALL_LAYER);
+    const c = new THREE.Color(); for (let i = 0; i < NPC_N; i++) { bm.setMatrixAt(i, ZERO_M); bm.setColorAt(i, c.setHSL((i * 0.137) % 1, 0.55, 0.5)); }
+    scene.add(bm); rig.board = bm;
+  }
   const list = skiPistes(), c = new THREE.Color(), white = new THREE.Color(1, 1, 1);
   for (let i = 0; i < NPC_N; i++) {
     const n = { skill: rnd(), x: 0, y: 0, z: 0, yaw: 0, roll: 0, show: 'ski', h: 0.9 + rnd() * 0.18, gth: 0.92 + rnd() * 0.18, swing: rnd() * 6.28 };
+    if (BLEND.geo.snowboard && rnd() < 0.28) Object.assign(n, { board: true, stance: rnd() < 0.6 ? 1 : -1, noSkis: true, gear: rnd() < 0.55 ? 'helmet' : 'beanie' });   // snowboarders: regular or goofy
     const p = list[Math.floor(rnd() * list.length)];
     npcStartOn(n, p, rnd() * (p.samples.length - 4) * 4);
     const jacket = new THREE.Color(JACKETS[i % JACKETS.length]), pants = new THREE.Color(PANTS_C[Math.floor(rnd() * PANTS_C.length)]), skis = new THREE.Color().setHSL(rnd(), 0.6, 0.55);
@@ -2721,14 +2819,33 @@ function assignHumans() {
     for (const H of pool) if (!keep.has(H.k)) H.k = -1; else keep.delete(H.k);
     for (const H of pool) if (H.k < 0 && keep.size) {
       const k = keep.values().next().value; keep.delete(k); H.k = k;
-      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]);
+      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : npcs[k].jacket || JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]);
       U.uHelmet.value.set(HELMETS[(k * 5) % HELMETS.length]); U.uBeanie.value.set(BEANIES[(k * 3) % BEANIES.length]);
-      setGear(H, pr && !pr.skis ? 'beanie' : 'helmet');
+      setGear(H, npcs[k].gear || (pr && !pr.skis ? 'beanie' : 'helmet'));
     }
     for (const H of pool) { H.root.visible = H.k >= 0; if (H.k >= 0) humanPool.slot.set(H.k, H); }
   }
 }
 const _hmat = new THREE.Matrix4();
+// arms of the people on the terraces (directions in the torso frame): the drink hand at the chest, raised to the mouth
+// every few seconds; the chips: cone held at the waist, the other hand going from the cone to the mouth
+function terraceArm(f, sd, s, t, ty, tz, tx) {
+  const ad = new V3(), fd = new V3(), cyc = (t * 0.6 + f.swing) % 9, sip = smoothstep(0, 0.6, cyc) * (1 - smoothstep(1.8, 2.4, cyc));
+  const V = (v, a, b, c) => v.set(0, 0, 0).addScaledVector(ty, a).addScaledVector(tz, b).addScaledVector(tx, c);
+  const hold = f.prop && sd === (f.prop === 'fries' ? 0 : 1);
+  if (f.pose === 'lounge') {
+    if (hold) { V(ad, -0.6 + 0.3 * sip, 0.4 + 0.2 * sip, s * 0.3); V(fd, 0.25 + 0.7 * sip, 0.9 - 0.4 * sip, -s * (0.55 + 0.1 * sip)); }
+    else { V(ad, -0.75, 0.05, s * 0.6); V(fd, -0.15, 0.95, s * 0.1); }                       // on the armrest
+  } else if (f.pose === 'chair') {
+    if (hold) { V(ad, -0.7 + 0.35 * sip, 0.5 + 0.15 * sip, s * 0.18); V(fd, 0.05 + 0.85 * sip, 0.95 - 0.5 * sip, -s * (0.25 + 0.25 * sip)); }
+    else { V(ad, -0.75, 0.45, s * 0.2); V(fd, 0.0, 0.95, -s * 0.25); }                       // forearm on the table
+  } else if (f.prop === 'fries') {
+    if (sd === 0) { V(ad, -0.85, 0.42, s * 0.05); V(fd, 0.1, 0.9, -s * 0.5); }               // the cone at the waist
+    else { const eat = smoothstep(0, 0.5, (t * 0.9 + f.swing) % 3) * (1 - smoothstep(1.2, 1.8, (t * 0.9 + f.swing) % 3)); V(ad, -0.8 + 0.4 * eat, 0.45 + 0.15 * eat, s * 0.1); V(fd, 0.15 + 0.8 * eat, 0.9 - 0.45 * eat, -s * (0.5 + 0.05 * eat)); }
+  } else if (hold) { V(ad, -0.95 + 0.55 * sip, 0.15 + 0.45 * sip, s * 0.12); V(fd, 0.45 + 0.5 * sip, 0.85 - 0.6 * sip, -s * (0.35 + 0.15 * sip)); }
+  else { V(ad, -0.96, 0.12, s * 0.16); V(fd, -0.85, 0.3, s * 0.05); }                          // arm hanging, or a hand in the pocket
+  return [ad, fd];
+}
 function updateRig(time) {
   const hdt = clamp(time - (humanPool.lastT ?? time), 0, 0.1); humanPool.lastT = time;
   assignHumans();
@@ -2737,24 +2854,31 @@ function updateRig(time) {
     const n = npcs[k];
     if (n.show === 'none') { rigHide(rig, k); continue; }
     const sit = n.show === 'sit', skiing = n.mode === 'ski', walking = n.mode === 'walk', tbar = n.mode === 'lift' && !sit;
+    const ter = n.mode === 'terrace', pose = ter ? n.tf.pose : '', lounge = pose === 'lounge', tsit = lounge || pose === 'chair';   // terrace: deckchair, table chair or standing
+    const brd = n.board && !sit;   // on a snowboard: the body faces across the board, which runs along the line of travel
     // root: on the snow (or the seat), heading, ground tilt and turn inclination
     o.position.set(n.x, n.y, n.z); o.scale.set(n.gth, n.h, n.gth);
-    if (skiing) { normalAt(n.x, n.z, R.nrm); o.quaternion.setFromAxisAngle(AX_Y, n.yaw); R.q.setFromUnitVectors(AX_Y, R.nrm); o.quaternion.premultiply(R.q); R.q3.setFromAxisAngle(F, -n.roll); o.quaternion.multiply(R.q3); }
-    else o.quaternion.setFromAxisAngle(AX_Y, n.yaw);
+    const yawB = n.yaw + (brd ? n.stance * Math.PI / 2 : 0);
+    if (skiing) { normalAt(n.x, n.z, R.nrm); o.quaternion.setFromAxisAngle(AX_Y, yawB); R.q.setFromUnitVectors(AX_Y, R.nrm); o.quaternion.premultiply(R.q); if (brd) R.q3.setFromAxisAngle(AX_X, n.stance * n.roll); else R.q3.setFromAxisAngle(F, -n.roll); o.quaternion.multiply(R.q3); }   // board: toe or heel side
+    else o.quaternion.setFromAxisAngle(AX_Y, yawB);
     o.updateMatrix(); R.root.copy(o.matrix);
     const HB = humanPool.slot.get(k), J = HB ? humanPool.J : null;
     const ph = n.phase || 0, roll = skiing ? n.roll : 0, t = time + n.swing, sty = skiing ? STY[n.style] || STY.para : STY.para;
-    const flex = sit ? 0 : skiing ? sty.flex + sty.wob * Math.abs(Math.sin(ph)) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
+    const flex = sit || tsit ? 0 : brd && skiing ? 0.17 + 0.07 * Math.abs(Math.sin(ph)) : skiing ? sty.flex + sty.wob * Math.abs(Math.sin(ph)) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
     // edged skis on a tilted body: the inside foot rides higher, the outside lower, the hips drop into the turn
-    const W = skiing ? sty.w : 0.12, edge = skiing ? W * Math.tan(Math.min(0.8, Math.abs(roll))) : 0;
+    const W = brd ? 0.27 : skiing ? sty.w : 0.12, edge = skiing && !brd ? W * Math.tan(Math.min(0.8, Math.abs(roll))) : 0;
     // ---- pelvis and legs
-    const pelY = sit ? 0.12 : 0.12 + 0.86 - flex - edge * 0.7, pelZ = sit ? -0.12 : -0.05 - flex * 0.5;
-    rigBone(rig.pelvis, k, R.S.set(0, pelY, pelZ), R.up.set(0, 1, sit ? -0.1 : 0.15 + flex), F);
+    const pelY = tsit ? (lounge ? 0.43 : 0.53) : sit ? 0.12 : 0.12 + 0.86 - flex - edge * 0.7, pelZ = tsit ? -0.08 : sit ? -0.12 : -0.05 - flex * 0.5;
+    rigBone(rig.pelvis, k, R.S.set(0, pelY, pelZ), R.up.set(0, 1, lounge ? -0.9 : tsit ? -0.05 : sit ? -0.1 : 0.15 + flex), F);
     if (J) { J.hipMid.set(0, pelY - 0.05, pelZ); J.up.copy(R.up); J.fwd.copy(F); }
     for (const sd of [0, 1]) {
       const s = sd ? -1 : 1, j = k * 2 + sd;
       R.H.set(s * 0.1, pelY - 0.05, pelZ);
-      if (sit) {
+      if (tsit) {   // deckchair: legs stretched along the sling, feet crossed now and then; chair: knees bent, feet on the deck
+        const cross = lounge && Math.sin(t * 0.13 + n.ti) > 0.6 ? s * 0.05 : 0;
+        if (lounge) { R.K.set(s * 0.12, pelY + 0.07, pelZ + 0.46); R.A.set(s * 0.13 - cross, pelY - 0.04, pelZ + 0.9); rigBone(rig.boot, j, R.A, R.up.set(0, 0.55, -0.83), R.fw.set(0, 0.83, 0.55)); }
+        else { R.K.set(s * 0.12, pelY + 0.02, pelZ + 0.46); R.A.set(s * 0.13, 0.1, pelZ + 0.5 + 0.04 * Math.sin(t * 0.7 + sd)); rigBone(rig.boot, j, R.A, AX_Y, F); }
+      } else if (sit) {
         const sw = 0.12 * Math.sin(t * 1.1 + sd * 1.7);
         R.K.set(s * 0.12, pelY - 0.03, pelZ + 0.45); R.A.set(s * 0.12, pelY - 0.45, pelZ + 0.5 + sw);
         rigBone(rig.ski, j, R.A, R.up.set(0, Math.cos(0.35), -Math.sin(0.35)), R.fw.set(0, Math.sin(0.35), Math.cos(0.35)));   // skis hang tips up
@@ -2770,12 +2894,18 @@ function updateRig(time) {
         if (sty.wedge && skiing) { R.fw.set(-s * Math.sin(sty.wedge), 0, Math.cos(sty.wedge)); rigBone(rig.ski, j, R.A, AX_Y, R.fw); rigBone(rig.boot, j, R.A, AX_Y, R.fw); }   // pizza: tips together
         else { rigBone(rig.ski, j, R.A, AX_Y, F); rigBone(rig.boot, j, R.A, AX_Y, F); }
       }
-      rigBone(rig.thigh, j, R.H, R.up.subVectors(R.H, R.K), F);
+      const kf = tsit ? AX_Y : F;   // a seated thigh lies along F: its reference axis is up
+      rigBone(rig.thigh, j, R.H, R.up.subVectors(R.H, R.K), kf);
       rigBone(rig.shin, j, R.K, R.up.subVectors(R.K, R.A), F);
-      if (J) { J.hip[sd].copy(R.H); J.knee[sd].copy(R.K); J.ankle[sd].copy(R.A).y += 0.1; J.kneeFwd[sd].copy(F); J.thighFwd[sd].copy(F); J.footUp[sd].copy(AX_Y); J.footFwd[sd].copy(sty.wedge && skiing ? R.fw : F); if (sit) { J.footFwd[sd].set(0, Math.sin(0.35), Math.cos(0.35)); J.footUp[sd].set(0, Math.cos(0.35), -Math.sin(0.35)); } }
+      if (J) { J.hip[sd].copy(R.H); J.knee[sd].copy(R.K); J.ankle[sd].copy(R.A).y += 0.1; J.kneeFwd[sd].copy(tsit ? AX_Y : F); J.thighFwd[sd].copy(kf); J.footUp[sd].copy(AX_Y); J.footFwd[sd].copy(sty.wedge && skiing ? R.fw : F); if (sit) { J.footFwd[sd].set(0, Math.sin(0.35), Math.cos(0.35)); J.footUp[sd].set(0, Math.cos(0.35), -Math.sin(0.35)); } if (lounge) { J.footFwd[sd].set(0, 0.83, 0.55); J.footUp[sd].set(0, 0.55, -0.83); } }
+    }
+    if (rig.board && k < NPC_N) {
+      if (!n.board) rig.board.setMatrixAt(k, ZERO_M);
+      else if (sit) { R.E.set(-0.12 * n.stance, pelY - 0.45, pelZ + 0.5).addScaledVector(R.fw.set(0, Math.sin(0.35), Math.cos(0.35)), -0.5); rigBone(rig.board, k, R.E, R.fw, R.up.set(0, Math.cos(0.35), -Math.sin(0.35))); }   // hanging from the front foot on the chair
+      else rigBone(rig.board, k, R.E.set(-0.775, 0.04, 0), AX_X, AX_Y);   // under both feet, along the line of travel, top sheet up
     }
     // ---- torso: forward lean with the flex, more upright than the legs into the turn, counter-rotated
-    const pitch = sit ? -0.12 : skiing ? sty.pitch + flex : tbar ? -0.05 : 0.08, side = -roll * (skiing ? sty.counter : 0.55), twist = skiing ? -roll * sty.twist : 0;
+    const pitch = lounge ? -0.95 : tsit ? -0.03 : ter ? 0.03 : brd && skiing ? 0.16 : sit ? -0.12 : skiing ? sty.pitch + flex : tbar ? -0.05 : 0.08, side = -roll * (skiing ? sty.counter : 0.55), twist = skiing ? -roll * sty.twist : 0;
     R.up.set(Math.sin(side), Math.cos(side) * Math.cos(pitch), Math.cos(side) * Math.sin(pitch));
     R.fw.set(Math.sin(twist), 0, Math.cos(twist));
     R.S.y += 0.05; const B = k % 2 ? 'b' : 'a';
@@ -2792,6 +2922,12 @@ function updateRig(time) {
       const Sh = R.W.copy(R.S).addScaledVector(ty, 0.47).addScaledVector(tx, s * 0.2);
       let ad, fd;
       if (sit) { ad = new V3().addScaledVector(ty, -0.75).addScaledVector(tz, 0.65); fd = new V3().addScaledVector(tz, 1).addScaledVector(ty, -0.25); }
+      else if (ter) [ad, fd] = terraceArm(n.tf, sd, s, t, ty, tz, tx);
+      else if (brd) {   // arms loose and a little out, the front one towards the nose for balance
+        const front = s === -n.stance, bal = 0.15 * Math.sin(ph + sd);
+        ad = new V3().addScaledVector(ty, -0.8).addScaledVector(tz, 0.25 + bal).addScaledVector(tx, s * (front ? 0.55 : 0.35));
+        fd = new V3().addScaledVector(ty, -0.35).addScaledVector(tz, 0.6).addScaledVector(tx, s * (front ? 0.55 : 0.2));
+      }
       else if (n.mode === 'npc' && !n.follow) {   // people of the resort: arms down, a wave when you come close
         const wv = sd === 0 && n.wave > 0 ? Math.min(1, n.wave * 2, (1.6 - n.wave) * 3) : 0;
         ad = new V3().addScaledVector(ty, -0.95 + 1.5 * wv).addScaledVector(tz, 0.12).addScaledVector(tx, s * (0.16 + 0.5 * wv));
@@ -2815,6 +2951,10 @@ function updateRig(time) {
         : skiing && n.style === 'plow' ? new V3(hand.x + s * 0.3, 0.0, hand.z - 0.45)                                                // dragged wide
         : new V3(hand.x + s * 0.12, sit ? hand.y - 1.1 : 0.0, sit ? hand.z + 0.1 : hand.z + (skiing ? -0.35 + 0.7 * plant : 0.1));
       if (J) hand.addScaledVector(fd, 0.075);                                 // realistic bodies: grip in the fist, past the wrist
+      if (ter && n.tf.prop && sd === (n.tf.prop === 'fries' ? 0 : 1)) {        // the drink (or the cone of chips) in that hand, upright
+        R.E.copy(hand).addScaledVector(fd, J ? 0.01 : 0.07).addScaledVector(ty, n.tf.prop === 'fries' ? 0.02 : 0.0);
+        rigBone(npcMesh.props[n.tf.prop], n.ti, R.E, AX_Y, F);
+      }
       rigBone(rig.pole, j, hand, R.up.subVectors(hand, tip), F);
     }
     if (J) {
@@ -2835,6 +2975,7 @@ function updateRig(time) {
       {
         const pr = n.person, near = Math.hypot(P.pos.x - n.x, P.pos.z - n.z) < 7, talking = dlgOpen && pr && dlgWho === pr;
         const mood = pr ? { smile: talking ? 0.7 : near ? 0.85 : 0.3, brows: n.wave > 0 ? 0.7 : talking ? 0.25 : 0, talk: talking }
+          : ter ? { smile: 0.4 + 0.35 * Math.max(0, Math.sin(t * 0.4)), squint: lounge ? 0.35 : 0.1, talk: pose === 'chair' && Math.sin(t * 0.7) > 0.4 }
           : { smile: (k * 13) % 5 === 0 ? 0.45 : 0.12, squint: n.mode === 'ski' && n.v > 9 ? 0.3 : 0 };
         animateFace(HB, hdt, mood);
       }
@@ -2844,6 +2985,7 @@ function updateRig(time) {
   }
   for (const n of npcs) if (n.noSkis && n.show !== 'none') { const k = npcs.indexOf(n); for (const sd of [0, 1]) { rig.ski.setMatrixAt(k * 2 + sd, ZERO_M); rig.pole.setMatrixAt(k * 2 + sd, ZERO_M); } }
   for (const k in rig) rig[k].instanceMatrix.needsUpdate = true;
+  if (npcMesh.props) for (const k in npcMesh.props) npcMesh.props[k].instanceMatrix.needsUpdate = true;
 }
 const npcSlot = k => npcMesh.hasB ? [k % 2 ? 'B' : '', k >> 1] : ['', k];
 function nearestLiftFrom(x, z, r) {
@@ -2888,6 +3030,7 @@ function updateNPCs(dt, time) {
       const taken = new Set(npcs.filter(o => o.mode === 'lift' && o.L === L).map(o => o.chair));
       for (let c = 0; A && c < A.count; c++) { const u = chairU(L, c, time); if (Math.abs(u - L.s0) < L.speed * (L.mult || 1) * dt * 1.5 + 0.05 && !taken.has(c)) { n.mode = 'lift'; n.chair = c; break; } }
     } else if (n.mode === 'npc') { peopleUpdate(n, dt, time); continue;
+    } else if (n.mode === 'terrace') { continue;
     } else if (n.mode === 'lift') {
       const L = n.L, u = chairU(L, n.chair, time);
       if (u > L.total - L.endS || u < L.s0 - 1) {
@@ -3423,7 +3566,7 @@ function assembleBuilding(b) {
 function updateNearBuildings(cam, budgetMs) {
   const t0 = performance.now();
   // in a dense station only the nearest ones are assembled (each is dozens of meshes)
-  const lim = IS_TOUCH ? 10 : 18, d2 = BUILDINGS.map(b => Math.hypot(b.x - cam.x, b.z - cam.z)), cut = d2.length > lim ? d2.slice().sort((a, c) => a - c)[lim - 1] : Infinity;
+  const lim = IS_TOUCH ? 8 : 12, d2 = BUILDINGS.map(b => Math.hypot(b.x - cam.x, b.z - cam.z)), cut = d2.length > lim ? d2.slice().sort((a, c) => a - c)[lim - 1] : Infinity;
   for (let i = 0; i < BUILDINGS.length; i++) {
     const b = BUILDINGS[i], dd = d2[i] <= cut ? d2[i] : Math.max(d2[i], NEAR.buildR + 71);
     if (!b.detail && dd < NEAR.buildR && performance.now() - t0 < budgetMs) {
@@ -4199,6 +4342,7 @@ function updateTrails(dt, time) {
     const near = Math.abs(n.x - camera.position.x) + Math.abs(n.z - camera.position.z) < 380;
     if (n.mode !== 'ski' || !near || (n.p.tr && n.s / 4 > n.p.tr[0] - 2 && n.s / 4 < n.p.tr[1] + 2)) { n.trk.lx = null; continue; }
     const o = trackStyle(snowAt(n.x, n.z), n.v || 10, false, n.roll); o.step = Math.max(o.step, 0.9); o.shade *= 0.85;
+    if (n.board) { o.smear = Math.max(o.smear || 0, 0.3); o.gap = 0; }   // a board leaves one band
     emitSkiTracks(n.trk, trailsOthers, n.x, n.z, n.yaw, o, time);
   }
   flushTrails(trailsMe); flushTrails(trailsOthers);
@@ -6008,8 +6152,32 @@ function initPeople() {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: markerTex('!'), depthWrite: false, transparent: true }));
     sp.scale.set(0.9, 0.9, 0.9); sp.visible = false; sp.layers.set(SMALL_LAYER); scene.add(sp); d.mark = sp; d.markKind = '';
   }
+  if (rig) initTerraceFolk(rig);
   if (rig) for (const k in rig) if (rig[k].instanceColor) rig[k].instanceColor.needsUpdate = true;
   restoreMission();
+}
+// drinks and chips held by the people on the terraces: one small instanced mesh per kind, placed at the hand
+const PROP_KINDS = ['mug', 'beer', 'wine', 'fries'];
+function propGeometry(kind) {
+  const P = [], cyl = (rt, rb, h, y, c, seg = 10, open = false) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, open); g.translate(0, y, 0); P.push({ g, c }); };
+  if (kind === 'mug') { cyl(0.038, 0.034, 0.095, 0.02, '#f2efe8'); cyl(0.036, 0.036, 0.01, 0.065, '#6d1520'); const hd = new THREE.TorusGeometry(0.026, 0.007, 5, 8, Math.PI); hd.rotateZ(-Math.PI / 2); hd.translate(0.038, 0.02, 0); P.push({ g: hd, c: '#f2efe8' }); }
+  else if (kind === 'beer') { cyl(0.036, 0.03, 0.15, 0.03, '#d99a2b'); cyl(0.037, 0.037, 0.025, 0.115, '#fbf6ea'); }
+  else if (kind === 'wine') { cyl(0.034, 0.02, 0.07, 0.07, '#5d0f1c'); cyl(0.005, 0.005, 0.07, 0.0, '#d8e0e6', 5); cyl(0.03, 0.03, 0.006, -0.035, '#d8e0e6'); }
+  else { cyl(0.07, 0.045, 0.085, 0.0, '#c8321f', 8); cyl(0.071, 0.071, 0.012, 0.03, '#efe9de', 8);
+    for (let k = 0; k < 14; k++) { const g = new THREE.BoxGeometry(0.011, 0.07, 0.011); g.rotateZ((k % 5 - 2) * 0.12); g.rotateX((k % 3 - 1) * 0.15); g.translate(Math.cos(k * 2.4) * 0.035, 0.07, Math.sin(k * 2.4) * 0.035); P.push({ g, c: k % 4 ? '#f0c24a' : '#e0a83a' }); } }
+  return mergeParts(P);
+}
+function initTerraceFolk(rig) {
+  if (!TERRACE_FOLK.length) return;
+  npcMesh.props = {};
+  for (const kind of PROP_KINDS) { const m = new THREE.InstancedMesh(propGeometry(kind), lambertVC(), TERRACE_FOLK.length); m.frustumCulled = false; m.layers.set(SMALL_LAYER); for (let i = 0; i < TERRACE_FOLK.length; i++) m.setMatrixAt(i, ZERO_M); scene.add(m); npcMesh.props[kind] = m; }
+  TERRACE_FOLK.forEach((f, i) => {
+    const k = npcs.length, n = { mode: 'terrace', tf: f, ti: i, x: f.x, z: f.z, y: f.y, yaw: f.yaw, roll: 0, show: 'stand', h: 0.92 + (hashSeed(f.x, f.z, 7) % 160) / 1000, gth: 0.95 + (hashSeed(f.x, f.z, 9) % 100) / 1000, swing: f.swing, noSkis: true, fem: f.fem, gear: f.gear, jacket: f.jacket };
+    npcs.push(n);
+    const jacket = new THREE.Color(f.jacket), pants = new THREE.Color(PANTS_C[k % PANTS_C.length]), white = new THREE.Color(1, 1, 1), sl = k >> 1, B = k % 2 ? 'b' : 'a';
+    rig['torso_' + B].setColorAt(sl, jacket); rig['head_' + B].setColorAt(sl, white); rig.pelvis.setColorAt(k, pants);
+    for (const sd of [0, 1]) { rig.upperarm.setColorAt(k * 2 + sd, jacket); rig.forearm.setColorAt(k * 2 + sd, jacket); rig.thigh.setColorAt(k * 2 + sd, pants); rig.shin.setColorAt(k * 2 + sd, pants); rig.boot.setColorAt(k * 2 + sd, new THREE.Color('#2a2d33')); }
+  });
 }
 const markerTexCache = {};
 function markerTex(kind) {
