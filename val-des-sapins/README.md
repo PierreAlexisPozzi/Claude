@@ -194,3 +194,33 @@ L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par co
 - le half-pipe a été déplacé à côté de Lovatière : une piste restaurée et une zone de piste passaient sur l'ancien emplacement ;
 - les 17 remontées fonctionnent ;
 - chronos remesurés : Mont Saint-Sauveur 155 s, Émile Allais 60 s.
+
+### Nouveau gameplay : fantômes, slalom, Première trace
+
+**Fantômes**
+- Sur chaque piste chronométrée, la meilleure descente est rejouée par un skieur translucide bleu pendant la tentative suivante. Le chrono affiche l'écart en direct au même point de la piste (−0,8 s en vert, +1,2 s en rouge).
+- La première descente devient le fantôme, ensuite seul un meilleur temps le remplace.
+- Les fantômes ont leur propre stockage local (`valdessapins.ghosts`). Celui d'une piste modifiée depuis (son nombre d'échantillons diffère) est ignoré, et tout continue de fonctionner si le stockage est bloqué.
+
+**Slalom du Stade Jean-Luc Crétier** (la piste de slalom réelle du secteur, au départ du Bécoin)
+- 38 portes rouges et bleues, une tous les 24 m, décalées de 4,5 m de part et d'autre de la ligne et à l'écart des pylônes du télésiège.
+- Une porte compte quand on franchit sa ligne entre ses deux piquets. Chaque porte manquée ajoute 3 s, et le compteur « Portes 12/38 · 1 manquée (+3 s) » s'affiche dans le chrono.
+- Dès la première descente, on court contre le fantôme de **Bastien, moniteur**. C'est la descente du robot de test, qui passe toutes les portes en 1:18.9 ; ce temps sert aussi de référence pour l'or.
+- Nouveau défi « Slalom parfait » (descentes sans porte manquée : 1, 3, 10).
+
+**Première trace** (poudreuse vierge)
+- Une grille de 4 m retient quand chaque case a été skiée, par vous ou par un autre. Au bout de 15 minutes la neige redevient vierge, comme les traces visibles qui s'effacent.
+- Une ligne commence en poudreuse vierge et s'allonge tant qu'on y reste. Le multiplicateur passe à ×2 après 80 m vierges et monte jusqu'à ×5.
+- Croiser une trace plus de 1,5 s ou sortir de la poudreuse clôt la ligne, avec score et record. Une chute la fait perdre.
+- Quatre freeriders (deux sur mobile) descendent des lignes hors piste, à 45–60 m des pistes, dans la poudreuse, sans arbres et en descente. Ils laissent leurs traces, donc la neige vierge se raréfie autour d'eux.
+- L'XP est versée par le nouveau défi « Première trace » (plus longue ligne : 150, 400, 900 m), pas ligne par ligne : une téléportation ne permet pas de cumuler.
+
+**Tests** :
+- slalom propre : 38/38 portes ;
+- descente droit dans la pente : 38 portes manquées, +114 s ;
+- descente plus lente : écart positif (+17,9 s) face au fantôme ;
+- stockage bloqué : aucune erreur ;
+- même ligne de poudreuse refaite : 0 m ;
+- 1re ligne : 403 m ×5, et le palier bronze du défi ;
+- la sauvegarde de niveau 7 est conservée ;
+- le monde procédural démarre, sans slalom ni freeriders.
