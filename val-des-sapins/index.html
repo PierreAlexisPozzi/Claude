@@ -299,7 +299,7 @@ body.touch #miniWrap .cap{display:none}
     <div class="side">
       <h2>Plan des pistes</h2>
       <div><h3>Pistes</h3><div class="plist" id="plist"></div></div>
-      <div><h3>Repères</h3><div class="plist"><div><span class="dot" style="background:#6b4428"></span>Villages</div><div><span class="dot" style="background:#ff5ac8"></span>Entrées de tunnel</div><div><span class="dot" style="background:#2bb6d6"></span>Canons à neige</div><div><span class="dot" style="background:#fff"></span>Champs de bosses</div></div></div>
+      <div><h3>Repères</h3><div class="plist"><div><span class="dot" style="background:#6b4428"></span>Villages</div><div data-proc><span class="dot" style="background:#ff5ac8"></span>Entrées de tunnel</div><div><span class="dot" style="background:#2bb6d6"></span>Canons à neige</div><div data-proc><span class="dot" style="background:#fff"></span>Champs de bosses</div></div></div>
       <div><h3>Aller à une remontée</h3><div class="plist" id="llist"></div></div>
       <div><h3>Carnet de rider</h3><div class="plist" id="clist"></div></div>
       <p class="credits" id="mapCredits" hidden></p>
@@ -424,7 +424,7 @@ const BLEND = { geo: {}, tex: {}, bin: {}, ok: false };
 const ASSET_DATA = (() => { try { const el = document.getElementById('vds-assets'); return el ? JSON.parse(el.textContent) : {}; } catch (e) { return {}; } })();
 /* La Plagne sector (tools/plagne_data.py): real relief, runs, lifts and buildings from open data, in the game's frame
    (x east, z south, metres). Without it the original procedural Val des Sapins is generated. */
-const PLAGNE = ASSET_DATA['plagne.json'] && typeof ASSET_DATA['plagne.json'] === 'object' && ASSET_DATA['plagne_height.bin'] ? ASSET_DATA['plagne.json'] : null;
+const PLAGNE = ASSET_DATA['plagne.json'] && typeof ASSET_DATA['plagne.json'] === 'object' && ASSET_DATA['plagne_height.bin'] && typeof DecompressionStream === 'function' ? ASSET_DATA['plagne.json'] : null;
 // .bin grids: zlib of int16 second-order deltas (along x, then z); two prefix sums give back the uint16 samples
 async function inflateGrid(uri, n) {
   const bin = atob(uri.slice(uri.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
@@ -5590,6 +5590,7 @@ const DEFIS = [
   { id: 'pipe', cat: 'Freestyle', title: 'Roi du pipe', desc: 'Sauts enchaînés dans le half-pipe sans tomber', unit: 'sauts', get: s => s.pipeChain, t: [2, 4, 6] },
   { id: 'or', cat: 'Chrono', title: 'Chasseur d\'or', desc: 'Pistes chronométrées en temps d\'or', unit: '', get: s => s.golds, t: [1, 3, 6] },
 ];
+if (PLAGNE) DEFIS.splice(DEFIS.findIndex(d => d.id === 'tunnels'), 1);   // no tunnels in the real sector
 const STATS0 = () => ({ vmax: 0, vert: 0, powder: 0, air: 0, tricks: 0, bestTrick: 0, rails: 0, butter: 0, rides: 0, tunnels: 0, pipeChain: 0, golds: 0, pistes: [], dist: 0, missions: 0 });
 const RIDER = { xp: 0, stats: STATS0(), tiers: {}, runs: {}, missions: {}, active: null, legacyLifts: [], allOpen: false };
 const R_KEY = 'valdessapins.rider';
@@ -5932,7 +5933,10 @@ if (PLAGNE) {
   const fix = t => t && SUB.reduce((q, [a, b]) => q.split(a).join(b), t);
   for (const d of PEOPLE) { Object.assign(d, at[d.id] || {}); d.role = fix(d.role); d.idle = fix(d.idle); }
   const RUN = { 'Retour Village': 'Loup Garou', 'Le Couloir': 'Grande Pente' };
+  // timed deliveries: 1.5 x the fastest route of the test bot (runs and lifts it measured), rounded up
+  const TIME = { ravito: [600, '6 minutes', '10 minutes'], croissants: [1020, '10 minutes', '17 minutes'], fondue: [300, '4 minutes', '5 minutes'] };
   for (const m of MISSIONS) {
+    const tm = TIME[m.id]; if (tm) { m.time = tm[0]; m.intro = m.intro.split(tm[1]).join(tm[2]); }
     m.title = m.id === 'couloir' ? 'La Grande Pente' : fix(m.title); m.intro = fix(m.intro); m.done = fix(m.done);
     for (const st of m.steps) { st.text = fix(st.text); st.say = fix(st.say); if (st.piste) st.piste = RUN[st.piste] || st.piste; }
   }
@@ -6188,6 +6192,7 @@ function fillFacts() {
   $('eyebrow').textContent = (PLAGNE ? 'Secteur La Plagne · ' : 'Domaine ouvert · ') + fmt(Math.min(...alts)) + ' – ' + fmt(Math.max(...alts)) + ' m';
   if (PLAGNE) {
     for (const id of ['credits', 'mapCredits']) { $(id).textContent = PLAGNE.meta.attribution; $(id).hidden = false; }
+    document.querySelectorAll('[data-proc]').forEach(el => { el.hidden = true; });   // no tunnels or mogul fields here
     document.querySelector('#start .lede').textContent = 'Le secteur Plagne Centre – Aime 2000 de La Plagne, recréé d\u2019après le relief, les pistes et les remontées réels. '
       + 'Pour remonter : télécabines, télésièges et téléskis. Pistes damées, poudreuse entre les sapins, snowpark et half-pipe à Aime 2000, stations à traverser. Skis twin-tip à double rocker.';
   }

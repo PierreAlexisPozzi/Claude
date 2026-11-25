@@ -117,7 +117,7 @@ Autres éléments trouvés dans le catalogue (recherche : sapin, épicéa, chale
 - **Mains** : poings gantés fermés (moufle rembourrée, pouce replié, manchette) à la place des mains ouvertes ; la poignée du bâton est placée dans le poing, pour le joueur comme pour les skieurs proches. Le planté de bâton se déclenche aussi au joystick analogique et se lit depuis la caméra de dos (main qui s'écarte et s'avance, pointe vers l'avant puis traînée).
 
 ## Secteur La Plagne (adaptation libre et non officielle)
-Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne Centre – Aime 2000 (45,50379 N, 6,67744 E), recréé à partir de données ouvertes. Si ces données ne sont pas embarquées dans la page, le Val des Sapins procédural est généré comme avant.
+Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne Centre – Aime 2000 (45,50379 N, 6,67744 E), recréé à partir de données ouvertes. Si ces données ne sont pas embarquées dans la page, ou si le navigateur ne sait pas les décompresser, le Val des Sapins procédural est généré comme avant (vérifié au démarrage).
 
 | Élément | Source | Traitement (`tools/plagne_data.py`) |
 |---|---|---|
@@ -126,14 +126,14 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 | Horizon (30 km) | Tuiles Mapterhorn z11 (mêmes sources) | Grille à 150 m : vallée de l’Isère, Beaufortain, Vanoise (437 – 3 800 m) |
 | Pistes, remontées, bâtiments | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
 
-- **Contenu** : 49 pistes réelles (31,5 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
+- **Contenu** : 48 pistes réelles (31 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
 - **Pistes réelles** : le damage suit le profil du terrain et ne creuse jamais plus de 2,5 m. Les replats et les bosses sont donc conservés, et les chemins de liaison restent des chemins.
 - **Ajouts du jeu** (absents des relevés) : le **snowpark** occupe la piste SuperSlalom, le long du téléski du Dromadaire (sauts, box et rails). Le **half-pipe** est creusé à côté de Golf II, sur une pente rectiligne à 28 %.
 - **Personnages et missions** : ils sont déplacés dans les lieux réels.
   - Les commerces du bas sont à Plagne 1800, ceux de la mi-station à Plagne Centre.
   - René conduit le Télésiège Bécoin et Élodie attend à son sommet. Le berger est au départ de Java.
   - Le défi « Le Couloir » devient « La Grande Pente ».
-  - Les temps de référence des chronos ont été remesurés par le robot de test.
+  - Les temps de référence des chronos ont été remesurés par le robot de test, et les livraisons chronométrées recalées sur 1,5 fois son trajet le plus rapide : Belvédère 10 min, croissants 17 min, fondue 5 min. Le défi « Sous la montagne » (tunnels) est retiré.
 - **Sauvegardes** : XP, niveau, défis et missions sont conservés.
 - **Lacs** : les plans d’eau du relief (parfaitement plats) apparaissaient en noir, un calcul de normale du shader devenant indéfini ; ils sont désormais gelés et enneigés.
 - **Crédits** : les sources sont affichées sur l’écran d’accueil et sur le plan des pistes. Seules les données dérivées (`assets/plagne*.json|bin`, 310 Ko) sont versionnées, jamais les fichiers téléchargés.
