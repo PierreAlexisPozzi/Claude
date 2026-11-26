@@ -66,9 +66,20 @@ export function toast(title, sub, kind) {
   el.innerHTML = '<b></b><span></span>'; el.firstChild.textContent = title; el.lastChild.textContent = sub || '';
   box.prepend(el); toasts.push({ el, t: 5.5 });
   while (box.children.length > 4) box.lastChild.remove();
+  fitToasts();
 }
 
-export function updateToasts(dt) { for (let i = toasts.length - 1; i >= 0; i--) { const q = toasts[i]; q.t -= dt; if (q.t < 0.4) q.el.classList.add('out'); if (q.t <= 0) { q.el.remove(); toasts.splice(i, 1); } } }
+// T2 : la pile de toasts (la plus récente en haut) ne descend jamais sur la barre d'outils en bas à droite ; les plus
+// anciennes qui ne tiennent pas sont masquées (correction d'un chevauchement à 1000×560 hérité de game.html)
+export function fitToasts() {
+  const box = $('toasts'); if (!box) return;
+  const tl = $('tools'), r = tl && tl.getClientRects().length && getComputedStyle(tl).visibility !== 'hidden' ? tl.getBoundingClientRect() : null;   // barre fixe : pas d'offsetParent
+  const lim = r && r.height ? r.top - 8 : window.innerHeight - 8;
+  let clip = false;
+  for (const el of box.children) { el.classList.remove('clip'); if (!clip && el.getBoundingClientRect().bottom > lim) clip = true; if (clip) el.classList.add('clip'); }
+}
+
+export function updateToasts(dt) { for (let i = toasts.length - 1; i >= 0; i--) { const q = toasts[i]; q.t -= dt; if (q.t < 0.4) q.el.classList.add('out'); if (q.t <= 0) { q.el.remove(); toasts.splice(i, 1); fitToasts(); } } }
 
 
 /* ---------------- HUD ---------------- */
@@ -214,7 +225,7 @@ export function stackHud() {
   document.body.classList.toggle('busy', !!tr && placed.length > 1);   // phones then keep a single toast
   tb.style.visibility = '';
   let tbr = null;
-  if (tb.childElementCount) { tbr = push(tb, placed); if (tbr && (tbr.left > innerWidth / 2 || tbr.right < innerWidth / 2)) tbr = null; }   // toasts in the right column stay out of the trick's way
+  if (tb.childElementCount) { tbr = push(tb, placed); fitToasts(); if (tbr) tbr = tb.getClientRects().length ? box(tb) : null; if (tbr && (tbr.left > innerWidth / 2 || tbr.right < innerWidth / 2)) tbr = null; }   // toasts in the right column stay out of the trick's way
   if (!trk.classList.contains('show')) return;   // fading out: keep its place, it is placed again when shown
   const pr = $('prompt'), limit = vis(pr) ? box(pr).top - 8 : innerHeight - 8;
   const r = push(trk, tbr ? placed.concat([tbr]) : placed);
@@ -222,6 +233,7 @@ export function stackHud() {
 }
 
 export function __init_6975() {
+window.addEventListener('resize', fitToasts);   // T2
 toasts = [];
 // compass ribbon: 3 px per degree, north = -z (same convention as headingAngle and the minimap), view direction of the camera
 CMP_PX = 3;

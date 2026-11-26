@@ -4,10 +4,9 @@
 import { test, expect, type Page, type Browser } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openGame, pump, start, REPO, type Target } from './helpers';
+import { openGame, pump, start, REPO, HAS_LEGACY, TRANCHE, type Target } from './helpers';
 
 const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number> }[];
-const TRANCHE = process.env.VDS_TRANCHE ?? 'T1';
 const OUT = path.join(REPO, 'review/vues', TRANCHE);
 const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur']);
 
@@ -55,15 +54,18 @@ async function diff(page: Page, a: string, b: string): Promise<number> {
 for (const phone of [false, true]) {
   test(`vues de référence · ${phone ? 'téléphone' : 'ordinateur'}`, async ({ browser, page }) => {
     test.setTimeout(90 * 60_000);   // rendu logiciel : ~1 min par vue et par cible
-    // en T1, game.html est capturé en même temps pour la comparaison ; ensuite, les vues servent aux planches avant/après
-    const [web, legacy] = await Promise.all([capture(browser, 'web', phone), TRANCHE === 'T1' ? capture(browser, 'legacy', phone) : Promise.resolve([])]);
+    // tant que game.html existe, il est capturé en même temps pour mesurer l'écart ; ensuite, les vues servent aux
+    // planches avant / après entre tranches
+    const [web, legacy] = await Promise.all([capture(browser, 'web', phone), HAS_LEGACY ? capture(browser, 'legacy', phone) : Promise.resolve([])]);
     expect(web.length).toBeGreaterThan(phone ? 4 : 20);
-    if (TRANCHE !== 'T1') return;
+    if (!HAS_LEGACY) return;
     const res: Record<string, number> = {};
     for (let i = 0; i < web.length; i++) res[path.basename(web[i], '.jpg')] = Math.round((await diff(page, web[i], legacy[i])) * 100) / 100;
     fs.mkdirSync(OUT, { recursive: true });
     fs.writeFileSync(path.join(OUT, `parite-${phone ? 'telephone' : 'ordinateur'}.json`), JSON.stringify(res, null, 1));
     console.log(JSON.stringify(res));
-    for (const [k, d] of Object.entries(res)) expect(d, k).toBeLessThan(1.5);   // écart moyen < 1,5/255 : bruit de rendu
+    // T1 : identique (0) ; T2 : textures KTX2 (compression avec pertes, mipmaps refaites) → petit écart toléré
+    const tol = TRANCHE === 'T1' ? 0.01 : 3;
+    for (const [k, d] of Object.entries(res)) expect(d, k).toBeLessThan(tol);
   });
 }

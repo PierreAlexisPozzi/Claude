@@ -6,16 +6,35 @@
      pilotée à la main (`pump`) avec des horodatages synthétiques : deux exécutions voient la même suite d'images.
    - Le rendu est logiciel (SwiftShader) : une image coûte de 0,5 à plusieurs secondes, on en rend donc peu. */
 import { expect, type Page } from '@playwright/test';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(here, '../..');
 export type Target = 'web' | 'legacy';
+/** Tranche en cours (dossier des captures, sévérité des contrôles). */
+export const TRANCHE = process.env.VDS_TRANCHE ?? 'T2';
+export const trancheNum = (t = TRANCHE): number => Number(t.replace(/\D/g, '')) || 0;
 export const URLS: Record<Target, string> = {
   web: process.env.VDS_WEB_URL ?? 'http://localhost:4173/',
   legacy: 'file://' + path.join(REPO, 'index.html'),
 };
+
+/** game.html (via ../index.html) est-il encore là ? Après son retrait, les tests comparent la version web aux
+ *  références figées dans tests/baselines/ (enregistrées depuis game.html avec VDS_WRITE_BASELINES=1). */
+export const HAS_LEGACY = fs.existsSync(URLS.legacy.replace('file://', ''));
+
+export async function reference<T>(name: string, legacy: () => Promise<T>): Promise<T> {
+  const file = path.resolve('tests/baselines', name + '.json');
+  if (HAS_LEGACY) {
+    const v = await legacy();
+    if (process.env.VDS_WRITE_BASELINES) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(v, null, 1) + '\n'); }
+    return v;
+  }
+  if (!fs.existsSync(file)) throw new Error('référence absente : ' + file);
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
+}
 
 export interface OpenOptions {
   /** rAF piloté à la main (par défaut) ; false = boucle réelle du navigateur. */

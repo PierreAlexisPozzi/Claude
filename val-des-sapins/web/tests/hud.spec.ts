@@ -3,7 +3,7 @@
    fenêtres (dialogue, plan, carnet) doivent tenir dans l'écran. Le même relevé est fait sur game.html :
    la version web doit donner exactement les mêmes boîtes. */
 import { test, expect, type Page } from '@playwright/test';
-import { openGame, pump, start, type Target } from './helpers';
+import { openGame, pump, start, reference, trancheNum, type Target } from './helpers';
 
 const SIZES = [
   { name: 'ordinateur 1000×560', w: 1000, h: 560, touch: false },
@@ -80,7 +80,7 @@ for (const size of SIZES) {
       const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, hasTouch: size.touch, isMobile: size.touch, deviceScaleFactor: 1 });
       try { return await survey(await ctx.newPage(), target, size); } finally { await ctx.close(); }
     };
-    const [web, legacy] = await Promise.all([run('web'), run('legacy')]);
+    const [web, legacy] = await Promise.all([run('web'), reference('hud-' + size.w + 'x' + size.h, () => run('legacy'))]);
     const problemsOf = (shots: typeof web) => {
       const out: string[] = [];
       for (const [state, m] of Object.entries(shots)) {
@@ -92,9 +92,12 @@ for (const size of SIZES) {
     const problems = problemsOf(web), inherited = new Set(problemsOf(legacy));
     console.log(`${size.name} : ${Object.keys(web).length} états, ${problems.length} problème(s)`);
     problems.forEach((p) => console.log('  ' + p + (inherited.has(p) ? '  [hérité de game.html]' : '')));
-    expect(web).toEqual(legacy);     // mêmes boîtes au pixel près que game.html
-    // T1 (parité) : aucune régression ; un défaut déjà présent dans game.html est signalé, puis corrigé en T2
-    const strict = (process.env.VDS_TRANCHE ?? 'T1') !== 'T1';
+    // mêmes boîtes que game.html pour tout ce qui est permanent ; les messages passagers (toasts, bannière de figure)
+    // ont changé en T2 (la pile de toasts ne déborde plus) et restent couverts par le contrôle de chevauchement
+    const noToast = (x: typeof web) => Object.fromEntries(Object.entries(x).map(([k, m]) => [k, { ...m, boxes: m.boxes.filter((b) => b.id !== 'toast' && b.id !== 'trick') }]));
+    expect(noToast(web)).toEqual(noToast(legacy));
+    // T1 tolérait les défauts hérités de game.html ; à partir de T2, aucun chevauchement n'est admis
+    const strict = trancheNum() >= 2;
     for (const p of problems) if (inherited.has(p) && !strict) test.info().annotations.push({ type: 'défaut hérité', description: p });
     expect(problems.filter((p) => strict || !inherited.has(p))).toEqual([]);
   });

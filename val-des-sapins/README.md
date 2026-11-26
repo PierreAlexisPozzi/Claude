@@ -29,8 +29,15 @@ npm test           # construit puis lance tous les tests Playwright (rendu logic
   accesseur `__set_x()`. Les modules portent encore `// @ts-nocheck` : le typage strict se fera module par module.
 - `src/hud/hud.html` et `hud.css` : le HUD, les écrans et les commandes tactiles, en HTML/CSS. Le contrat
   d'identifiants est inchangé (vérifié par test).
-- `src/assets/loader.ts` + `public/assets/` : les modèles, textures et données du terrain sont des fichiers chargés
-  à la demande (plus de base64 dans la page). Compression meshopt / KTX2 et tuiles : tranche T2.
+- `src/assets/` + `public/assets/` : assets en fichiers, produits par `npm run assets` (`tools/build-assets.mjs`)
+  à partir des sorties brutes de `../assets/` :
+  - modèles `.glb` compressés **meshopt** (EXT_meshopt_compression, sans perte) ;
+  - textures **KTX2** Basis UASTC + Zstandard avec mipmaps, transcodées au chargement vers le format du GPU
+    (ASTC, BC7, ETC2) ; transcodeur dans `public/basis/` ;
+  - relief et données du domaine en **tuiles binaires** (`public/assets/world/`, format décrit dans `tools/tiles.mjs`) :
+    7×7 tuiles de 64 mailles pour le secteur, une tuile pour le relief lointain et une pour l'horizon ; pistes,
+    remontées, bâtiments, lieux et zones rangés par tuile. La reconstruction est vérifiée à l'identique.
+- `public/sw.js` : service worker (cache, jeu hors ligne après une première visite) ; inactif dans un artefact.
 - `src/storage/` : couche de stockage unique, asynchrone (IndexedDB, repli localStorage puis mémoire).
   Migration versionnée (schéma v1) des sauvegardes `valdessapins.rider`, `valdessapins.ghosts` et
   `valdessapins.quality` : elles sont **copiées**, jamais effacées, et chaque écriture est recopiée dans localStorage
@@ -52,6 +59,10 @@ test (exécutions reproductibles au bit près).
 | `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre (Moyenne), ordinateur et tactile |
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+
+**Mesures de la tranche T2** (`review/mesures_T2.md`, planche `review/planche_T2_assets.jpg`) : modèles 2,6 → 1,3 Mo
+sans perte ; mémoire GPU des textures ~26 → ~6,5 Mo ; écart visuel moyen 0,49/255 ; mêmes résultats de simulation
+qu'avant ; plus de chevauchement du HUD ; jeu jouable hors ligne.
 
 **Mesures de la tranche T1** (détail : `review/mesures_T1.md`, planche : `review/planche_T1_parite.jpg`) : parité
 au bit près avec `game.html` sur tous les tests (37 vues de référence à écart 0) ; mêmes appels de dessin et triangles ;

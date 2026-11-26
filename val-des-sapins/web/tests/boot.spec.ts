@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openGame, expectNoErrors, pump, start } from './helpers';
+import { openGame, expectNoErrors, pump, start, reference } from './helpers';
 
 const SRC = path.resolve('src/game');
 
@@ -49,7 +49,7 @@ test('parité : état initial identique à game.html', async ({ browser }) => {
     await ctx.close();
     return s;
   };
-  const [w, l] = [await snap('web'), await snap('legacy')];
+  const [w, l] = [await snap('web'), await reference('etat-initial', () => snap('legacy'))];
   console.log('web', JSON.stringify(w.ri), 'legacy', JSON.stringify(l.ri));
   expect(w).toEqual(l);
 });

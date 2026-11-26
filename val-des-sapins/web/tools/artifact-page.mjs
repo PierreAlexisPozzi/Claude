@@ -23,9 +23,9 @@ fs.writeFileSync(path.join(dist, 'artifact.html'), page);
 const b64dir = path.join(dist, 'artifact-b64');
 fs.rmSync(b64dir, { recursive: true, force: true });
 const files = {};
-const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f), r = path.relative(dist, p); if (fs.statSync(p).isDirectory()) walk(p); else if (!['index.html', 'artifact.html', 'artifact-files.json'].includes(r)) {
+const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f), r = path.relative(dist, p); if (fs.statSync(p).isDirectory()) walk(p); else if (!["index.html", "artifact.html", "artifact-files.json", "sw.js"].includes(r)) {
   const key = r.split(path.sep).join('/');
-  if (/\.(glb|bin)$/.test(key)) {
+  if (/\.(glb|bin|ktx2|vds)$/.test(key)) {   // types non servis par les artefacts
     const out = path.join(b64dir, key + '.b64.json');
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, JSON.stringify(fs.readFileSync(p).toString('base64')));

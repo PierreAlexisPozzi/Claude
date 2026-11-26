@@ -1,0 +1,14 @@
+{
+ "gates": 38,
+ "ghost": null,
+ "clean": {
+  "gates": 38,
+  "miss": 0,
+  "started": true,
+  "best": 86.25000000001471
+ },
+ "straight": {
+  "miss": 38,
+  "started": true
+ }
+}

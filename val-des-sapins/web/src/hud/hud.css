@@ -118,6 +118,7 @@ body.touch .panel{-webkit-backdrop-filter:none;backdrop-filter:none}
 .toast span{font:500 12.5px/1.35 var(--body);color:var(--ink-dim)}
 .toast span:empty{display:none}
 .toast.out{opacity:0;transform:translateX(14px)}
+.toast.clip{display:none}
 .toast.tier0{border-right-color:#c98a4a}.toast.tier1{border-right-color:#c9d1db}.toast.tier2,.toast.lvl{border-right-color:var(--gold)}.toast.off{border-right-color:var(--bad)}.toast.say{border-right-color:var(--ok)}
 .toast.lvl b,.toast.tier2 b{color:var(--gold)}
 @keyframes tin{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}

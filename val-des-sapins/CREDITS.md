@@ -8,6 +8,8 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 | Composant | Version | Licence | Source | Usage |
 |---|---|---|---|---|
 | Three.js | 0.187.0 (figée) | MIT | <https://github.com/mrdoob/three.js> | Rendu 3D, chargeur glTF, post-traitement (GTAO, bloom, FXAA) |
+| meshoptimizer — décodeur (fourni avec three.js) | 1.1 | MIT | <https://github.com/zeux/meshoptimizer> | Décompression des modèles EXT_meshopt_compression |
+| Basis Universal — transcodeur (fourni avec three.js) | — | Apache 2.0 | <https://github.com/BinomialLLC/basis_universal> | Transcodage des textures KTX2 vers les formats GPU (ASTC, BC7, ETC2) |
 | Fontsource — Barlow, Barlow Condensed | 5.3.0 | SIL Open Font License 1.1 (polices et paquets) | <https://fontsource.org/fonts/barlow-condensed> · <https://github.com/jpt/barlow> | Polices du HUD, servies avec le jeu |
 
 ## Outils de production (non intégrés au jeu)
@@ -18,6 +20,10 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 | TypeScript 6.0.3 | Apache 2.0 | Typage (strict progressif) |
 | Playwright 1.63.0 | Apache 2.0 | Tests automatiques (Chromium) |
 | acorn, eslint-scope, magic-string | MIT / BSD-2-Clause / MIT | Découpage de `game.html` en modules (`web/tools/split-game.mjs`) |
+| glTF-Transform 4.5.1 | MIT | Écriture des modèles compressés (`web/tools/build-assets.mjs`) |
+| meshoptimizer 1.3.0 (encodeur) | MIT | Compression meshopt sans perte des modèles |
+| ktx2-encoder 0.6.0 (encodeur Basis Universal en WASM, Apache 2.0) | MIT | Textures KTX2 UASTC + Zstandard |
+| jpeg-js 0.4.4, pngjs 7.0.0 | BSD-3-Clause, MIT | Lecture des images sources avant encodage |
 | Blender 5.3 (module Python `bpy`) | GPL 3 (outil seulement) | Modèles et textures (`blender/`) |
 
 ## Données

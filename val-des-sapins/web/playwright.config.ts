@@ -15,6 +15,7 @@ export default defineConfig({
     viewport: { width: 1000, height: 560 },
     launchOptions: { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
     trace: 'off',
+    serviceWorkers: 'block',   // isolement des tests ; le cache est testé à part (tests/offline.spec.ts)
     actionTimeout: 120_000,
   },
   webServer: {

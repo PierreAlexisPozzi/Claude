@@ -3,8 +3,10 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { ASSETS } from '../assets/loader';
-import { MAX_ANISO } from './render';
+import { MAX_ANISO, renderer } from './render';
 
 export let BLEND, ASSET_DATA, PLAGNE;
 
@@ -21,6 +23,8 @@ export async function inflateGrid(uri, n) {
 
 export async function loadWorldData() {
   if (!PLAGNE) return;
+  const G = ASSET_DATA.__grids;   // T2 : relief déjà décodé depuis les tuiles binaires (src/assets/world.ts)
+  if (G && G.near) { BLEND.bin.height = G.near; if (PLAGNE.meta.far && G.far) BLEND.bin.far = G.far; if (PLAGNE.meta.wide && G.wide) BLEND.bin.wide = G.wide; return; }
   try {
     BLEND.bin.height = await inflateGrid(ASSET_DATA['plagne_height.bin'], PLAGNE.meta.n + 1);
     if (PLAGNE.meta.far && ASSET_DATA['plagne_far.bin']) BLEND.bin.far = await inflateGrid(ASSET_DATA['plagne_far.bin'], PLAGNE.meta.far.n);
@@ -32,9 +36,19 @@ export async function loadBlenderAssets() {
   if (!Object.keys(ASSET_DATA).length) return;
   try {
     const data = ASSET_DATA, loader = new GLTFLoader(), jobs = [];
+    loader.setMeshoptDecoder(MeshoptDecoder);   // T2 : modèles compressés EXT_meshopt_compression (sans perte)
+    let ktx2 = null;
     for (const [name, uri] of Object.entries(data)) {
       if ((typeof uri !== 'string' && !(uri instanceof ArrayBuffer)) || name.endsWith('.bin')) continue;   // world data, handled by loadWorldData
-      if (name.endsWith('.glb')) {
+      if (name.endsWith('.ktx2')) {   // T2 : textures Basis UASTC, transcodées pour le GPU (ASTC, BC7, ETC2…)
+        if (!ktx2) { ktx2 = new KTX2Loader().setTranscoderPath(new URL('basis/', document.baseURI).href).detectSupport(renderer); }
+        jobs.push(new Promise((res, rej) => ktx2.parse(uri, res, rej)).then(t => {
+          const key = name.replace(/\.\w+$/, '');
+          t.anisotropy = MAX_ANISO; t.colorSpace = /_normal$/.test(key) || key === 'baluster_mask' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+          if (/^(rock|timber|masonry|snowpack|massif)_/.test(key)) t.wrapS = t.wrapT = THREE.RepeatWrapping;   // tileable surface maps
+          t.needsUpdate = true; BLEND.tex[key] = t;   // retournement vertical (flipY) déjà appliqué à l'encodage
+        }));
+      } else if (name.endsWith('.glb')) {
         const buf = new Uint8Array(uri);   // ArrayBuffer du fichier .glb
         jobs.push(loader.parseAsync(buf.buffer, '').then(gltf => {
           gltf.scene.updateMatrixWorld(true);
@@ -54,6 +68,7 @@ export async function loadBlenderAssets() {
       }
     }
     await Promise.all(jobs); BLEND.ok = true;
+    if (ktx2) ktx2.dispose();   // libère les workers de transcodage
   } catch (e) { console.warn('Blender assets unavailable, using procedural models', e); BLEND.geo = {}; BLEND.tex = {}; }
 }
 
@@ -74,12 +89,12 @@ export function __init_574() {
 
 /* ---------------- Blender assets ----------------
    Meshes and textures modelled and baked with Blender 5.3 (scripts in val-des-sapins/blender/, run as a Python
-   module) are embedded at the end of this file as base64 (see tools/embed_assets.py). Only geometry comes from the
+   module) are compressed by web/tools/build-assets.mjs (meshopt, KTX2, binary tiles) and loaded by src/assets/. Only geometry comes from the
    glTF files; materials stay the game's own. If decoding fails, the procedural builders are used instead. */
 BLEND = { geo: {}, tex: {}, bin: {}, ok: false };
 // the embedded asset block, parsed once: glTF/images (decoded below), world data (.json objects, .bin grids)
 ASSET_DATA = ASSETS;
 /* La Plagne sector (tools/plagne_data.py): real relief, runs, lifts and buildings from open data, in the game's frame
    (x east, z south, metres). Without it the original procedural Val des Sapins is generated. */
-PLAGNE = ASSET_DATA['plagne.json'] && typeof ASSET_DATA['plagne.json'] === 'object' && ASSET_DATA['plagne_height.bin'] && typeof DecompressionStream === 'function' ? ASSET_DATA['plagne.json'] : null;
+PLAGNE = ASSET_DATA['plagne.json'] && typeof ASSET_DATA['plagne.json'] === 'object' && (ASSET_DATA.__grids?.near || ASSET_DATA['plagne_height.bin']) && typeof DecompressionStream === 'function' ? ASSET_DATA['plagne.json'] : null;
 }

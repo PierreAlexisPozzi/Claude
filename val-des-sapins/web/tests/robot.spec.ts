@@ -3,7 +3,7 @@
    test-results/robot-<cible>.json pour la planche de la tranche. */
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
-import { AUTOPILOT, openGame, expectNoErrors, type Target } from './helpers';
+import { AUTOPILOT, openGame, expectNoErrors, reference, type Target } from './helpers';
 
 interface PisteRes { name: string; ok: boolean; falls: number; t: number; idx: number; n: number }
 interface Res { pistes: PisteRes[]; lifts: { name: string; ok: boolean }[] }
@@ -28,10 +28,8 @@ async function robot(page: import('@playwright/test').Page, target: Target): Pro
 }
 
 test('robot : pistes et remontées (web) identiques à game.html', async ({ browser }) => {
-  const [a, b] = await Promise.all((['web', 'legacy'] as Target[]).map(async (t) => {
-    const ctx = await browser.newContext();
-    try { return await robot(await ctx.newPage(), t); } finally { await ctx.close(); }
-  }));
+  const run = async (t: Target) => { const ctx = await browser.newContext(); try { return await robot(await ctx.newPage(), t); } finally { await ctx.close(); } };
+  const [a, b] = await Promise.all([run('web'), reference('robot', () => run('legacy'))]);
   const okA = a.pistes.filter((p) => p.ok).length, okB = b.pistes.filter((p) => p.ok).length;
   console.log(`web : ${okA}/${a.pistes.length} pistes, ${a.pistes.reduce((s, p) => s + p.falls, 0)} chutes, ${a.lifts.filter((l) => l.ok).length}/${a.lifts.length} remontées`);
   console.log(`game.html : ${okB}/${b.pistes.length} pistes, ${b.pistes.reduce((s, p) => s + p.falls, 0)} chutes, ${b.lifts.filter((l) => l.ok).length}/${b.lifts.length} remontées`);

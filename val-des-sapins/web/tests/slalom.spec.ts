@@ -1,7 +1,7 @@
 /* Slalom du Stade Jean-Luc Crétier : 38 portes ; le fantôme de Bastien est proposé dès la première descente ;
    une descente droit dans la pente manque les portes et prend les pénalités. Même résultat que game.html. */
 import { test, expect, type Page } from '@playwright/test';
-import { AUTOPILOT, openGame, expectNoErrors, type Target } from './helpers';
+import { AUTOPILOT, openGame, expectNoErrors, reference, type Target } from './helpers';
 
 async function slalom(page: Page, target: Target) {
   await openGame(page, target);
@@ -44,5 +44,5 @@ test('slalom : portes, pénalités, fantôme — parité avec game.html', async 
   expect(web.gates).toBe(38);
   expect((web.clean as any).started).toBe(true);
   expect((web.straight as any).miss).toBeGreaterThan(5);
-  expect(web).toEqual(await run('legacy'));
+  expect(web).toEqual(await reference('slalom', () => run('legacy')));
 });
