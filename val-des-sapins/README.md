@@ -224,3 +224,21 @@ L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par co
 - 1re ligne : 403 m ×5, et le palier bronze du défi ;
 - la sauvegarde de niveau 7 est conservée ;
 - le monde procédural démarre, sans slalom ni freeriders.
+
+### Virages : planté de bâton et allègement, ensemble
+**Joueur**
+- Le virage démarre quand la direction passe de l'autre côté, avant même le changement de carres. Le geste se déclenche à ce moment-là, au lieu d'attendre que la carre soit engagée.
+- **Planté** : le bras intérieur du nouveau virage part franchement vers l'avant et sur le côté (l'épaule passe d'environ −40° à −90°), et la pointe du bâton est projetée devant les spatules. Le bras opposé équilibre, un peu en arrière.
+- **Allègement** : au même instant, les jambes s'étendent. Le bassin remonte avec le redressement du changement de carres, puis le skieur s'enfonce dans le nouveau virage.
+- **Physique** : pendant l'allègement, les skis changent de carre 1,6 fois plus vite.
+
+**Autres skieurs**
+- Le planté a lieu juste avant le changement de carres, du côté intérieur du virage suivant, au lieu du milieu du virage.
+- Le bassin remonte au changement de carres, puis redescend dans le virage.
+- Le buste se redresse légèrement pendant l'allègement.
+- Pas de planté en chasse-neige, en position de recherche de vitesse ni en snowboard.
+
+**Mesures**
+- Chez le joueur : l'épaule passe de −0,70 à −1,59 rad au planté, et le bassin monte d'environ 0,58 à 0,95 m dans les 0,2 s qui suivent l'inversion de la direction.
+- Chez un skieur non joueur : le bâton planté pointe vers l'avant juste avant chaque changement de carres, en alternant gauche et droite.
+- Le robot de test donne les mêmes résultats qu'avant.

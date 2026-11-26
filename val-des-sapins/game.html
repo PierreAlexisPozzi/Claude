@@ -2897,7 +2897,11 @@ function updateRig(time) {
     o.updateMatrix(); R.root.copy(o.matrix);
     const HB = humanPool.slot.get(k), J = HB ? humanPool.J : null;
     const ph = n.phase || 0, roll = skiing ? n.roll : 0, t = time + n.swing, sty = skiing ? STY[n.style] || STY.para : STY.para;
-    const flex = sit || tsit ? 0 : brd && skiing ? 0.17 + 0.07 * Math.abs(Math.sin(ph)) : skiing ? sty.flex + sty.wob * Math.abs(Math.sin(ph)) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
+    // turn rhythm: the edges change when sin(phase) crosses zero; just before it the skier plants the pole on the new
+    // inside and extends (up-unweighting), then sinks into the turn
+    const um = ((ph % Math.PI) + Math.PI) % Math.PI, dTr = um > Math.PI / 2 ? um - Math.PI : um;
+    const rise = skiing && !brd && sty !== STY.race ? Math.exp(-Math.pow((dTr + 0.05) / 0.32, 2)) : 0;
+    const flex = sit || tsit ? 0 : brd && skiing ? 0.17 + 0.07 * Math.abs(Math.sin(ph)) : skiing ? Math.max(0.02, sty.flex + (sty.wob + 0.05) * Math.abs(Math.sin(ph)) - 0.09 * rise) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
     // edged skis on a tilted body: the inside foot rides higher, the outside lower, the hips drop into the turn
     const W = brd ? 0.27 : skiing ? sty.w : 0.12, edge = skiing && !brd ? W * Math.tan(Math.min(0.8, Math.abs(roll))) : 0;
     // ---- pelvis and legs
@@ -2938,7 +2942,7 @@ function updateRig(time) {
       else rigBone(rig.board, k, R.E.set(-0.775, 0.04, 0), AX_X, AX_Y);   // under both feet, along the line of travel, top sheet up
     }
     // ---- torso: forward lean with the flex, more upright than the legs into the turn, counter-rotated
-    const pitch = lounge ? -0.95 : tsit ? -0.03 : ter ? 0.03 : brd && skiing ? 0.16 : sit ? -0.12 : skiing ? sty.pitch + flex : tbar ? -0.05 : 0.08, side = -roll * (skiing ? sty.counter : 0.55), twist = skiing ? -roll * sty.twist : 0;
+    const pitch = -0.1 * rise + (lounge ? -0.95 : tsit ? -0.03 : ter ? 0.03 : brd && skiing ? 0.16 : sit ? -0.12 : skiing ? sty.pitch + flex : tbar ? -0.05 : 0.08), side = -roll * (skiing ? sty.counter : 0.55), twist = skiing ? -roll * sty.twist : 0;
     R.up.set(Math.sin(side), Math.cos(side) * Math.cos(pitch), Math.cos(side) * Math.sin(pitch));
     R.fw.set(Math.sin(twist), 0, Math.cos(twist));
     R.S.y += 0.05; const B = k % 2 ? 'b' : 'a';
@@ -2951,7 +2955,9 @@ function updateRig(time) {
     // ---- arms and poles
     for (const sd of [0, 1]) {
       const s = sd ? -1 : 1, j = k * 2 + sd;
-      const plant = skiing ? Math.pow(Math.max(0, Math.sin(ph + (sd ? Math.PI : 0))), 6) : walking ? Math.max(0, Math.sin(t * 5 + sd * Math.PI)) : 0;
+      // the plant: the arm on the inside of the coming turn, peaking just before the edge change (roll ∝ -sin(phase))
+      const newIn = Math.sign(-Math.sin(ph + 0.35)) * s > 0;
+      const plant = skiing ? (newIn && n.style !== 'plow' ? Math.exp(-Math.pow((dTr + 0.12) / 0.26, 2)) : 0) : walking ? Math.max(0, Math.sin(t * 5 + sd * Math.PI)) : 0;
       const Sh = R.W.copy(R.S).addScaledVector(ty, 0.47).addScaledVector(tx, s * 0.2);
       let ad, fd;
       if (sit) { ad = new V3().addScaledVector(ty, -0.75).addScaledVector(tz, 0.65); fd = new V3().addScaledVector(tz, 1).addScaledVector(ty, -0.25); }
@@ -2971,8 +2977,8 @@ function updateRig(time) {
       else if (skiing && n.style === 'race') { ad = new V3().addScaledVector(ty, -0.45).addScaledVector(tz, 0.8).addScaledVector(tx, s * 0.22); fd = new V3().addScaledVector(tz, 0.9).addScaledVector(ty, 0.05).addScaledVector(tx, -s * 0.2); }   // hands in front
       else {
         const inner = skiing && sty.ang && Math.sign(roll) * s > 0 ? Math.min(1, Math.abs(roll) * 1.4) : 0;   // carving: inside hand forward and up
-        ad = new V3().addScaledVector(ty, -0.8 + 0.3 * inner).addScaledVector(tz, 0.35 + 0.35 * plant + 0.3 * inner).addScaledVector(tx, s * 0.28);
-        fd = new V3().addScaledVector(tz, 0.85).addScaledVector(ty, -0.35 + 0.25 * plant + 0.2 * inner).addScaledVector(tx, s * 0.1);
+        ad = new V3().addScaledVector(ty, -0.8 + 0.3 * inner + 0.25 * plant).addScaledVector(tz, 0.35 + 0.6 * plant + 0.3 * inner).addScaledVector(tx, s * (0.28 + 0.12 * plant));
+        fd = new V3().addScaledVector(tz, 0.85).addScaledVector(ty, -0.35 + 0.35 * plant + 0.2 * inner).addScaledVector(tx, s * 0.1);
       }
       ad.normalize(); fd.normalize();
       R.E.copy(Sh).addScaledVector(ad, 0.29); const hand = R.T.copy(R.E).addScaledVector(fd, 0.27);
@@ -2982,7 +2988,7 @@ function updateRig(time) {
       // pole: from the hand to a tip on the snow (ahead and outside when planting, trailing otherwise)
       const tip = skiing && n.style === 'race' ? new V3(hand.x + s * 0.12, hand.y - 0.5, hand.z - 1.0)                         // poles tucked under the arms
         : skiing && n.style === 'plow' ? new V3(hand.x + s * 0.3, 0.0, hand.z - 0.45)                                                // dragged wide
-        : new V3(hand.x + s * 0.12, sit ? hand.y - 1.1 : 0.0, sit ? hand.z + 0.1 : hand.z + (skiing ? -0.35 + 0.7 * plant : 0.1));
+        : new V3(hand.x + s * (0.12 + 0.1 * plant), sit ? hand.y - 1.1 : 0.0, sit ? hand.z + 0.1 : hand.z + (skiing ? -0.35 + 1.05 * plant : 0.1));   // planted: tip well ahead of the boots
       if (J) hand.addScaledVector(fd, 0.075);                                 // realistic bodies: grip in the fist, past the wrist
       if (ter && n.tf.prop && sd === (n.tf.prop === 'fries' ? 0 : 1)) {        // the drink (or the cone of chips) in that hand, upright
         R.E.copy(hand).addScaledVector(fd, J ? 0.01 : 0.07).addScaledVector(ty, n.tf.prop === 'fries' ? 0.02 : 0.0);
@@ -5009,7 +5015,8 @@ function stepSki(dt) {
   const braking = input.down && !pressDir, tuck = input.up && !braking && !pressDir;
   P.brake = lerp(P.brake, braking ? 1 : 0, Math.min(1, dt * 10));
   P.tuck = lerp(P.tuck, tuck ? 1 : 0, Math.min(1, dt * 6));
-  P.edge += (steer - P.edge) * Math.min(1, dt * (st === SN.POUDREUSE ? 4.5 : 7));
+  const light = plant.t > 0.08 && plant.t < 0.5 ? 1.6 : 1;   // unweighted by the rise of the pole plant: the edges change faster
+  P.edge += (steer - P.edge) * Math.min(1, dt * (st === SN.POUDREUSE ? 4.5 : 7) * light);
   // rough snow: position-based noise knocks the skis around (reproducible)
   const rx = P.pos.x * 0.55, rz = P.pos.z * 0.55;
   const bump = S.rough > 0 && speed > 3 ? perlin(rx, rz) : 0;
@@ -5541,8 +5548,11 @@ function updateSkier(dt, time) {
     // pole plant at each turn transition, on the new inside
     const es = Math.abs(P.edge) > 0.22 ? Math.sign(P.edge) : 0;
     plant.calm = Math.abs(P.edge) < 0.12 ? (plant.calm || 0) + dt : 0;
-    const fresh = es && (es !== lastEdgeSign || plant.calmWas > 0.25);
-    if (fresh && sp > 3 && P.tuck < 0.5 && P.brake < 0.3 && !P.skating && plant.t > 0.55) { plant.t = 0; plant.sd = es; plant.dur = clamp(0.8 - sp * 0.012, 0.5, 0.8); }
+    // the turn starts when the steering swings to the other side (before the edges have changed): plant and rise then
+    const stIn = steerIn(), ss = Math.abs(stIn) > 0.3 ? Math.sign(stIn) : 0;
+    const fresh = (ss && ss !== lastEdgeSign && ss !== plant.sd) || (es && (es !== lastEdgeSign || plant.calmWas > 0.25));
+    if (fresh && sp > 3 && P.tuck < 0.5 && P.brake < 0.3 && !P.skating && plant.t > 0.45) { plant.t = 0; plant.sd = ss || es; plant.dur = clamp(0.85 - sp * 0.012, 0.55, 0.85); }
+    if (plant.t >= 1 && !ss && !es) plant.sd = 0;
     if (es) { lastEdgeSign = es; plant.calmWas = 0; } else plant.calmWas = plant.calm;
     T.sink = P.sinkT || 0;
     if (Math.abs(P.pressV) > 0.02) pressPose(T, P.pressV);
@@ -5598,10 +5608,15 @@ function updateSkier(dt, time) {
     const t = plant.t, A = plant.sd > 0 ? T.aL : T.aR, E = x => x * x * (3 - 2 * x);
     const reach = t < 0.3 ? E(t / 0.3) : t < 0.7 ? 1 - (t - 0.3) / 0.4 * 0.6 : 0.4 * (1 - E((t - 0.7) / 0.3));
     const tip = t < 0.3 ? E(t / 0.3) : t < 0.7 ? 1 - E((t - 0.3) / 0.4) * 1.6 : -0.6 * (1 - E((t - 0.7) / 0.3));
-    A.p -= 0.6 * reach; A.e += 0.42 * reach; A.o += 0.38 * reach;              // arm reaches forward and out to the side: it reads from the chase camera
-    A.pole -= 1.15 * tip;                                                       // tip swung forward to the snow, then trailing as you pass it
-    T.pelH += 0.05 * Math.sin(Math.PI * Math.min(1, t / 0.55));                // up-unweighting as the turn starts
-    T.spRoll += 0.05 * plant.sd * Math.sin(Math.PI * Math.min(1, t / 0.5));   // shoulder drops towards the planted pole
+    const B = plant.sd > 0 ? T.aR : T.aL;
+    A.p -= 0.95 * reach; A.e += 0.6 * reach; A.o += 0.6 * reach;              // arm reaches well forward and out: it reads from the chase camera
+    A.pole -= 1.35 * tip;                                                       // tip swung forward to the snow, then trailing as you pass it
+    B.p += 0.18 * reach; B.o += 0.12 * reach;                                   // the other arm balances, a little back and out
+    // up-unweighting with the plant: the legs extend a little more (the hips rise as the edges flatten) as the pole touches, which lightens the skis
+    // for the edge change, then the skier sinks into the new turn
+    const up = t < 0.45 ? Math.sin(Math.PI * t / 0.45) : 0, down = t >= 0.45 ? Math.sin(Math.PI * (t - 0.45) / 0.55) : 0;
+    T.pelH += 0.07 * up - 0.04 * down; T.spPitch += -0.1 * up + 0.05 * down;
+    T.spRoll += 0.07 * plant.sd * Math.sin(Math.PI * Math.min(1, t / 0.5));   // shoulder drops towards the planted pole
   }
   // root: exact position, smoothed orientation (no snapping on facets)
   S.root.position.copy(_rootP);
@@ -7068,12 +7083,14 @@ window.__ski = {
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; camSnap = true; },
   tunnels, patches, SNOW, SN, FORCE, snowAt, mogulWeight, groundY, villageLabels, cannons, npcs, sled,
   advance(dt) { clock += dt; updateNPCs(dt, clock); },
+  skierTick(dt) { clock += dt; updateSkier(dt, clock); },
+  get npcMesh() { return npcMesh; },
   NEAR, BUILDINGS, obstacleList: obstacles, THREE, firPrototype, assembleBuilding, get playerHuman() { return playerHuman; }, set faceHold(v) { faceHold = v; }, humanPool, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
   camNow() { updateCamera(0, true); },
   nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateFauna(0.016, clock, camera.position); },
   fauna, FURN, rocks, farHeight, anyH, groomW, zoneGrid,
   trailTick(dt) { clock += dt; updateTrails(dt, clock); }, trailStats() { return { me: trailsMe ? trailsMe.i : 0, others: trailsOthers ? trailsOthers.i : 0 }; },
-  tunnelLocal, SLALOM, GHOSTS, LINE, trackT, get FREE_LINES() { return FREE_LINES; }, get chrono() { return chrono; }, RIDER, MISSIONS, PEOPLE, DEFIS, missionTargets, riderEvent, chronoPistes, medalTimes, missionStep, riderLevel, talk(id) { openDialog(person(id)); }, dlgChoose(i) { dlgActs[i][1](); }, dlgText() { return $('dlgText').textContent; }, journal: toggleJournal, get chrono() { return chrono; }, saveRider, unlockAll() { RIDER.allOpen = true; fillMapLists(); }, resetChallenges() { Object.assign(RIDER, { xp: 0, stats: STATS0(), tiers: {}, runs: {}, missions: {}, active: null, legacyLifts: [] }); saveRider(); fillMapLists(); updateMarkers(); refreshTracker(); updateLevelChip(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
+  tunnelLocal, SLALOM, GHOSTS, LINE, trackT, get pose() { return pose; }, get plant() { return plant; }, get FREE_LINES() { return FREE_LINES; }, get chrono() { return chrono; }, RIDER, MISSIONS, PEOPLE, DEFIS, missionTargets, riderEvent, chronoPistes, medalTimes, missionStep, riderLevel, talk(id) { openDialog(person(id)); }, dlgChoose(i) { dlgActs[i][1](); }, dlgText() { return $('dlgText').textContent; }, journal: toggleJournal, get chrono() { return chrono; }, saveRider, unlockAll() { RIDER.allOpen = true; fillMapLists(); }, resetChallenges() { Object.assign(RIDER, { xp: 0, stats: STATS0(), tiers: {}, runs: {}, missions: {}, active: null, legacyLifts: [] }); saveRider(); fillMapLists(); updateMarkers(); refreshTracker(); updateLevelChip(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); },
   quality(n) { applyQuality(n); }, post, BLEND, scene, sunFar, trailMat: TRAIL_MAT, PIPE, pipeLocal,
   photo(o) { photoCam = o; $('hud').hidden = !!o; if (o) $('start').hidden = true; },
