@@ -2905,7 +2905,10 @@ function updateRig(time) {
     // inside and extends (up-unweighting), then sinks into the turn
     const um = ((ph % Math.PI) + Math.PI) % Math.PI, dTr = um > Math.PI / 2 ? um - Math.PI : um;
     const rise = skiing && !brd && sty !== STY.race ? Math.exp(-Math.pow((dTr + 0.05) / 0.32, 2)) : 0;
-    const flex = sit || tsit ? 0 : brd && skiing ? 0.17 + 0.07 * Math.abs(Math.sin(ph)) : skiing ? Math.max(0.02, sty.flex + (sty.wob + 0.05) * Math.abs(Math.sin(ph)) - 0.09 * rise) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
+    // at the edge change the legs reach 90 % extension: hip (pelvis - 0.05) to ankle (0.12) = 0.9 x (0.45 + 0.43),
+    // i.e. pelvis at 0.955 m, flex 0.025 (pelvis = 0.98 - flex)
+    const FLEX90 = 0.98 - (0.9 * 0.875 + 0.17);
+    const flex = sit || tsit ? 0 : brd && skiing ? 0.17 + 0.07 * Math.abs(Math.sin(ph)) : skiing ? lerp(sty.flex + (sty.wob + 0.05) * Math.abs(Math.sin(ph)), FLEX90, rise) : tbar ? 0.12 : walking ? 0.06 : 0.04 + 0.01 * Math.sin(t * 1.3);
     // edged skis on a tilted body: the inside foot rides higher, the outside lower, the hips drop into the turn
     const W = brd ? 0.27 : skiing ? sty.w : 0.12, edge = skiing && !brd ? W * Math.tan(Math.min(0.8, Math.abs(roll))) : 0;
     // ---- pelvis and legs
@@ -5459,8 +5462,8 @@ function resetTarget(T) {
   Object.assign(T.fL, mkFoot(1)); Object.assign(T.fR, mkFoot(-1)); Object.assign(T.aL, mkArm()); Object.assign(T.aR, mkArm());
 }
 function blendPose(dt) {
-  const kb = ease(10, dt), kf = ease(18, dt), ka = ease(9, dt);
-  for (const k of ['pelH', 'pelX', 'pelZ', 'pelRoll', 'pelPitch', 'pelYaw', 'spPitch', 'spRoll', 'spYaw', 'headP', 'baseYaw', 'sink']) pose[k] += (tgt[k] - pose[k]) * kb;
+  const kb = ease(10, dt), kf = ease(18, dt), ka = ease(9, dt), kr = plant.t < 0.6 && P.state === 'ski' ? ease(20, dt) : kb;   // the rise of a turn is quick
+  for (const k of ['pelH', 'pelX', 'pelZ', 'pelRoll', 'pelPitch', 'pelYaw', 'spPitch', 'spRoll', 'spYaw', 'headP', 'baseYaw', 'sink']) pose[k] += (tgt[k] - pose[k]) * (k === 'pelH' || k === 'spPitch' ? kr : kb);
   for (const f of ['fL', 'fR']) for (const k in pose[f]) pose[f][k] += (tgt[f][k] - pose[f][k]) * kf;
   for (const a of ['aL', 'aR']) for (const k in pose[a]) pose[a][k] += (tgt[a][k] - pose[a][k]) * ka;
 }
@@ -5618,8 +5621,11 @@ function updateSkier(dt, time) {
     B.p += 0.18 * reach; B.o += 0.12 * reach;                                   // the other arm balances, a little back and out
     // up-unweighting with the plant: the legs extend a little more (the hips rise as the edges flatten) as the pole touches, which lightens the skis
     // for the edge change, then the skier sinks into the new turn
-    const up = t < 0.45 ? Math.sin(Math.PI * t / 0.45) : 0, down = t >= 0.45 ? Math.sin(Math.PI * (t - 0.45) / 0.55) : 0;
-    T.pelH += 0.07 * up - 0.04 * down; T.spPitch += -0.1 * up + 0.05 * down;
+    const up = t < 0.12 ? E(t / 0.12) : t < 0.42 ? 1 : t < 0.55 ? 1 - E((t - 0.42) / 0.13) : 0, down = t >= 0.5 ? Math.sin(Math.PI * (t - 0.5) / 0.5) : 0;   // rise, hold ~0.2 s, sink
+    // at the top of the rise the legs are 90 % extended: hip to ankle = 0.9 x (thigh 0.45 + shin 0.42); the ankle sits
+    // 0.2 m above the sole and the hip 0.05 m below the pelvis origin, so the pelvis goes to 0.9 x 0.87 + 0.25 m
+    const PEL90 = 0.9 * 0.87 + 0.25;
+    T.pelH = lerp(T.pelH, Math.max(T.pelH, PEL90), up) - 0.04 * down; T.spPitch = lerp(T.spPitch, Math.min(T.spPitch, 0.18), up) + 0.05 * down;
     T.spRoll += 0.07 * plant.sd * Math.sin(Math.PI * Math.min(1, t / 0.5));   // shoulder drops towards the planted pole
   }
   // root: exact position, smoothed orientation (no snapping on facets)

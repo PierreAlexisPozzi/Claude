@@ -242,3 +242,7 @@ L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par co
 - Chez le joueur : l'épaule passe de −0,70 à −1,59 rad au planté, et le bassin monte d'environ 0,58 à 0,95 m dans les 0,2 s qui suivent l'inversion de la direction.
 - Chez un skieur non joueur : le bâton planté pointe vers l'avant juste avant chaque changement de carres, en alternant gauche et droite.
 - Le robot de test donne les mêmes résultats qu'avant.
+- **Relèvement à 90 %** : au sommet de l'allègement, les jambes sont tendues à 90 % (distance hanche-cheville = 0,9 × longueur de la jambe).
+  - Le joueur tient cette extension environ 0,2 s, puis replonge dans le virage. Pendant le planté, le bassin suit sa cible deux fois plus vite.
+  - Mesures, joueur : 90 % à chaque changement de virage, contre 19 à 27 % dans le virage précédent.
+  - Mesures, autres skieurs : 92 % (carving) et 91 % (parallèle) au changement de carres, contre 68 % et 49 % au milieu du virage.
