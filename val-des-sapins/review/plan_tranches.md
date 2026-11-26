@@ -48,5 +48,5 @@ Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en 
 - Robot : pistes descendues, chutes, blocages ; remontées fonctionnelles ; slalom 38/38.
 
 ## Ce qui reste à votre accord
-- Activation du workflow GitHub Pages (préparé, désactivé).
+- ~~Activation du workflow GitHub Pages~~ : accordée ; site combiné PEA Tracker + jeu (`.github/workflows/pages.yml`).
 - Tout outil payant, compte personnel ou serveur (backend `online`).

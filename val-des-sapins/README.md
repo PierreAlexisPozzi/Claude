@@ -44,7 +44,11 @@ npm test           # construit puis lance tous les tests Playwright (rendu logic
   `valdessapins.quality` : elles sont **copiées**, jamais effacées, et chaque écriture est recopiée dans localStorage
   (une écriture plus récente faite par l'ancienne version est reprise au démarrage). `remote.ts` prépare une
   implémentation « API distante », et `src/online/online.ts` un module en ligne **désactivé** (aucun serveur).
-- `deploy/github-pages.yml` : workflow GitHub Pages préparé, **non activé** (hors de `.github/workflows/`).
+- **GitHub Pages** : `.github/workflows/pages.yml` (à la racine du dépôt) publie un site combiné — le contenu de la
+  branche `gh-pages` (PEA Tracker) à la racine, le jeu compilé dans `/val-des-sapins/`
+  (<https://pierrealexispozzi.github.io/Claude/val-des-sapins/>). Il se relance à chaque push du jeu ; rien de
+  compilé n'est versionné. Prérequis côté dépôt : source « GitHub Actions » dans Settings → Pages, et la branche du
+  jeu autorisée dans Settings → Environments → `github-pages`.
 
 **Tests** (`web/tests/`, Playwright + Chromium en rendu logiciel). Les tests de parité jouent le même scénario sur
 la version web et comparent aux résultats de `game.html` figés dans `tests/baselines/`, avec `Math.random`, `performance.now` et `requestAnimationFrame` pilotés par le
