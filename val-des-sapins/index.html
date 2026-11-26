@@ -7162,7 +7162,7 @@ function stackHud() {
   tb.style.visibility = '';
   let tbr = null;
   if (tb.childElementCount) { tbr = push(tb, placed); if (tbr && (tbr.left > innerWidth / 2 || tbr.right < innerWidth / 2)) tbr = null; }   // toasts in the right column stay out of the trick's way
-  if (!trk.classList.contains('show')) { trk.style.top = ''; return; }
+  if (!trk.classList.contains('show')) return;   // fading out: keep its place, it is placed again when shown
   const pr = $('prompt'), limit = vis(pr) ? box(pr).top - 8 : innerHeight - 8;
   const r = push(trk, tbr ? placed.concat([tbr]) : placed);
   if (r && tbr && r.bottom > limit) { tb.style.visibility = 'hidden'; push(trk, placed); }   // no room under the toasts: the trick banner takes their place for its 2.4 s
