@@ -345,7 +345,7 @@ body.touch .tbtn[data-k]::before{display:none}
   #track{top:calc(var(--st) + var(--gut) + 238px);width:calc(100vw - 24px);padding:7px 10px 8px}
   body:not(.chrono-on):not(.line-on) #track{top:calc(var(--st) + var(--gut) + 172px)}
   #toasts{top:calc(var(--st) + var(--gut) + 418px);width:calc(100vw - 24px)}
-  #toasts .toast:nth-child(n+3){display:none}
+  #toasts .toast:nth-child(n+3),body.busy #toasts .toast:nth-child(n+2){display:none}
   #prompt{bottom:calc(var(--sb) + 224px);font-size:13px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box}
   #trick{top:calc(var(--st) + var(--gut) + 334px);width:max-content;max-width:92vw}
   #trick .t{font-size:28px}
@@ -7152,15 +7152,20 @@ function stackHud() {
   for (const id of ['chrono', 'line']) { const e = $(id); if (vis(e)) placed.push(box(e)); }
   const push = (el, from) => {
     el.style.top = ''; if (!vis(el)) return null;
-    let r = box(el); if (el === trk) { const t = el.querySelector('.t').getBoundingClientRect(); r = { left: t.left, right: t.right, top: r.top, bottom: r.bottom }; }
+    let r = box(el); if (el === trk) { const t = el.querySelector('.t').getBoundingClientRect(), u = el.querySelector('.s').getBoundingClientRect(); r = { left: Math.min(t.left, u.width ? u.left : 1e9), right: Math.max(t.right, u.right), top: r.top, bottom: r.bottom }; }
     let floor = 0; for (const q of from) if (q && over(q, r)) floor = Math.max(floor, q.bottom + 8);
     if (r.top < floor) { el.style.top = Math.round(floor) + 'px'; r = box(el); }
     return r;
   };
   const tr = push($('track'), placed); if (tr) placed.push(tr);
+  document.body.classList.toggle('busy', !!tr && placed.length > 1);   // phones then keep a single toast
+  tb.style.visibility = '';
   let tbr = null;
   if (tb.childElementCount) { tbr = push(tb, placed); if (tbr && (tbr.left > innerWidth / 2 || tbr.right < innerWidth / 2)) tbr = null; }   // toasts in the right column stay out of the trick's way
-  if (trk.classList.contains('show')) push(trk, tbr ? placed.concat([tbr]) : placed); else trk.style.top = '';
+  if (!trk.classList.contains('show')) { trk.style.top = ''; return; }
+  const pr = $('prompt'), limit = vis(pr) ? box(pr).top - 8 : innerHeight - 8;
+  const r = push(trk, tbr ? placed.concat([tbr]) : placed);
+  if (r && tbr && r.bottom > limit) { tb.style.visibility = 'hidden'; push(trk, placed); }   // no room under the toasts: the trick banner takes their place for its 2.4 s
 }
 
 /* ---------------- Input ---------------- */
