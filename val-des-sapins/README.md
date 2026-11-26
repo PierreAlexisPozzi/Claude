@@ -258,3 +258,23 @@ Le corps des personnages porte un shader de tissu. Les motifs sont calés sur la
 - **Pantalon softshell** : sergé, plis aux genoux, plis en accordéon au-dessus des chaussures, renforts sombres sur l'intérieur des chevilles, poudreuse accrochée au bas.
 - **Gants et chaussures** : grain de cuir.
 - **Mouvement** : le relief passe par des normales calculées en espace écran, et les trames fines s'effacent avec la distance. En vitesse, les manches, le bas de la veste et le pantalon sous le genou frémissent au vent, avec une intensité qui suit la vitesse de chaque skieur.
+
+## Interfaces et HUD (refonte d'après une étude des jeux de glisse)
+L'étude complète, avec les sources, se trouve dans `review/etude_interfaces.md`. Elle porte sur Steep, Riders Republic, la série SSX, Shredders, Grand Mountain Adventure et les écarts au fantôme des jeux de course.
+
+**Principe.** Des plaques sombres et contrastées, en capitales condensées (Barlow Condensed, avec des polices de repli prévues). Les coins de l'écran portent l'information permanente ; le centre ne reçoit que des messages brefs. Les écrans tactiles n'ont pas de flou d'arrière-plan.
+
+- **Vitesse** : un compteur en arc entoure le chiffre et devient doré au-delà de 80 km/h. À côté s'affichent l'altitude, l'état (carving, schuss, switch…) et la neige.
+- **Boussole en bandeau** (grand écran) : nord vers −z, orientée selon le regard de la caméra. Elle porte trois repères : l'objectif de mission (◆ doré, calé au bord s'il est hors champ), la remontée ouverte la plus proche (▲ et son code) et le fantôme du chrono (●).
+- **Mini-carte ronde** : un anneau d'XP doré l'entoure, avec un badge de niveau. Le score freestyle s'affiche dessous.
+- **Chrono** : temps en grand, cible de médaille et écart permanent au fantôme (vert ou rouge). Des temps intermédiaires s'affichent 3 s au quart, à la moitié et aux trois quarts du parcours.
+- **Première trace** : widget dédié avec le multiplicateur, les mètres de poudreuse vierge et la progression vers le palier suivant. Il passe au rouge quand on roule sur une trace. Il ne passe plus par la bannière des figures.
+- **Mission** : le titre et le chrono de mission ont leur propre pastille, rouge sous 45 s, puis viennent l'étape, la distance et une flèche vers l'objectif.
+- **Effacement contextuel** : au-delà de 45 km/h et en l'air, les outils et l'aide s'estompent. L'invite d'action, le chrono, le chrono de mission et les boutons tactiles ne s'effacent jamais.
+- **Aide** : une pastille « H · Commandes » qui se déplie, ouverte 15 s au départ.
+- **Plan** : carte et colonne à onglets (Pistes · Remontées · Carnet). La légende et les crédits restent visibles.
+- **Carnet, dialogues, accueil** : mêmes plaques. Le badge de niveau du carnet porte l'anneau d'XP, et les commandes de l'accueil se replient sur téléphone.
+
+**Tests.**
+- Un test vérifie que tous les identifiants lus par le code existent.
+- Un test automatique mesure les chevauchements des blocs visibles à 1000×560, 390×844 et 844×390. Il couvre les états repos, vitesse, chrono avec mission chronométrée, pile de toasts, première trace, invite de remontée, aide ouverte, dialogue, plan (3 onglets) et carnet (4 onglets).
