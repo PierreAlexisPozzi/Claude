@@ -1,0 +1,31 @@
+{
+  "name": "val-des-sapins",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Val des Sapins — jeu de ski 3D en monde ouvert (projet personnel, non commercial)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "split": "node tools/split-game.mjs",
+    "test": "npm run build && playwright test",
+    "test:only": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "5.3.0",
+    "@fontsource/barlow-condensed": "5.3.0",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/three": "0.187.0",
+    "acorn": "8.19.0",
+    "acorn-walk": "8.3.5",
+    "eslint-scope": "9.1.2",
+    "magic-string": "1.4.5",
+    "typescript": "6.0.3",
+    "vite": "8.3.8"
+  }
+}

@@ -1,0 +1,463 @@
+[
+ {
+  "id": "facade-plagne-centre-barre",
+  "title": "Plagne Centre · barre béton",
+  "kind": "façade",
+  "from": [
+   -275.32,
+   234.53,
+   -288.09
+  ],
+  "at": [
+   -263.4,
+   243.03,
+   -255.7
+  ]
+ },
+ {
+  "id": "facade-plagne-centre-tour",
+  "title": "Plagne Centre · tour",
+  "kind": "façade",
+  "from": [
+   -230.35,
+   232.07,
+   -320.36
+  ],
+  "at": [
+   -215.3,
+   243.57,
+   -279.5
+  ]
+ },
+ {
+  "id": "facade-aime-2000-paquebot",
+  "title": "Aime 2000 · paquebot",
+  "kind": "façade",
+  "from": [
+   -837.22,
+   351.46,
+   -749.53
+  ],
+  "at": [
+   -885.98,
+   362.96,
+   -710.06
+  ]
+ },
+ {
+  "id": "facade-plagne-villages-residence",
+  "title": "Plagne Villages · résidence bois",
+  "kind": "façade",
+  "from": [
+   432.68,
+   306.27,
+   -266.71
+  ],
+  "at": [
+   443.9,
+   311.12,
+   -243.4
+  ]
+ },
+ {
+  "id": "facade-plagne-1800-chalet",
+  "title": "Plagne 1800 · chalet",
+  "kind": "façade",
+  "from": [
+   34.92,
+   101.27,
+   -921.45
+  ],
+  "at": [
+   56,
+   102.55,
+   -919.2
+  ]
+ },
+ {
+  "id": "facade-plagne-soleil-residence",
+  "title": "Plagne Soleil · résidence bois",
+  "kind": "façade",
+  "from": [
+   750.23,
+   316.34,
+   -493.56
+  ],
+  "at": [
+   746,
+   316.48,
+   -515.1
+  ]
+ },
+ {
+  "id": "terrasse-aime-2000",
+  "title": "Terrasse · Aime 2000",
+  "kind": "terrasse",
+  "from": [
+   -854.16,
+   353.78,
+   -729.89
+  ],
+  "at": [
+   -862.71,
+   351.48,
+   -722.96
+  ]
+ },
+ {
+  "id": "terrasse-plagne-centre",
+  "title": "Terrasse · Plagne Centre",
+  "kind": "terrasse",
+  "from": [
+   -267.51,
+   237.08,
+   -281
+  ],
+  "at": [
+   -263.71,
+   234.78,
+   -270.68
+  ]
+ },
+ {
+  "id": "terrasse-plagne-1800",
+  "title": "Terrasse · Plagne 1800",
+  "kind": "terrasse",
+  "from": [
+   36.42,
+   95.83,
+   -966.74
+  ],
+  "at": [
+   27.22,
+   93.52,
+   -960.71
+  ]
+ },
+ {
+  "id": "visage-lucie-face",
+  "title": "Lucie · face",
+  "kind": "visage",
+  "from": [
+   29.98,
+   93.74,
+   -969.21
+  ],
+  "at": [
+   30.59,
+   93.7,
+   -969.3
+  ]
+ },
+ {
+  "id": "visage-lucie-trois-quarts",
+  "title": "Lucie · trois-quarts",
+  "kind": "visage",
+  "from": [
+   30.22,
+   93.74,
+   -968.8
+  ],
+  "at": [
+   30.59,
+   93.7,
+   -969.3
+  ]
+ },
+ {
+  "id": "visage-lucie-profil",
+  "title": "Lucie · profil",
+  "kind": "visage",
+  "from": [
+   30.68,
+   93.74,
+   -968.69
+  ],
+  "at": [
+   30.59,
+   93.7,
+   -969.3
+  ]
+ },
+ {
+  "id": "visage-marco-face",
+  "title": "Marco · face",
+  "kind": "visage",
+  "from": [
+   22.4,
+   93.17,
+   -962.2
+  ],
+  "at": [
+   21.88,
+   93.13,
+   -961.86
+  ]
+ },
+ {
+  "id": "visage-marco-trois-quarts",
+  "title": "Marco · trois-quarts",
+  "kind": "visage",
+  "from": [
+   22.01,
+   93.17,
+   -962.46
+  ],
+  "at": [
+   21.88,
+   93.13,
+   -961.86
+  ]
+ },
+ {
+  "id": "visage-marco-profil",
+  "title": "Marco · profil",
+  "kind": "visage",
+  "from": [
+   21.54,
+   93.17,
+   -962.37
+  ],
+  "at": [
+   21.88,
+   93.13,
+   -961.86
+  ]
+ },
+ {
+  "id": "visage-yanis-face",
+  "title": "Yanis · face",
+  "kind": "visage",
+  "from": [
+   -267.07,
+   234.3,
+   -265.67
+  ],
+  "at": [
+   -266.85,
+   234.26,
+   -265.08
+  ]
+ },
+ {
+  "id": "visage-yanis-trois-quarts",
+  "title": "Yanis · trois-quarts",
+  "kind": "visage",
+  "from": [
+   -267.42,
+   234.3,
+   -265.34
+  ],
+  "at": [
+   -266.85,
+   234.26,
+   -265.08
+  ]
+ },
+ {
+  "id": "visage-yanis-profil",
+  "title": "Yanis · profil",
+  "kind": "visage",
+  "from": [
+   -267.44,
+   234.3,
+   -264.87
+  ],
+  "at": [
+   -266.85,
+   234.26,
+   -265.08
+  ]
+ },
+ {
+  "id": "visage-henri-face",
+  "title": "Henri · face",
+  "kind": "visage",
+  "from": [
+   -217.78,
+   244.15,
+   -186.08
+  ],
+  "at": [
+   -217.19,
+   244.11,
+   -186.25
+  ]
+ },
+ {
+  "id": "visage-henri-trois-quarts",
+  "title": "Henri · trois-quarts",
+  "kind": "visage",
+  "from": [
+   -217.49,
+   244.15,
+   -185.71
+  ],
+  "at": [
+   -217.19,
+   244.11,
+   -186.25
+  ]
+ },
+ {
+  "id": "visage-henri-profil",
+  "title": "Henri · profil",
+  "kind": "visage",
+  "from": [
+   -217.02,
+   244.15,
+   -185.65
+  ],
+  "at": [
+   -217.19,
+   244.11,
+   -186.25
+  ]
+ },
+ {
+  "id": "visage-jeanne-face",
+  "title": "Jeanne · face",
+  "kind": "visage",
+  "from": [
+   -211.66,
+   239.11,
+   -269.63
+  ],
+  "at": [
+   -211.88,
+   239.07,
+   -270.21
+  ]
+ },
+ {
+  "id": "visage-jeanne-trois-quarts",
+  "title": "Jeanne · trois-quarts",
+  "kind": "visage",
+  "from": [
+   -211.31,
+   239.11,
+   -269.95
+  ],
+  "at": [
+   -211.88,
+   239.07,
+   -270.21
+  ]
+ },
+ {
+  "id": "visage-jeanne-profil",
+  "title": "Jeanne · profil",
+  "kind": "visage",
+  "from": [
+   -211.3,
+   239.11,
+   -270.42
+  ],
+  "at": [
+   -211.88,
+   239.07,
+   -270.21
+  ]
+ },
+ {
+  "id": "visage-mireille-face",
+  "title": "Mireille · face",
+  "kind": "visage",
+  "from": [
+   -291.12,
+   240.6,
+   -219.48
+  ],
+  "at": [
+   -291.12,
+   240.56,
+   -220.1
+  ]
+ },
+ {
+  "id": "visage-mireille-trois-quarts",
+  "title": "Mireille · trois-quarts",
+  "kind": "visage",
+  "from": [
+   -290.68,
+   240.6,
+   -219.66
+  ],
+  "at": [
+   -291.12,
+   240.56,
+   -220.1
+  ]
+ },
+ {
+  "id": "visage-mireille-profil",
+  "title": "Mireille · profil",
+  "kind": "visage",
+  "from": [
+   -290.5,
+   240.6,
+   -220.1
+  ],
+  "at": [
+   -291.12,
+   240.56,
+   -220.1
+  ]
+ },
+ {
+  "id": "joueur-trois-quarts",
+  "title": "Skieur du joueur · trois quarts",
+  "kind": "joueur",
+  "rel": {
+   "a": 0.8,
+   "d": 1.5,
+   "h": 0.55,
+   "ly": 0.45
+  }
+ },
+ {
+  "id": "village-plagne-centre",
+  "title": "Plagne Centre · vue d'ensemble",
+  "kind": "village",
+  "from": [
+   -80,
+   324.77,
+   -41
+  ],
+  "at": [
+   -240,
+   249.77,
+   -231
+  ]
+ },
+ {
+  "id": "village-aime-2000",
+  "title": "Aime 2000 · vue d'ensemble",
+  "kind": "village",
+  "from": [
+   -700,
+   419.7,
+   -591
+  ],
+  "at": [
+   -870,
+   364.7,
+   -711
+  ]
+ },
+ {
+  "id": "paysage-sommet-becoin",
+  "title": "Paysage depuis le sommet du Bécoin",
+  "kind": "paysage",
+  "from": [
+   -1245.4,
+   598.73,
+   218.01
+  ],
+  "at": [
+   -240,
+   239.77,
+   -231
+  ]
+ }
+]

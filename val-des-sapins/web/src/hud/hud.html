@@ -1,0 +1,131 @@
+<!-- HUD, écrans et commandes tactiles — extrait de game.html (tools/split-game.mjs). Contrat d'identifiants : ne pas renommer un id lu par le code. -->
+<div id="hud" hidden>
+  <div class="panel tl">
+    <div class="zone"><span class="dot" id="zDot"></span><span id="zName">Hors-piste</span></div>
+    <div class="trow">
+      <div class="speed"><svg class="gauge" viewBox="0 0 100 100" aria-hidden="true"><circle class="g0" cx="50" cy="50" r="45" pathLength="100"/><circle class="g1" id="spdArc" cx="50" cy="50" r="45" pathLength="100"/></svg><span id="spd">0</span><small>km/h</small></div>
+      <div class="metas">
+        <div class="meta"><span class="ml">Alt.</span><b id="alt">0</b>m</div>
+        <div class="meta"><span id="st">À l'arrêt</span></div>
+        <div class="meta snow"><span class="flake" aria-hidden="true">❄</span><span id="snow">Damée</span></div>
+      </div>
+    </div>
+  </div>
+  <div id="compass" aria-hidden="true"><div id="cmpS"></div><div id="cmpM"></div><i class="cmpC"></i></div>
+  <div id="miniWrap" class="panel" title="Plan des pistes (M)"><svg class="xpring" viewBox="0 0 100 100" aria-hidden="true"><circle class="r0" cx="50" cy="50" r="48" pathLength="100"/><circle class="r1" id="xpf" cx="50" cy="50" r="48" pathLength="100"/></svg><canvas id="mini" width="340" height="340"></canvas><div class="lvb"><span>Niv.</span><b id="lvl">1</b></div><div class="cap">M · plan</div></div>
+  <div id="score" class="panel">Freestyle<b id="pts">0</b></div>
+  <div id="chrono" class="panel" hidden><div class="chtop"><span id="chP"></span><span id="chM"></span></div><div class="chmid"><b id="chT">0:00.0</b><span id="chD"></span></div><span id="chS"></span><span id="chG"></span></div>
+  <div id="line" class="panel" hidden><div class="lnh"><span class="tag ice">Première trace</span><b id="lnM">×1</b></div><span id="lnD"></span><i class="lnbar" aria-hidden="true"><i id="lnF"></i></i></div>
+  <div id="track" class="panel" hidden><div class="th"><span class="tag">Mission</span><b id="trT"></b><b id="trTm" hidden></b></div><div id="trS"></div><div class="tdist"><span id="trA" aria-hidden="true">▲</span><span id="trD"></span></div></div>
+  <div id="toasts" aria-live="polite"></div>
+  <div id="trick"><div class="t" id="trickT"></div><div class="s" id="trickS"></div></div>
+  <div id="prompt" class="panel" hidden></div>
+  <div id="help" class="panel">
+    <button type="button" class="hh" id="helpT" aria-expanded="true" aria-controls="helpG"><span class="key">H</span>Commandes<span class="chev" aria-hidden="true">▼</span></button>
+    <div class="hg" id="helpG">
+      <span class="k"><span class="key">←</span><span class="key">→</span></span><span>Carres · vrilles en l'air (Q / D)</span>
+      <span class="k"><span class="key">↑</span></span><span>Schuss, patiner (Z) · montée : escalier</span>
+      <span class="k"><span class="key">↓</span></span><span>Freiner, déraper (S)</span>
+      <span class="k"><span class="key">Espace</span></span><span>Maintenir puis relâcher : saut</span>
+      <span class="k"><span class="key">Espace</span><span class="key">↑↓</span></span><span>En l'air : front / backflip</span>
+      <span class="k"><span class="key">⇧</span><span class="key">F</span></span><span>Grab (mute / tail)</span>
+      <span class="k"><span class="key">⇧</span><span class="key">↑↓</span></span><span>Au sol : press, + ←→ butter</span>
+      <span class="k"><span class="key">X</span></span><span>Demi-tour : skier en switch</span>
+      <span class="k"><span class="key">E</span></span><span>Remontée · parler · passer la montée</span>
+      <span class="k"><span class="key">J</span><span class="key">M</span></span><span>Carnet · plan des pistes</span>
+      <span class="k"><span class="key">V</span><span class="key">R</span></span><span>Motoneige · retour à une remontée</span>
+      <span class="k"><span class="key">C</span><span class="key">G</span><span class="key">N</span></span><span>Caméra · image · son</span>
+    </div>
+  </div>
+  <div id="tools"><button class="tbtn" id="jnlBtn" type="button" data-k="J">Carnet</button><button class="tbtn" id="mapBtn" type="button" data-k="M">Plan</button><button class="tbtn" id="camBtn" type="button" data-k="C">Caméra</button><button class="tbtn" id="muteBtn" type="button" data-k="N">Son : oui</button><button class="tbtn" id="qualBtn" type="button" data-k="G">Image</button></div>
+</div>
+
+<div id="fade" aria-hidden="true"></div>
+<div id="dlg" class="panel" role="dialog" aria-modal="true" aria-labelledby="dlgName" hidden>
+  <div class="who"><span class="av" id="dlgAv" aria-hidden="true">?</span><div><b id="dlgName"></b><span id="dlgRole"></span></div></div>
+  <p id="dlgText"></p>
+  <div id="dlgRew" hidden></div>
+  <div class="acts" id="dlgActs"></div>
+</div>
+
+<div id="jnl" hidden>
+  <div class="jbox panel" role="dialog" aria-modal="true" aria-labelledby="jTitle">
+    <div class="jhead">
+      <div class="badge"><b id="jLvl">1</b><span>niveau</span></div>
+      <div class="jid"><h2 id="jTitle">Carnet de rider</h2><div><b id="jLvlName"></b> · <span id="jXp"></span></div><div class="jbar"><span id="jBar"></span></div></div>
+      <button class="tbtn" id="jClose" type="button" data-k="J">Fermer</button>
+    </div>
+    <div class="tabs" role="tablist"><button type="button" role="tab" data-tab="missions">Missions</button><button type="button" role="tab" data-tab="defis">Défis</button><button type="button" role="tab" data-tab="chronos">Chronos</button><button type="button" role="tab" data-tab="stats">Statistiques</button></div>
+    <div id="jBody"></div>
+  </div>
+</div>
+
+<div id="mapOv" hidden>
+  <div class="box panel" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+    <canvas id="bigmap" width="1240" height="1240"></canvas>
+    <div class="side">
+      <div class="mhd"><h2 id="mapTitle">Plan des pistes</h2><button class="tbtn" id="closeMap" type="button" data-k="M">Fermer</button></div>
+      <div class="mtabs" role="tablist"><button type="button" role="tab" data-mtab="pistes" aria-selected="true">Pistes</button><button type="button" role="tab" data-mtab="lifts" aria-selected="false">Remontées</button><button type="button" role="tab" data-mtab="carnet" aria-selected="false">Carnet</button></div>
+      <div class="mpane" data-mpane="pistes"><div class="plist" id="plist"></div></div>
+      <div class="mpane" data-mpane="lifts" hidden><h3>Aller à une remontée</h3><div class="plist" id="llist"></div></div>
+      <div class="mpane" data-mpane="carnet" hidden><div class="plist" id="clist"></div></div>
+      <div class="mfoot">
+        <div class="legend"><div><span class="dot" style="background:#6b4428"></span>Villages</div><div data-proc><span class="dot" style="background:#ff5ac8"></span>Tunnels</div><div><span class="dot" style="background:#2bb6d6"></span>Canons à neige</div><div data-proc><span class="dot" style="background:#fff"></span>Bosses</div></div>
+        <p class="credits" id="mapCredits" hidden></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="touch" hidden>
+  <div id="util">
+    <button class="pill" data-u="journal" type="button">Carnet</button><button class="pill" data-u="sled" type="button">Moto</button><button class="pill" id="moreBtn" type="button" aria-expanded="false" aria-controls="more">Plus</button>
+    <div id="more" hidden><button class="pill" data-u="cam" type="button">Caméra</button><button class="pill" data-u="mute" id="tMute" type="button">Son : oui</button><button class="pill" data-u="qual" type="button">Image</button><button class="pill" data-u="respawn" type="button">Remontée</button></div>
+  </div>
+  <div id="joyZone" aria-label="Joystick : diriger, schuss, frein"><div id="joy"><i class="h u">Schuss</i><i class="h d">Frein</i><div id="joyK"></div></div></div>
+  <div id="acts">
+    <button class="tb" id="bCtx" type="button" hidden><span>Monter</span></button>
+    <button class="tb" id="bGrab" type="button"><span>Grab</span><small>+ bas : tail</small></button>
+    <button class="tb" id="bJump" type="button"><span>Saut</span><small>2× : switch</small></button>
+  </div>
+</div>
+
+<div id="start">
+  <div class="inner">
+    <div class="eyebrow" id="eyebrow">Domaine ouvert</div>
+    <h1>Val des<span>Sapins</span></h1>
+    <p class="lede">Un domaine entier à parcourir librement. La pente décide : pour remonter, il faut prendre la télécabine, les télésièges ou les tire-fesses. Pistes damées, murs glacés, champs de bosses, poudreuse et trafolle entre les sapins, tunnels sous les crêtes et villages à traverser. Skis twin-tip à double rocker.</p>
+    <div class="facts" id="facts"></div>
+    <details class="ctrlbox" id="ctrlBox" open>
+      <summary>Commandes</summary>
+      <div class="ctrls">
+        <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>Carres, virages</div>
+        <div><span class="ks"><span class="key">↑</span></span>Schuss, patiner · en montée : escalier</div>
+        <div><span class="ks"><span class="key">↓</span></span>Freiner, déraper</div>
+        <div><span class="ks"><span class="key">Espace</span></span>Saut (maintenir)</div>
+        <div><span class="ks"><span class="key">←</span><span class="key">→</span></span>En l'air : 180, 360, 540…</div>
+        <div><span class="ks"><span class="key">Espace</span><span class="key">↑</span><span class="key">↓</span></span>En l'air : front / backflip</div>
+        <div><span class="ks"><span class="key">⇧</span><span class="key">F</span></span>Grabs</div>
+        <div><span class="ks"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span>Nose / tail press, butters</div>
+        <div><span class="ks"><span class="key">X</span></span>Passer en switch</div>
+        <div><span class="ks"><span class="key">E</span></span>Monter dans la remontée</div>
+        <div><span class="ks"><span class="key">M</span></span>Plan, téléportation</div>
+        <div><span class="ks"><span class="key">V</span></span>Motoneige</div>
+        <div><span class="ks"><span class="key">G</span></span>Qualité d'image</div>
+      </div>
+      <ul class="tctrls">
+        <li><b>Joystick</b> (fixe, en bas à gauche) : diriger · pousser = schuss · tirer = frein · pousser face à une montée = escalier</li>
+        <li><b>Saut</b> : maintenir puis relâcher · <b>2 tapes</b> = switch</li>
+        <li><b>En l'air</b> : joystick = vrilles · Saut maintenu + haut / bas = flips</li>
+        <li><b>Grab</b> : maintenir · + bas en l'air = tail · + haut / bas au sol = press</li>
+        <li><b>Bouton doré</b> : monter, parler, passer la montée, se débloquer</li>
+        <li><b>Mini-carte</b> : toucher pour ouvrir le plan</li>
+      </ul>
+    </details>
+    <div class="qual" role="radiogroup" aria-label="Qualité d'image"><span>Image</span>
+      <button type="button" role="radio" data-q="low" id="q-low">Basse</button><button type="button" role="radio" data-q="medium" id="q-medium">Moyenne</button><button type="button" role="radio" data-q="high" id="q-high">Haute</button>
+    </div>
+    <div class="gorow"><button id="go" type="button" disabled>Chausser les skis</button><div id="loadmsg">Génération du domaine…</div></div>
+    <p class="credits" id="credits" hidden></p>
+  </div>
+</div>

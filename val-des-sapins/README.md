@@ -1,10 +1,57 @@
 # Val des Sapins
 
-Jeu de ski 3D en open world, jouable dans le navigateur (Three.js r128, un seul fichier).
+Jeu de ski 3D en monde ouvert, jouable dans le navigateur sur ordinateur et sur mobile. Projet personnel, gratuit,
+non commercial ; adaptation libre et non officielle du secteur Plagne Centre – Aime 2000 (crédits : `CREDITS.md`).
 
-- `index.html` : page autonome à ouvrir dans un navigateur.
-- `game.html` : même contenu sans en-tête HTML (source utilisée pour l'artifact).
-- `build.sh` : régénère `index.html` à partir de `game.html`.
+- **`web/`** : le projet web (Vite + TypeScript, Three.js 0.187.0 en dépendance figée). C'est désormais la source du jeu.
+- `game.html` / `index.html` : l'ancienne version en un seul fichier, **gelée**. Elle sert d'oracle aux tests de parité
+  jusqu'à la fin de la tranche T2, puis sera retirée dans un commit séparé.
+- `review/plan_tranches.md` : le plan de travail en tranches livrables.
+
+## Version web (`web/`)
+
+```bash
+cd val-des-sapins/web
+npm install
+npm run dev        # serveur de développement (http://localhost:5173)
+npm run build      # vérification TypeScript + dist/ statique à chemins relatifs
+npm test           # construit puis lance tous les tests Playwright (rendu logiciel, ~25 min)
+```
+
+**Organisation**
+- `src/main.ts` : polices (Fontsource, OFL), HUD, chargement des assets et de la sauvegarde, puis démarrage du jeu.
+- `src/game/*.ts` : le jeu découpé en 35 modules (`terrain`, `pistes`, `render`, `materials`, `buildings`, `assembly`,
+  `humans`, `animation`, `player`, `npcs`, `people`, `lifts`, `vehicles`, `progression`, `chronos`, `missions`,
+  `journal`, `hud`, `maps`, `input`, `touch`, `audio`, `world-data`, `camera`, `loop`, `boot`…).
+  Ils ont été produits par `tools/split-game.mjs`, un découpage par analyse syntaxique (acorn + eslint-scope) :
+  chaque déclaration devient un export, les initialisations passent dans des fonctions `__init_<ligne>()` appelées
+  dans l'ordre exact de `game.html` (`src/game/index.ts`), et les rares affectations entre modules passent par un
+  accesseur `__set_x()`. Les modules portent encore `// @ts-nocheck` : le typage strict se fera module par module.
+- `src/hud/hud.html` et `hud.css` : le HUD, les écrans et les commandes tactiles, en HTML/CSS. Le contrat
+  d'identifiants est inchangé (vérifié par test).
+- `src/assets/loader.ts` + `public/assets/` : les modèles, textures et données du terrain sont des fichiers chargés
+  à la demande (plus de base64 dans la page). Compression meshopt / KTX2 et tuiles : tranche T2.
+- `src/storage/` : couche de stockage unique, asynchrone (IndexedDB, repli localStorage puis mémoire).
+  Migration versionnée (schéma v1) des sauvegardes `valdessapins.rider`, `valdessapins.ghosts` et
+  `valdessapins.quality` : elles sont **copiées**, jamais effacées, et chaque écriture est recopiée dans localStorage
+  (une écriture plus récente faite par l'ancienne version est reprise au démarrage). `remote.ts` prépare une
+  implémentation « API distante », et `src/online/online.ts` un module en ligne **désactivé** (aucun serveur).
+- `deploy/github-pages.yml` : workflow GitHub Pages préparé, **non activé** (hors de `.github/workflows/`).
+
+**Tests** (`web/tests/`, Playwright + Chromium en rendu logiciel). Les tests de parité jouent le même scénario sur
+la version web et sur `game.html`, avec `Math.random`, `performance.now` et `requestAnimationFrame` pilotés par le
+test (exécutions reproductibles au bit près).
+
+| Test | Contenu |
+|---|---|
+| `boot` | état jouable sans erreur, contrat d'identifiants du HUD, crédits visibles ; état initial identique à `game.html` (position, pistes, remontées, PNJ, missions, appels de dessin) |
+| `robot` | descente de chaque piste au pilote automatique et montée de chaque remontée ; résultats identiques à `game.html` |
+| `save` | migration localStorage → IndexedDB sans perte (niveau 7 + fantôme), persistance, reprise d'une écriture de l'ancienne version, stockage bloqué sans erreur |
+| `mobile` | joystick fixe en bas à gauche, schuss au joystick, bouton doré contextuel, mini-carte ronde, aucun flou d'arrière-plan |
+| `hud` | chevauchements à 1000×560, 390×844 et 844×390 dans 13 états (repos, vitesse, chrono, remontée, aide, dialogue, plan × 3, carnet × 4) ; boîtes identiques à `game.html` |
+| `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre (Moyenne), ordinateur et tactile |
+| `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
+| `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
 ## Contenu
 - Relief procédural : crêtes rocheuses, forêts de sapins, deux murs (35–44°), deux crêtes percées de tunnels.

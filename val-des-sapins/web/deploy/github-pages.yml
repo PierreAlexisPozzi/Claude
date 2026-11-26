@@ -1,0 +1,35 @@
+# Workflow GitHub Pages pour Val des Sapins — PRÉPARÉ, NON ACTIVÉ.
+# Il n'est pas dans .github/workflows/ : GitHub ne l'exécute donc pas.
+# Pour l'activer (après accord) :
+#   1. copier ce fichier vers .github/workflows/pages-val-des-sapins.yml ;
+#   2. dans Settings → Pages du dépôt, choisir « GitHub Actions » comme source.
+name: Val des Sapins → GitHub Pages
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['val-des-sapins/web/**']
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency: { group: pages-vds, cancel-in-progress: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: val-des-sapins/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: val-des-sapins/web/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: val-des-sapins/web/dist }
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
