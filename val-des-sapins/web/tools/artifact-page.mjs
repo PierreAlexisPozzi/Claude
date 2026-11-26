@@ -2,7 +2,7 @@
 /* Prépare dist/ pour une publication en artefact claude.ai à plusieurs fichiers.
    L'hébergeur enveloppe lui-même la page dans <!doctype html><html><head>…<body> : on retire donc ces balises de
    dist/index.html et on écrit dist/artifact.html (titre, feuille de style, scripts et canvas inchangés, chemins
-   relatifs). La liste des autres fichiers de dist/ est écrite dans dist/artifact-files.json (chemin publié → source). */
+   relatifs). Les autres fichiers sont rangés à leur chemin publié dans dist/publish/ (liste : dist/artifact-files.json). */
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -19,19 +19,24 @@ const page = html
   .replace(/\n{2,}/g, '\n')
   .trim() + '\n';
 fs.writeFileSync(path.join(dist, 'artifact.html'), page);
-// les artefacts ne servent ni .glb ni .bin : ces fichiers partent en base64 dans un .json (repli du chargeur)
-const b64dir = path.join(dist, 'artifact-b64');
-fs.rmSync(b64dir, { recursive: true, force: true });
-const files = {};
-const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f), r = path.relative(dist, p); if (fs.statSync(p).isDirectory()) walk(p); else if (!["index.html", "artifact.html", "artifact-files.json", "sw.js"].includes(r)) {
-  const key = r.split(path.sep).join('/');
-  if (/\.(glb|bin|ktx2|vds)$/.test(key)) {   // types non servis par les artefacts
-    const out = path.join(b64dir, key + '.b64.json');
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    fs.writeFileSync(out, JSON.stringify(fs.readFileSync(p).toString('base64')));
-    files[key + '.b64.json'] = path.relative(process.cwd(), out);
-  } else files[key] = path.relative(process.cwd(), p);
-} } };
+// dossier de publication : chaque fichier à son chemin publié ; les artefacts ne servent ni .glb, ni .bin, ni .ktx2,
+// ni .vds : ces fichiers y partent en base64 dans un <nom>.b64.json (repli du chargeur, src/assets/loader.ts)
+const pub = path.join(dist, 'publish');
+fs.rmSync(pub, { recursive: true, force: true });
+fs.rmSync(path.join(dist, 'artifact-b64'), { recursive: true, force: true });
+const files = [];
+const walk = (d) => {
+  for (const f of fs.readdirSync(d)) {
+    const p = path.join(d, f), r = path.relative(dist, p);
+    if (fs.statSync(p).isDirectory()) { if (r !== 'publish') walk(p); continue; }
+    if (['index.html', 'artifact.html', 'artifact-files.json', 'sw.js'].includes(r)) continue;   // pas de service worker dans un artefact
+    let key = r.split(path.sep).join('/'), data = fs.readFileSync(p);
+    if (/\.(glb|bin|ktx2|vds)$/.test(key)) { key += '.b64.json'; data = Buffer.from(JSON.stringify(data.toString('base64'))); }
+    fs.mkdirSync(path.dirname(path.join(pub, key)), { recursive: true });
+    fs.writeFileSync(path.join(pub, key), data);
+    files.push(key);
+  }
+};
 walk(dist);
-fs.writeFileSync(path.join(dist, 'artifact-files.json'), JSON.stringify(files, null, 1));
-console.log(`artifact.html + ${Object.keys(files).length} fichiers, ${(Object.values(files).reduce((s, f) => s + fs.statSync(f).size, 0) / 1e6).toFixed(1)} Mo`);
+fs.writeFileSync(path.join(dist, 'artifact-files.json'), JSON.stringify(files.sort(), null, 1));
+console.log(`artifact.html + ${files.length} fichiers dans ${path.relative(process.cwd(), pub)}, ${(files.reduce((s, f) => s + fs.statSync(path.join(pub, f)).size, 0) / 1e6).toFixed(1)} Mo`);
