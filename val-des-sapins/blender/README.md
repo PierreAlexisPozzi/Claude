@@ -11,8 +11,8 @@ python3.13 -m venv .bpyenv && .bpyenv/bin/pip install -r blender/requirements.tx
 .bpyenv/bin/python blender/vehicles.py     # snowmobile (own design)
 .bpyenv/bin/python blender/lifts.py        # 6-seat bubble chair (two bubble states) and 10-seat gondola cabin
 MH_DATA=/path/to/mpfb/data .bpyenv/bin/python blender/humans.py   # skinned skiers from MakeHuman CC0 data (not committed)
-python3 tools/embed_assets.py              # slims every .glb (tools/glb_slim.py), then embeds assets/ into game.html
-./build.sh
+python3 tools/slim_assets.py               # slims every .glb in place (tools/glb_slim.py)
+(cd web && npm run assets)                 # meshopt models, KTX2 textures, binary world tiles → web/public/assets
 ```
 
 - Blender is Z-up; the glTF exporter writes the game's Y-up. Units are metres.

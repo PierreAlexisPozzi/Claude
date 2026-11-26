@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-/* Découpe ../game.html en projet Vite (migration à parité, axe 0).
+/* OUTIL DE MIGRATION (tranche T1), conservé pour l'historique : game.html a été retiré en T2 (voir l'historique git,
+   commit aca6934). Les modules de src/game/ sont désormais la source et se modifient directement.
+
+   Découpe ../game.html en projet Vite (migration à parité, axe 0).
 
    - <style>            → src/hud/hud.css
    - balisage du HUD    → src/hud/hud.html (le canvas #c reste dans index.html)

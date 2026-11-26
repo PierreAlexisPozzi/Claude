@@ -3,9 +3,10 @@
 Jeu de ski 3D en monde ouvert, jouable dans le navigateur sur ordinateur et sur mobile. Projet personnel, gratuit,
 non commercial ; adaptation libre et non officielle du secteur Plagne Centre – Aime 2000 (crédits : `CREDITS.md`).
 
-- **`web/`** : le projet web (Vite + TypeScript, Three.js 0.187.0 en dépendance figée). C'est désormais la source du jeu.
-- `game.html` / `index.html` : l'ancienne version en un seul fichier, **gelée**. Elle sert d'oracle aux tests de parité
-  jusqu'à la fin de la tranche T2, puis sera retirée dans un commit séparé.
+- **`web/`** : le projet web (Vite + TypeScript, Three.js 0.187.0 en dépendance figée). C'est la source du jeu.
+- L'ancienne version en un seul fichier (`game.html`, `index.html`, `build.sh`) a été retirée en T2, une fois la parité
+  établie ; elle reste dans l'historique git (commit `aca6934` et antérieurs). Ses résultats de référence sont figés
+  dans `web/tests/baselines/`.
 - `review/plan_tranches.md` : le plan de travail en tranches livrables.
 
 ## Version web (`web/`)
@@ -46,7 +47,7 @@ npm test           # construit puis lance tous les tests Playwright (rendu logic
 - `deploy/github-pages.yml` : workflow GitHub Pages préparé, **non activé** (hors de `.github/workflows/`).
 
 **Tests** (`web/tests/`, Playwright + Chromium en rendu logiciel). Les tests de parité jouent le même scénario sur
-la version web et sur `game.html`, avec `Math.random`, `performance.now` et `requestAnimationFrame` pilotés par le
+la version web et comparent aux résultats de `game.html` figés dans `tests/baselines/`, avec `Math.random`, `performance.now` et `requestAnimationFrame` pilotés par le
 test (exécutions reproductibles au bit près).
 
 | Test | Contenu |
@@ -102,7 +103,7 @@ et la liste des fichiers ; comme les artefacts ne servent ni `.glb` ni `.bin`, c
 - Aucune ressource externe hormis Three.js (polices système).
 
 ## Modèles et matières Blender (bpy 5.3, module Python)
-- Scripts dans `blender/` (voir `blender/README.md`), exécutés avec Blender comme module Python ; les sorties (`assets/`) sont intégrées en base64 à la fin de `game.html` par `tools/embed_assets.py` (fichier unique, ~3,7 Mo).
+- Scripts dans `blender/` (voir `blender/README.md`), exécutés avec Blender comme module Python ; les sorties brutes (`assets/`) sont allégées par `tools/slim_assets.py`, puis compressées pour le jeu par `npm run assets` dans `web/` (meshopt, KTX2, tuiles).
 - Épicéas : atlas d'aiguilles rendu sous Cycles depuis ~30 000 aiguilles modélisées, 3 variantes proches (~2 600 triangles, branches tombantes, rideaux en peigne, coussins de neige, occlusion ambiante cuite), silhouette lointaine de 70 triangles.
 - Skieur : pièces de vêtement modélisées dans le repère de chaque articulation (sections anatomiques, doudoune matelassée, plis aux coudes et genoux, casque à visière) ; skieurs du domaine en deux poses (descente, télésiège).
 - Matières tuilables cuites (bruit 4D sur tore, sans raccord) : calcaire stratifié pour les falaises (projection verticale sur les parois, variation à grande échelle, neige dans les couloirs), mélèze grisé pour madriers et bardage, granit pour les maçonneries.
@@ -164,7 +165,7 @@ Autres éléments trouvés dans le catalogue (recherche : sapin, épicéa, chale
 
 - **Motoneige** (`blender/vehicles.py`) : capot galbé avec bande latérale, selle longue, tunnel et marchepieds ajourés, chenille à crampons et galets, suspension avant à triangles et combinés ressort-amortisseur, skis à spatule relevée, guidon avec protège-mains, pare-brise, phares émissifs. Les points d'appui du pilote sont ceux de l'ancien modèle.
 - Les pieds des skieurs sont recalés sur la neige quand le corps s'incline (le ski intérieur ne s'enfonce plus, l'extérieur ne flotte plus).
-- `tools/glb_slim.py` (lancé par `embed_assets.py`) : couleurs de sommets sur 8 bits, normales sur 8 bits (KHR_mesh_quantization), UV supprimées quand elles ne servent pas — tous les modèles tiennent dans le budget de 6 Mo.
+- `tools/glb_slim.py` (lancé par `tools/slim_assets.py`) : couleurs de sommets sur 8 bits, normales sur 8 bits (KHR_mesh_quantization), UV supprimées quand elles ne servent pas.
 
 ## Personnages réalistes (corps MakeHuman habillés pour le ski)
 - **Corps** : maillage de base MakeHuman et morphes de genre, d'origine, de musculature et de corpulence (données publiées en CC0 par MakeHuman en 2020), poids de skinning `weights.game_engine.json` (CC0 déclaré dans le fichier). Seules les **données** sont lues, par nos propres scripts : aucun code MakeHuman ou MPFB n'est exécuté. Le squelette (20 os) est le nôtre, tendu entre les repères d'articulation du maillage ; doigts et orteils sont fusionnés dans la main et le pied.
