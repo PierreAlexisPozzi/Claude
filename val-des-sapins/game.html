@@ -129,7 +129,7 @@ body.touch .panel{-webkit-backdrop-filter:none;backdrop-filter:none}
 /* ---------- action prompt (bottom centre): never fades ---------- */
 #prompt{position:fixed;left:50%;bottom:calc(var(--sb) + 24px);transform:translateX(-50%);padding:8px 15px;font:600 15px var(--body);white-space:nowrap;display:flex;gap:9px;align-items:center;background:var(--plate-strong);border-color:var(--line-strong)}
 body:not(.touch) #prompt{bottom:calc(var(--sb) + 62px)}
-body.modal #tools,body.modal #help{visibility:hidden}
+body.modal #tools,body.modal #help,body:has(#dlg:not([hidden])) #tools,body:has(#dlg:not([hidden])) #help{visibility:hidden}
 #prompt .key{background:var(--gold);color:#08111e;border-color:#fff3cf;border-bottom-color:#b88a1c}
 #prompt .bang{color:var(--gold);font:800 16px var(--display)}#prompt .bang.q{color:#5fd0ff}
 
@@ -7142,7 +7142,7 @@ function updateHud(dt) {
 /* the centre column grows downwards: chrono / première trace, then the mission, the toasts (when centred) and the trick
    banner each start under whatever visible block above them shares their columns (phones mostly; desktop for wide tricks) */
 function stackHud() {
-  const vis = el => !el.hidden && el.offsetParent !== null, box = el => el.getBoundingClientRect();
+  const vis = el => !el.hidden && el.getClientRects().length > 0, box = el => el.getBoundingClientRect();
   const over = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 8;
   const tb = $('toasts'), trk = $('trick'), placed = [];
   for (const id of ['chrono', 'line']) { const e = $(id); if (vis(e)) placed.push(box(e)); }
