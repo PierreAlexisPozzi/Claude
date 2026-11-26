@@ -15,7 +15,7 @@ cd val-des-sapins/web
 npm install
 npm run dev        # serveur de développement (http://localhost:5173)
 npm run build      # vérification TypeScript + dist/ statique à chemins relatifs
-npm test           # construit puis lance tous les tests Playwright (rendu logiciel, ~25 min)
+npm test           # construit puis lance tous les tests Playwright (rendu logiciel : 45 à 60 min sur 4 cœurs)
 ```
 
 **Organisation**
