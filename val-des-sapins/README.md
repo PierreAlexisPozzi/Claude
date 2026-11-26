@@ -61,6 +61,14 @@ test (exécutions reproductibles au bit près).
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Tranche T3 — étude des outils et prototypes** : `review/etude_outils.md` (licences vérifiées à la source,
+recommandations par domaine, outils écartés), `review/references/README.md` (photos de La Plagne : liens, auteurs,
+licences, observations par typologie). Prototypes activables avec `?proto=rendu,facade,visage` (ou `?proto=all`),
+sans effet sur le jeu par défaut : AgX + N8AO ; béton banché, bardage et plancher CC0 d'ambientCG ; peau avec pores,
+rugosité variable et diffusion sous la surface approchée. Planche : `review/planche_T3_prototypes.jpg`. L'écran
+d'accueil a un bouton « Crédits et licences » (contenu de `CREDITS.md`). 12 vues de gros plan de visages ajoutées
+aux vues de référence.
+
 **Mesures de la tranche T2** (`review/mesures_T2.md`, planche `review/planche_T2_assets.jpg`) : modèles 2,6 → 1,3 Mo
 sans perte ; mémoire GPU des textures ~26 → ~6,5 Mo ; écart visuel moyen 0,49/255 ; mêmes résultats de simulation
 qu'avant ; plus de chevauchement du HUD ; jeu jouable hors ligne.

@@ -14,6 +14,6 @@ export default defineConfig({
       output: { manualChunks: (id) => (id.includes('node_modules/three') ? 'three' : undefined) },
     },
   },
-  server: { port: 5173 },
+  server: { port: 5173, fs: { allow: ['..'] } },   // CREDITS.md (dossier parent) est importé par l'écran des crédits
   preview: { port: 4173 },
 });

@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(here, '../..');
 export type Target = 'web' | 'legacy';
 /** Tranche en cours (dossier des captures, sévérité des contrôles). */
-export const TRANCHE = process.env.VDS_TRANCHE ?? 'T2';
+export const TRANCHE = process.env.VDS_TRANCHE ?? 'T3';
 export const trancheNum = (t = TRANCHE): number => Number(t.replace(/\D/g, '')) || 0;
 export const URLS: Record<Target, string> = {
   web: process.env.VDS_WEB_URL ?? 'http://localhost:4173/',
@@ -40,6 +40,8 @@ export interface OpenOptions {
   /** rAF piloté à la main (par défaut) ; false = boucle réelle du navigateur. */
   manual?: boolean;
   seed?: number;
+  /** Paramètres d'adresse ajoutés (ex. « proto=all »). */
+  query?: string;
   /** Script exécuté avant le jeu (préparer une sauvegarde, bloquer le stockage…). */
   before?: () => void;
 }
@@ -69,7 +71,7 @@ export async function openGame(page: Page, target: Target, o: OpenOptions = {}):
   }, { seed: o.seed ?? 12345, manual });
   if (o.before) await page.addInitScript(o.before);
   const t0 = Date.now();
-  await page.goto(URLS[target]);
+  await page.goto(URLS[target] + (o.query ? '?' + o.query : ''));
   await page.waitForFunction(() => (window as unknown as { __ski?: { ready: boolean } }).__ski?.ready === true, null, { timeout: 300_000, polling: 500 });
   return Date.now() - t0;
 }

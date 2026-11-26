@@ -24,7 +24,7 @@ const measure = (page: Page) => page.evaluate(() => {
     const r = el.getBoundingClientRect();
     out.push({ id: el.id || (el.parentElement!.id === 'toasts' ? 'toast' : el.className), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) });
   }
-  const modal = ['dlg', 'jnl', 'mapOv'].map((id) => document.getElementById(id)!).filter((e) => !e.hidden).map((e) => { const b = (e.querySelector('.jbox, .box') || e).getBoundingClientRect(); return { id: e.id, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; });
+  const modal = ['dlg', 'jnl', 'mapOv', 'crOv'].map((id) => document.getElementById(id)!).filter((e) => !e.hidden).map((e) => { const b = (e.querySelector('.jbox, .box') || e).getBoundingClientRect(); return { id: e.id, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; });
   return { boxes: out, modal, vw: innerWidth, vh: innerHeight };
 });
 
@@ -40,9 +40,15 @@ const overlaps = (b: Box[]) => {
 /** Parcourt les états et renvoie les relevés. */
 async function survey(page: Page, target: Target, size: (typeof SIZES)[number]) {
   await openGame(page, target);
+  const shots: Record<string, Awaited<ReturnType<typeof measure>>> = {};
+  // T3 : écran des crédits, ouvert depuis l'accueil (absent de game.html)
+  if (target === 'web') {
+    await page.evaluate(() => document.getElementById('creditsBtn')!.click());
+    shots['crédits'] = await measure(page);
+    await page.evaluate(() => document.getElementById('crClose')!.click());
+  }
   await start(page);
   await pump(page, 2);
-  const shots: Record<string, Awaited<ReturnType<typeof measure>>> = {};
   const settle = async () => { await page.evaluate(() => (window as any).__ski.stackHud?.()); await pump(page, 1, 0.02); };
   await settle(); shots['repos'] = await measure(page);
   await page.evaluate(() => { const s = (window as any).__ski; s.setVel(18, 0, 18); s.step(2); });
@@ -95,7 +101,8 @@ for (const size of SIZES) {
     // mêmes boîtes que game.html pour tout ce qui est permanent ; les messages passagers (toasts, bannière de figure)
     // ont changé en T2 (la pile de toasts ne déborde plus) et restent couverts par le contrôle de chevauchement
     const noToast = (x: typeof web) => Object.fromEntries(Object.entries(x).map(([k, m]) => [k, { ...m, boxes: m.boxes.filter((b) => b.id !== 'toast' && b.id !== 'trick') }]));
-    expect(noToast(web)).toEqual(noToast(legacy));
+    const shared = (x: typeof web) => Object.fromEntries(Object.entries(noToast(x)).filter(([k]) => k in legacy));   // états propres à la version web exclus
+    expect(shared(web)).toEqual(noToast(legacy));
     // T1 tolérait les défauts hérités de game.html ; à partir de T2, aucun chevauchement n'est admis
     const strict = trancheNum() >= 2;
     for (const p of problems) if (inherited.has(p) && !strict) test.info().annotations.push({ type: 'défaut hérité', description: p });

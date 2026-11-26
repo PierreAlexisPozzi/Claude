@@ -494,7 +494,7 @@ export function buildDeck(cx, cz, rot, W, D, y, seed) {
   // standing: at the bar and along the parapet
   for (let k = 0; k < 2 + Math.floor(r() * 3); k++) folk.push({ u: bx - 1.4 + k * 0.9 + (r() - 0.5) * 0.3, v: -D / 2 + 1.45, yaw: Math.PI + (r() - 0.5) * 0.6, pose: r() < 0.3 ? 'fries' : 'stand' });
   for (let k = 0; k < 1 + Math.floor(r() * 3); k++) folk.push({ u: (r() - 0.5) * (W - 3), v: D / 2 - 0.55, yaw: (r() - 0.5) * 0.8, pose: r() < 0.35 ? 'fries' : 'stand' });
-  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); scene.add(grp);
+  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; scene.add(grp);   // repère pour les prototypes (T3)
   const DR = ['mug', 'beer', 'wine', 'mug', 'beer'];
   for (const f of folk) {
     const [x, z] = at(f.u, f.v);

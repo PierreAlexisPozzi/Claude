@@ -7,7 +7,7 @@ performances, `README.md` à jour, résumé court (changements, mesures, limites
 
 Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en français.
 
-**État** : T1 et T2 livrées (mesures : `mesures_T1.md`, `mesures_T2.md`) ; `game.html` retiré après la parité. Prochaine : T3.
+**État** : T1, T2 et T3 livrées (mesures : `mesures_T1.md`, `mesures_T2.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. Prochaine : T4.
 
 ## Constats de départ (lecture du code)
 
