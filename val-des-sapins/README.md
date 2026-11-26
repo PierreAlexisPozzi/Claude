@@ -246,3 +246,15 @@ L'archive TerraPrinter (`*-colours-stl.zip`) contient une bande en relief par co
   - Le joueur tient cette extension environ 0,2 s, puis replonge dans le virage. Pendant le planté, le bassin suit sa cible deux fois plus vite.
   - Mesures, joueur : 90 % à chaque changement de virage, contre 19 à 27 % dans le virage précédent.
   - Mesures, autres skieurs : 92 % (carving) et 91 % (parallèle) au changement de carres, contre 68 % et 49 % au milieu du virage.
+
+### Vêtements en tissu (personnages réalistes)
+Le corps des personnages porte un shader de tissu. Les motifs sont calés sur la pose de repos et les articulations (épaules, coudes, poignets, genoux, chevilles), donc ils suivent chaque mouvement.
+- **Doudoune** :
+  - boudins matelassés surpiqués, horizontaux sur le buste et tournant autour des bras ;
+  - bombé entre les coutures avec ombre dans les surpiqûres ;
+  - nylon ripstop, fermeture éclair centrale et rabats ;
+  - reflets satinés sur les bombés, plus mats aux coutures ;
+  - plis en éventail à l'intérieur du coude.
+- **Pantalon softshell** : sergé, plis aux genoux, plis en accordéon au-dessus des chaussures, renforts sombres sur l'intérieur des chevilles, poudreuse accrochée au bas.
+- **Gants et chaussures** : grain de cuir.
+- **Mouvement** : le relief passe par des normales calculées en espace écran, et les trames fines s'effacent avec la distance. En vitesse, les manches, le bas de la veste et le pantalon sous le genou frémissent au vent, avec une intensité qui suit la vitesse de chaque skieur.

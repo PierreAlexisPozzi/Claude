@@ -3018,6 +3018,7 @@ function updateRig(time) {
         if (Math.abs(n.lookA) > 0.001) { J.headFwd.applyAxisAngle(AX_Y, n.lookA); _hv[0].copy(J.spineFwd).applyAxisAngle(AX_Y, n.lookA * 0.3); J.spineFwd.copy(_hv[0]); }
       }
       HB.scale = HB.base * (n.h || 1); poseHuman(HB, J);
+      HB.U.uFlutter.value = skiing ? clamp(((n.v || 0) - 4) / 14, 0, 1) : 0; CLOTH_T.value = time;   // the fabric ripples with speed
       {
         const pr = n.person, near = Math.hypot(P.pos.x - n.x, P.pos.z - n.z) < 7, talking = dlgOpen && pr && dlgWho === pr;
         const mood = pr ? { smile: talking ? 0.7 : near ? 0.85 : 0.3, brows: n.wave > 0 ? 0.7 : talking ? 0.25 : 0, talk: talking }
@@ -4575,17 +4576,103 @@ function humanBasis(m, d, r) {   // rotation whose columns are (d, r orthogonali
   const c = _hv[3].crossVectors(a, b);
   return m.makeBasis(a, b, c);
 }
+const CLOTH_T = { value: 0 };   // shared clock of the cloth (wind ripples)
 function humanUniforms(skinTone, jacket, shade) {
-  return { uJacket: { value: new THREE.Color(jacket) }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 } };
+  const v = () => ({ value: new V3() });
+  return { uJacket: { value: new THREE.Color(jacket) }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 },
+    uFlutter: { value: 0 }, uClothT: CLOTH_T, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 } };
+}
+/* ---- ski clothes that look like fabric (body mesh only). The patterns live in the rest pose of the body, so they
+   follow every movement: a quilted down jacket (stitched baffles around the torso and around each arm, rounded
+   between the stitches, ripstop nylon, centre zip, satin highlights, creases at the elbows), softshell twill trousers
+   (knee creases, accordion folds above the boots, darker scuff guards on the inner ankles, powder caught at the hem),
+   leather-grain gloves and boots. Relief is a height field turned into normals with screen-space derivatives; fine
+   weaves fade out with distance. At speed the fabric ripples in the wind (vertex shader, after skinning). */
+const CLOTH_VERT_DECL = `attribute float aTint;
+varying float vTint; varying vec3 vRest; varying float vCloth;
+uniform float uFlutter; uniform float uClothT; uniform float uHipY; uniform vec3 uKnL; uniform vec3 uKnR; uniform vec3 uShL; uniform vec3 uShR;`;
+const CLOTH_FRAG = `
+uniform vec3 uShL; uniform vec3 uShR; uniform vec3 uElL; uniform vec3 uElR; uniform vec3 uWrL; uniform vec3 uWrR;
+uniform vec3 uKnL; uniform vec3 uKnR; uniform vec3 uAnL; uniform vec3 uAnR; uniform float uHipY;
+varying vec3 vRest; varying float vCloth;
+float cHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float cNoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(cHash(i), cHash(i + vec3(1,0,0)), f.x), mix(cHash(i + vec3(0,1,0)), cHash(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(cHash(i + vec3(0,0,1)), cHash(i + vec3(1,0,1)), f.x), mix(cHash(i + vec3(0,1,1)), cHash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float segD(vec3 p, vec3 a, vec3 b, out float t) { vec3 ab = b - a; t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0); return length(p - a - ab * t); }
+vec3 clothBump(vec3 n, float h) {   // height (metres) to a perturbed view-space normal (derivative bump)
+  vec3 sp = -vViewPosition, sx = dFdx(sp), sy = dFdy(sp), r1 = cross(sy, n), r2 = cross(n, sx);
+  float det = dot(sx, r1); vec2 dh = vec2(dFdx(h), dFdy(h));
+  vec3 g = sign(det) * (dh.x * r1 + dh.y * r2);
+  return normalize(abs(det) * n - g);
+}
+float clothH, clothRough, clothAO; vec3 clothCol;
+void clothField() {
+  clothH = 0.0; clothRough = -1.0; clothAO = 1.0; clothCol = vec3(1.0);
+  vec3 p = vRest; float fine = 1.0 - smoothstep(0.25, 0.9, fwidth(p.y * 220.0));          // weaves vanish at a distance
+  if (vCloth < 0.5) return;
+  if (vCloth < 1.5) {                                                                        // ---- down jacket
+    float tl, tr, tl2, tr2;
+    float dl = min(segD(p, uShL, uElL, tl), segD(p, uElL, uWrL, tl2)), dr = min(segD(p, uShR, uElR, tr), segD(p, uElR, uWrR, tr2));
+    bool arm = min(dl, dr) < 0.085 && abs(p.x) > abs(uShL.x) - 0.03;
+    float coord, around;
+    if (arm) { bool L = dl < dr; vec3 s0 = L ? uShL : uShR, e = L ? uElL : uElR, w = L ? uWrL : uWrR; float a = length(e - s0);
+      float t1, t2; float d1 = segD(p, s0, e, t1), d2 = segD(p, e, w, t2); coord = d1 < d2 ? t1 * a : a + t2 * length(w - e);
+      vec3 ax = normalize(d1 < d2 ? e - s0 : w - e), r = p - (d1 < d2 ? s0 : e); r -= ax * dot(r, ax); around = atan(r.z, r.y);
+      // creases on the inside of the elbow, fanning out
+      float de = length(p - e); clothH += 0.0018 * smoothstep(0.11, 0.0, de) * sin(coord * 140.0 + around * 3.0) * (0.6 + 0.4 * sin(around * 5.0));
+    } else { coord = p.y; around = atan(p.z, p.x); }
+    float q = fract(coord / 0.078), puff = pow(max(sin(3.14159 * q), 0.0), 0.55);           // baffles, rounded between the stitches
+    clothH += 0.0075 * puff; clothAO = mix(0.62, 1.0, smoothstep(0.0, 0.16, min(q, 1.0 - q)));   // shadowed stitch lines
+    clothH += 0.0012 * (cNoise(p * 42.0) - 0.5);                                              // soft irregularity of the down
+    float rip = max(step(0.9, fract(p.x * 190.0 + p.z * 190.0)), step(0.9, fract(p.y * 190.0))) * fine;   // ripstop grid
+    clothCol *= 1.0 - 0.06 * rip; clothH += 0.00015 * rip;
+    if (!arm && abs(p.x) < 0.007 && p.z > 0.0) { clothCol *= 0.35; clothH -= 0.002; clothAO *= 0.8; }   // centre zip
+    if (!arm && abs(abs(p.x) - 0.022) < 0.003 && p.z > 0.0) clothAO *= 0.85;                 // storm flap edges
+    clothRough = 0.42 + 0.22 * (1.0 - puff);                                                  // satin crowns, duller stitches
+  } else if (vCloth < 2.5) {                                                                 // ---- softshell trousers
+    float side = p.x > 0.0 ? 1.0 : -1.0; vec3 kn = side > 0.0 ? uKnL : uKnR, an = side > 0.0 ? uAnL : uAnR;
+    if (dot(kn, vec3(1.0, 0.0, 0.0)) * side < 0.0) { vec3 t = kn; kn = an; an = t; kn = side > 0.0 ? uKnR : uKnL; an = side > 0.0 ? uAnR : uAnL; }
+    clothH += 0.00035 * sin((p.y + p.x * 0.9 + p.z * 0.6) * 620.0) * fine;                 // twill
+    clothCol *= 1.0 + 0.05 * sin((p.y + p.x) * 620.0) * fine;
+    float kz = exp(-pow((p.y - kn.y) / 0.07, 2.0));                                           // knee creases
+    clothH += 0.0035 * kz * sin(p.y * 170.0 + sin(p.x * 55.0 + p.z * 40.0) * 1.6);
+    float acc = smoothstep(an.y + 0.02, an.y + 0.07, p.y) * (1.0 - smoothstep(an.y + 0.18, an.y + 0.26, p.y));   // accordion above the boots
+    clothH += 0.0045 * acc * sin(p.y * 115.0 + sin(atan(p.z, p.x - an.x) * 3.0) * 1.2);
+    clothH += 0.0012 * (cNoise(p * 28.0) - 0.5);
+    if (p.y < an.y + 0.2 && abs(p.x) < abs(an.x) - 0.005) clothCol *= 0.62;                 // scuff guards on the inner ankles
+    float pw = smoothstep(an.y + 0.22, an.y + 0.02, p.y) * smoothstep(0.55, 0.8, cNoise(p * 60.0));   // powder caught at the hem
+    clothCol = mix(clothCol, vec3(3.2), pw * 0.55);
+    clothRough = 0.86;
+  } else {                                                                                   // ---- gloves and boots
+    clothH += 0.0006 * (cNoise(p * 140.0) - 0.5) * fine;
+    clothRough = p.y > uHipY ? 0.62 : 0.4;
+  }
+}`;
+function clothHook(sh) {
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', `#include <begin_vertex>
+  vRest = position;
+  { float lum = (color.r + color.g + color.b) / 3.0; vCloth = aTint > 0.5 && aTint < 1.5 ? 1.0 : aTint < 0.5 && lum > 0.12 && lum < 0.45 && position.y < uHipY + 0.12 ? 2.0 : aTint < 0.5 && lum <= 0.12 ? 3.0 : 0.0; }`, 'cloth');
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <skinning_vertex>', `#include <skinning_vertex>
+  if (uFlutter > 0.001 && vCloth > 0.5 && vCloth < 2.5) {     // wind ripples: sleeves and the lower jacket, trouser legs below the knee
+    float m = vCloth < 1.5 ? max(smoothstep(0.08, 0.2, abs(position.x) - abs(uShL.x) + 0.12), smoothstep(uHipY + 0.25, uHipY + 0.05, position.y)) : smoothstep(uKnL.y + 0.05, uKnL.y - 0.15, position.y);
+    float w = sin(uClothT * 23.0 + position.y * 38.0 + position.x * 21.0) * 0.6 + sin(uClothT * 37.0 + position.z * 45.0 - position.y * 19.0) * 0.4;
+    transformed += objectNormal * w * 0.007 * uFlutter * m;
+  }`, 'cloth');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\n' + CLOTH_FRAG, 'cloth');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', '#include <color_fragment>\n  clothField(); diffuseColor.rgb *= clothCol * clothAO;', 'cloth');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  if (clothRough > 0.0) roughnessFactor = clothRough;', 'cloth');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  if (vCloth > 0.5) normal = clothBump(normal, clothH);', 'cloth');
 }
 function humanMaterial(U, o = {}) {
-  const m = new THREE.MeshStandardMaterial(Object.assign({ vertexColors: true, roughness: 0.8, metalness: 0 }, o));
+  const { cloth, ...mo } = o;
+  const m = new THREE.MeshStandardMaterial(Object.assign({ vertexColors: true, roughness: 0.8, metalness: 0 }, mo));
   m.userData.grainU = { value: new THREE.Vector3(0.25, 0.35, 2.2) };
   m.userData.U = U;
   m.onBeforeCompile = sh => {
     grainHook.call(m, sh);
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nattribute float aTint;\nvarying float vTint;', 'human');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\n' + (cloth ? CLOTH_VERT_DECL : 'attribute float aTint;\nvarying float vTint;'), 'human');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vTint = aTint;', 'human');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform float uShade;\nvarying float vTint;', 'human');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
@@ -4594,7 +4681,9 @@ function humanMaterial(U, o = {}) {
   else if ( vTint > 2.5 && vTint < 3.5 ) diffuseColor.rgb *= pow( uHelmet, vec3( 2.2 ) );   // helmet shell
   else if ( vTint > 3.5 ) diffuseColor.rgb *= pow( uBeanie, vec3( 2.2 ) );                 // knitted beanie
   diffuseColor.rgb *= uShade;`, 'human');
+    if (cloth) clothHook(sh);
   };
+  if (cloth) m.customProgramCacheKey = () => 'human-cloth';
   return m;
 }
 function makeHuman(kind, o = {}) {
@@ -4606,7 +4695,7 @@ function makeHuman(kind, o = {}) {
   root.traverse(x => { if (x.isBone) { const n = known(x.name) ? x.name : x.name.replace(/_\d+$/, ''); if (known(n)) bones[n] = x; } if (x.isSkinnedMesh) { const p = x.name === kind ? 'body' : x.name.slice(kind.length + 1); parts[p] = x; if (p === 'body') mesh = x; } });
   if (!mesh) return null;
   const U = humanUniforms(o.skin || '#ffffff', o.jacket || '#c7302a', o.shade), skinTex = BLEND.tex[kind === 'hm_female' ? 'skin_female' : 'skin_male'];
-  const MAT = { body: { roughness: 0.8 }, face: { map: skinTex || null, roughness: 0.66 }, helmet: { roughness: 0.32 }, goggles: { roughness: 0.18, metalness: 0.2 }, beanie: { roughness: 0.96 }, pompom: { roughness: 1 }, eyes: { roughness: 0.12 } };
+  const MAT = { body: { roughness: 0.8, cloth: true }, face: { map: skinTex || null, roughness: 0.66 }, helmet: { roughness: 0.32 }, goggles: { roughness: 0.18, metalness: 0.2 }, beanie: { roughness: 0.96 }, pompom: { roughness: 1 }, eyes: { roughness: 0.12 } };
   for (const [p, m] of Object.entries(parts)) {
     if (!m.geometry.userData.prepped) {   // once per source geometry: display-space colours, tint attribute
       const g = m.geometry, c = g.getAttribute('color');
@@ -4625,6 +4714,9 @@ function makeHuman(kind, o = {}) {
     rest[n] = { aDir: dir.clone().applyQuaternion(qi), aRef: (upRef ? new V3(0, 1, 0) : new V3(0, 0, 1)).applyQuaternion(qi), upRef, len: ch ? ch.getWorldPosition(new V3()).distanceTo(p) : 0, pos: p };
   }
   const hipMid = rest.thigh_l.pos.clone().add(rest.thigh_r.pos).multiplyScalar(0.5);
+  // the cloth patterns are anchored on the joints of the rest pose (mesh space = root space at bind)
+  for (const [u, b] of [['uShL', 'upperarm_l'], ['uShR', 'upperarm_r'], ['uElL', 'lowerarm_l'], ['uElR', 'lowerarm_r'], ['uWrL', 'hand_l'], ['uWrR', 'hand_r'], ['uKnL', 'calf_l'], ['uKnR', 'calf_r'], ['uAnL', 'foot_l'], ['uAnR', 'foot_r']]) if (rest[b]) U[u].value.copy(rest[b].pos);
+  U.uHipY.value = hipMid.y;
   const face = parts.face, md = face && face.morphTargetDictionary;
   for (const b of Object.values(bones)) b.userData.rest = { q: b.quaternion.clone(), p: b.position.clone() };
   const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1,
@@ -5639,7 +5731,7 @@ function updateSkier(dt, time) {
   S.spine.rotation.set(pose.spPitch, pose.spYaw, pose.spRoll); S.head.rotation.x = pose.headP;
   S.arms.forEach(A => { const q = A.sd > 0 ? pose.aL : pose.aR; A.sh.rotation.set(q.p, 0, A.sd * q.o); A.el.rotation.x = q.e; A.pole.rotation.x = q.pole - q.p - q.e - pose.spPitch - pose.pelPitch; A.pole.rotation.z = -A.sd * q.o * 0.6; });
   S.legs.forEach(solveLeg);
-  if (playerHuman) { playerHumanSync(dt); const sp = P.vel.length(); animateFace(playerHuman, dt, { smile: trickTimer > 0.4 ? 0.9 : 0.22, squint: P.state === 'ski' && sp > 16 ? 0.35 : 0, brows: P.state === 'air' ? 0.5 : 0 }); }
+  if (playerHuman) { playerHuman.U.uFlutter.value = skierFlutter.value; CLOTH_T.value = time; playerHumanSync(dt); const sp = P.vel.length(); animateFace(playerHuman, dt, { smile: trickTimer > 0.4 ? 0.9 : 0.22, squint: P.state === 'ski' && sp > 16 ? 0.35 : 0, brows: P.state === 'air' ? 0.5 : 0 }); }
   // tunnel light on the skier
   tunnelBlend += ((P.tunnel ? 1 : 0) - tunnelBlend) * ease(4, dt);
   skierShade.value = lerp(1, 0.3, tunnelBlend);
