@@ -33,7 +33,7 @@ async function capture(browser: Browser, target: Target, phone: boolean): Promis
   const files: string[] = [];
   for (const v of VIEWS) {
     if (phone && !PHONE_KINDS.has(v.kind)) continue;
-    const f = path.join(target === 'web' ? OUT : path.resolve('test-results/vues-legacy', TRANCHE), phone ? 'telephone' : 'ordinateur', v.id + '.jpg');
+    const f = path.join(target === 'web' ? OUT : path.resolve('.cache/vues-legacy', TRANCHE), phone ? 'telephone' : 'ordinateur', v.id + '.jpg');
     await shoot(page, v, f);
     files.push(f);
   }

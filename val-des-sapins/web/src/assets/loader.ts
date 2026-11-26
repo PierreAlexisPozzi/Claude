@@ -12,6 +12,19 @@ export const ASSETS: Record<string, AssetValue> = {};
 /** URL d'un asset, relative au document (fonctionne en sous-dossier, dans l'artefact et sur GitHub Pages). */
 export const assetUrl = (name: string): string => new URL('assets/' + name, document.baseURI).href;
 
+/** Binaire (.glb, .bin) ; repli sur `<nom>.b64.json` (chaîne base64) pour les hébergeurs qui ne servent pas ces types,
+ *  comme les artefacts claude.ai (voir tools/artifact-page.mjs). */
+async function fetchBinary(name: string): Promise<ArrayBuffer> {
+  const res = await fetch(assetUrl(name));
+  if (res.ok) return res.arrayBuffer();
+  const alt = await fetch(assetUrl(name + '.b64.json'));
+  if (!alt.ok) throw new Error(res.status + ' ' + res.statusText);
+  const b64 = (await alt.json()) as string;
+  const bin = atob(b64), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
 export interface PreloadProgress { loaded: number; total: number; bytes: number }
 
 export async function preloadAssets(onProgress?: (p: PreloadProgress) => void): Promise<void> {
@@ -23,10 +36,11 @@ export async function preloadAssets(onProgress?: (p: PreloadProgress) => void): 
       if (/\.(png|jpe?g|webp|ktx2)$/i.test(name)) {
         ASSETS[name] = url;   // l'image se charge et se décode dans le jeu (Image.decode), comme l'ancien data: URI
       } else {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-        if (name.endsWith('.json')) ASSETS[name] = (await res.json()) as Record<string, unknown>;
-        else { const buf = await res.arrayBuffer(); p.bytes += buf.byteLength; ASSETS[name] = buf; }
+        if (name.endsWith('.json')) {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+          ASSETS[name] = (await res.json()) as Record<string, unknown>;
+        } else { const buf = await fetchBinary(name); p.bytes += buf.byteLength; ASSETS[name] = buf; }
       }
     } catch (e) {
       console.warn('Asset indisponible : ' + name, e);

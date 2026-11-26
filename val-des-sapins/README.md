@@ -53,6 +53,14 @@ test (exécutions reproductibles au bit près).
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Mesures de la tranche T1** (détail : `review/mesures_T1.md`, planche : `review/planche_T1_parite.jpg`) : parité
+au bit près avec `game.html` sur tous les tests (37 vues de référence à écart 0) ; mêmes appels de dessin et triangles ;
+état jouable atteint en 26,4 s contre 28,2 s en rendu logiciel.
+
+**Publication** : `node tools/artifact-page.mjs dist` prépare `dist/artifact.html` (sans en-tête, l'hébergeur l'ajoute)
+et la liste des fichiers ; comme les artefacts ne servent ni `.glb` ni `.bin`, ces fichiers y sont publiés en
+`<nom>.b64.json`, que le chargeur lit automatiquement en repli.
+
 ## Contenu
 - Relief procédural : crêtes rocheuses, forêts de sapins, deux murs (35–44°), deux crêtes percées de tunnels.
 - 10 pistes balisées, 2 champs de bosses, snowpark (tremplins, box, rail), hors-piste.

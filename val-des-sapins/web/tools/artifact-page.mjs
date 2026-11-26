@@ -19,8 +19,19 @@ const page = html
   .replace(/\n{2,}/g, '\n')
   .trim() + '\n';
 fs.writeFileSync(path.join(dist, 'artifact.html'), page);
+// les artefacts ne servent ni .glb ni .bin : ces fichiers partent en base64 dans un .json (repli du chargeur)
+const b64dir = path.join(dist, 'artifact-b64');
+fs.rmSync(b64dir, { recursive: true, force: true });
 const files = {};
-const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f), r = path.relative(dist, p); if (fs.statSync(p).isDirectory()) walk(p); else if (!['index.html', 'artifact.html', 'artifact-files.json'].includes(r)) files[r.split(path.sep).join('/')] = path.relative(process.cwd(), p); } };
+const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f), r = path.relative(dist, p); if (fs.statSync(p).isDirectory()) walk(p); else if (!['index.html', 'artifact.html', 'artifact-files.json'].includes(r)) {
+  const key = r.split(path.sep).join('/');
+  if (/\.(glb|bin)$/.test(key)) {
+    const out = path.join(b64dir, key + '.b64.json');
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, JSON.stringify(fs.readFileSync(p).toString('base64')));
+    files[key + '.b64.json'] = path.relative(process.cwd(), out);
+  } else files[key] = path.relative(process.cwd(), p);
+} } };
 walk(dist);
 fs.writeFileSync(path.join(dist, 'artifact-files.json'), JSON.stringify(files, null, 1));
 console.log(`artifact.html + ${Object.keys(files).length} fichiers, ${(Object.values(files).reduce((s, f) => s + fs.statSync(f).size, 0) / 1e6).toFixed(1)} Mo`);
