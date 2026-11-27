@@ -86,7 +86,7 @@ test (exécutions reproductibles au bit près).
   paysage verrouillé au départ quand le navigateur le permet.
 - Vues de référence : visages qui suivent la personne, téléphone en paysage, vues du front de neige et aérienne
   d'Aime 2000 (cadrées comme tes photos), passage de Le France, vue de jeu.
-- Tactile 363 / ordinateur 619 appels à Plagne Centre (Moyenne, plafonds 400 / 1 700 : marge tactile réduite) ;
+- Tactile 342 / ordinateur 566 appels à Plagne Centre (Moyenne, plafonds 400 / 1 700) ;
   robot, slalom et HUD identiques.
 
 **Tranche T5 ter — terrasses au front de neige** (mesures : `review/mesures_T5ter.md`, liste OSM :

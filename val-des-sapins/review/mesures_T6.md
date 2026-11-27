@@ -96,18 +96,17 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 |---|---|---|
 | Fin de T5 ter, Moyenne | 540 | 334 |
 | Aime 2000 et Le France seuls (avant les commerces et le recul de caméra) | 547 | 336 |
-| **Fin de T6 (1re livraison), Moyenne** (plafonds 1 700 / 400) | **619 · 8,05 M triangles** | **363 · 3,86 M triangles** |
-| Basse | 475 | 363 |
-| Haute | 619 | 505 |
-| Ultra | 659 | 521 |
+| Livraison du 27/11 (commerces, sapins encore présents) | 619 | 363 |
+| **Fin de T6, Moyenne** (Le Pelvoux, G1G2, Plagne Centre sans sapins ; plafonds 1 700 / 400) | **566 · 6,87 M triangles** | **342 · 3,63 M triangles** |
+| Basse | 419 | 342 |
+| Haute | 566 | 487 |
+| Ultra | 592 | 498 |
 
-- La hausse vient surtout des immeubles commerçants désormais construits au cœur de Plagne Centre (Les Écrins et
-  leurs voisins, gardés au bord des fronts de neige) et des vitrines, qui ajoutent des combinaisons de matières ;
-  Le France et ses piliers sont fusionnés.
-- **Tactile : marge réduite** : 363 appels, environ 380 avec le post-traitement, pour un plafond de 400. Les prochaines
-  typologies devront regagner de la marge (regroupements) avant d'ajouter du contenu.
-- Temps indicatifs (rendu logiciel, plusieurs navigateurs en parallèle) : image en Moyenne 28 ms (ordinateur) et
-  13 ms (tactile).
+- Les immeubles commerçants construits au cœur de Plagne Centre et leurs vitrines ajoutent des appels ; le retrait des
+  sapins du cœur et du front de neige en retire davantage (moins de paquets d'arbres visibles depuis le point de mesure).
+- Tactile : 342 appels, environ 360 avec le post-traitement, pour un plafond de 400 (marge d'environ 40).
+- Temps indicatifs (rendu logiciel, mesure seule) : état jouable 7,4 s (ordinateur) et 5,8 s (tactile) ; image en
+  Moyenne 24 ms et 18 ms.
 
 ## Non-régression
 
