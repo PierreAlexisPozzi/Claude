@@ -78,9 +78,10 @@ test (exécutions reproductibles au bit près).
 - **Le France** (Plagne Centre) : construit, avec la piste Boulevard qui passe sous une section en pont (7,2 m de
   hauteur libre) entre deux ailes ; il manquait parce qu'une piste traverse son emprise. Aspect d'après tes photos :
   bois orangé et blanc, piliers à matelas orange, socle vitré, cage d'escalier en bois (sans lettrage de marque).
-- **Commerces** : 132 commerces d'OpenStreetMap référencés, 83 placés en vitrine sur la façade la plus proche
+- **Commerces** : 132 commerces d'OpenStreetMap référencés, 113 placés en vitrine sur la façade la plus proche
   (16 types d'enseignes génériques) ; **logements** aux autres rez-de-chaussée. Les 8 commerçants du jeu tiennent un
-  commerce réel de leur type dans leur village.
+  commerce réel de leur type dans leur village. Le Pelvoux et Immeuble G1G2 (la piste les longe) et les immeubles du
+  pôle de gare du Télémétro sont construits ; plus de sapins au cœur ni sur le front de neige de Plagne Centre.
 - **Téléphone** : caméra 35 % plus reculée, conseil « paysage » sur l'écran d'accueil en portrait, plein écran et
   paysage verrouillé au départ quand le navigateur le permet.
 - Vues de référence : visages qui suivent la personne, téléphone en paysage, vues du front de neige et aérienne

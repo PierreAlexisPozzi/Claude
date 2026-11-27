@@ -52,11 +52,18 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
   nouveaux reprennent l'intérieur existant le plus proche.
 - Chaque commerce va à l'immeuble du jeu le plus proche (emprise + 8 m), sur la façade la plus proche ; **vitrine
   seulement là, logement ailleurs** (fenêtres, rideaux). Galeries de Plagne Centre seulement devant des commerces.
-- **Placés : 83 / 132.** Les autres n'ont pas d'immeuble dans le jeu à moins de 8 m : bâtiment écarté (piste ou
-  remontée dans l'emprise : Le Pelvoux, Immeuble G1G2, gare du Télémétro…), sous le plafond de 150 immeubles, ou
-  petit chalet sans vitrine. Pour garder les immeubles commerçants au bord des fronts de neige, la règle d'emprise est
-  assouplie pour eux seuls (une piste peut toucher le bord, remontée à 6 m) : 52 → 83 commerces placés, robot et
-  slalom identiques.
+- **Placés : 113 / 132** (52 au premier essai, 83 à la livraison, 113 après tes retours). Les autres n'ont pas
+  d'immeuble dans le jeu : sous le plafond de 150 immeubles, petit chalet sans vitrine, ou bâtiment écarté.
+- Règle d'emprise assouplie pour les seuls immeubles commerçants, au bord des fronts de neige (robot et slalom
+  identiques) :
+  - une piste peut longer l'immeuble : sa zone damée peut couvrir le bord, jamais les 60 % centraux de sa largeur
+    (distance à l'axe) ; la barre du jeu (17 m) peut glisser dans l'emprise IGN, plus profonde, à l'opposé de la piste ;
+  - pôle de gare : à moins de 20 m d'une gare, seule la ligne au-delà des 25 premiers mètres compte (la gare du
+    Télémétro est dans le complexe de Le Pelvoux) ; l'embarquement et l'arrivée restent sans obstacle ;
+  - un commerce va à l'immeuble dont l'emprise IGN le contient (ou à moins de 8 m de la barre du jeu).
+- **Le Pelvoux et Immeuble G1G2** (la piste Boulevard II les longe, d'après toi) sont construits, avec leurs commerces.
+- **Plagne Centre sans sapins** : aucun arbre à moins de 25 m des immeubles ni sur 45 m devant leur façade avant (le
+  front de neige).
 - Les 8 commerçants tiennent un commerce réel de leur type (ou d'un type voisin) dans leur village ; déplacement
   par rapport à T5 ter (positions après le départ de la partie) :
 
@@ -115,9 +122,8 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 - État initial : `buildings` (158) et `credits` re-figés, expliqués dans `web/tests/baselines/README.md`.
 
 ## Limites et questions
-- **Le Pelvoux et Immeuble G1G2** (cœur de Plagne Centre, 18 commerces) : la piste bleue Boulevard II traverse leur
-  emprise dans OSM ; ils restent écartés. Si une piste passe réellement dessous (comme Le France), je peux les
-  construire de la même façon — à confirmer.
+- Le Pelvoux, G1G2 : barres du jeu (17 m de profondeur) dans des emprises IGN de 50 à 58 m ; la gare du Télémétro est
+  représentée par la gare du jeu, accolée, pas encore intégrée au volume de l'immeuble.
 - Le Paquebot du jeu fait 136 m sur les 206 m relevés : la Télécabine Télémétro arrive dans son extrémité nord-ouest,
   écartée. La grande terrasse des photos est probablement dans cette partie : elle est posée au bout construit.
 - Terrasses d'Aime 2000 : positions approchées d'après les photos.
