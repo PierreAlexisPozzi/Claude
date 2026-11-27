@@ -81,7 +81,7 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 - Au départ, plein écran et paysage verrouillé quand le navigateur le permet (Chrome sur Android) ; sans effet sinon
   (iPhone : Safari ne le permet pas, le conseil reste).
 - Vues de référence téléphone désormais prises en paysage (844 × 390) ; vue de jeu `jeu-depart` en paysage et
-  `jeu-portrait`.
+  `jeu-portrait` (contexte à part : le plein écran du départ empêche de redimensionner la fenêtre).
 
 ## Appels de dessin (Moyenne, cœur de Plagne Centre ; post-traitement en plus)
 
@@ -123,6 +123,17 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 - Terrasses d'Aime 2000 : positions approchées d'après les photos.
 - Vues de visage : elles suivent désormais la personne (caméra calculée à la capture) ; les commerçants ayant changé de
   place, les planches comparent des décors différents.
+- Commerces sur les résidences bois des villages (Plagne 1800, Villages, Soleil) : les vitrines n'existent que sous les
+  arcades de la façade avant ; un commerce OSM ramené sur une autre façade n'y apparaît pas (Lucie se tient devant un
+  mur sans vitrine). À reprendre avec la typologie de ces villages.
+- Vue « Aime 2000 · paquebot » : c'est la façade arrière, côté route ; son grand soubassement est réel (le front de
+  neige est de l'autre côté, vues `aime-2000-front-de-neige` et `terrasse-aime-2000`).
 - Niveau de détail (proche / moyen / imposteur) et test de « pop » prévus par le plan T6 : pas encore faits (fin de T6).
 - Bellecôte et Belle Plagne sont hors du secteur actuel : extension du domaine (T17).
 - Réglage de l'aspect en rendu logiciel seulement.
+
+## Vues et planches
+- Avant (`vues/T6-avant`) : version T5 ter, avec les caméras de T6. Après (`vues/T6`) : 51 vues sur ordinateur, 14 sur
+  téléphone (paysage) ; vues de Le France et de jeu recapturées sur la version finale.
+- Planches : `planche_T6_aime_lefrance.jpg`, `planche_T6_commerces.jpg`, `planche_T6_telephone.jpg` ; écarts :
+  `vues/T6/ecart-avant-apres.json`.

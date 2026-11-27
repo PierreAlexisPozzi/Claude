@@ -49,10 +49,17 @@ async function capture(browser: Browser, target: Target, phone: boolean): Promis
     await shoot(page, v, f);
     files.push(f);
   }
-  if (phone && target === 'web' && (!only || only.test('jeu-portrait'))) {   // la vue de jeu, téléphone tenu en portrait
-    await page.setViewportSize({ width: 390, height: 844 });
-    await shoot(page, { id: 'jeu-portrait', kind: 'jeu' }, path.join(OUT, 'telephone', 'jeu-portrait.jpg'));
+  if (phone && target === 'web' && (!only || only.test('jeu-portrait'))) {
+    // la vue de jeu, téléphone tenu en portrait, dans un contexte à part : depuis T6 le départ passe en plein écran sur
+    // tactile, et une fenêtre en plein écran ne se redimensionne pas
+    const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true }), p2 = await c2.newPage();
+    await openGame(p2, target);
+    await p2.evaluate(() => (window as any).__ski.quality('medium'));
+    await start(p2);
+    await pump(p2, 2);
+    await shoot(p2, { id: 'jeu-portrait', kind: 'jeu' }, path.join(OUT, 'telephone', 'jeu-portrait.jpg'));
     files.push(path.join(OUT, 'telephone', 'jeu-portrait.jpg'));
+    await c2.close();
   }
   await ctx.close();
   return files;
