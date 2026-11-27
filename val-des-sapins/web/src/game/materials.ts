@@ -158,7 +158,7 @@ export function interiorMat(lamp, tint, atlas = BLEND.tex.rooms_atlas, tiles = 4
       float k = R.z / (R.z - h.z);
       vec2 uv = vec2(0.5 + 0.5 * (h.x / R.x) * k, 0.5 - 0.5 * (h.y / R.y) * k);
       #ifdef VARIANT_FROM_COLOR
-        float v = floor(vColor.r * 8.0 + 0.5);          // shop index shared with its sign (instance colour)
+        float v = floor(vColor.g * 8.0 + 0.5);          // T6 : intérieur porté par le vert de la couleur d'instance (le rouge : l'enseigne)
       #else
         float v = floor(vWinSeed * uTiles);
         uv.x = mix(uv.x, 1.0 - uv.x, step(0.5, fract(vWinSeed * 5.17)));   // T5 : pièce vue en miroir une fois sur deux

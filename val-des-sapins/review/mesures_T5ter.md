@@ -56,8 +56,8 @@ vert, établissements en rouge, ceux qui déclarent une terrasse en orange, pist
 | Haute | 540 | 468 |
 | Ultra | 578 | 491 |
 
-- Moins d'appels qu'en T5 bis : les anciennes terrasses (deux par station, posées à part) disparaissent, et les
-  nouvelles sont fusionnées au démarrage avec leur mobilier (un seul maillage par terrasse).
+- Moins d'appels qu'en T5 bis ; explication probable, non vérifiée appel par appel : les anciennes terrasses (deux par
+  station, posées à part) disparaissent, et les nouvelles sont fusionnées au démarrage avec leur mobilier.
 - Temps indicatifs (rendu logiciel, quatre navigateurs en parallèle pendant la mesure) : état jouable 10,4 s
   (ordinateur) et 15,4 s (tactile) ; image en Moyenne 23 ms et 32 ms.
 

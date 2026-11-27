@@ -13,7 +13,7 @@ import { LIFTS, PISTES, ZN, ZR, clearGrid, pisteHeading, rasterSeg, tunnelLocal,
 import { MAX_ANISO, scene } from './render';
 import { CELL, HALF, VN, gridH, heights, mulberry32, obstacles, rnd } from './terrain';
 
-export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK, CUR_FLOOR, TERRACES;
+export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK, CUR_FLOOR, TERRACES, CUR_PAQ, LE_FRANCE, SHOPS_TAKEN, REJECTED;
 
 
 export function makeFacade(kind) {
@@ -159,17 +159,23 @@ export function landmarkOK(x, z, rot, w, d) {
   return true;
 }
 
-export function footprintOK(x, z, rot, w, d, maxDrop = 6) {
-  if (groundMax(x, z, w, d, rot) - groundMin(x, z, w, d, rot) > maxDrop) return false;
-  for (let u = -w / 2 - 3; u <= w / 2 + 3; u += 4) for (let v = -d / 2 - 3; v <= d / 2 + 3; v += 4) {
+export function footprintOK(x, z, rot, w, d, maxDrop = 6) { return !footprintWhy(x, z, rot, w, d, maxDrop); }
+/** Raison du refus d'une emprise (null si elle convient). Par défaut : 3 m de marge autour, ni piste, ni remontée à
+ *  moins de 14 m, 2 m d'écart aux obstacles. shop (T6, immeubles qui portent des commerces d'OSM, au bord des fronts de
+ *  neige) : une piste peut toucher le bord (pas l'intérieur, 3 m en retrait), remontée à 6 m, 0,5 m d'écart. */
+export function footprintWhy(x, z, rot, w, d, maxDrop = 6, shop = false) {
+  if (groundMax(x, z, w, d, rot) - groundMin(x, z, w, d, rot) > maxDrop) return 'pente';
+  const m = shop ? 0 : 3, liftR = shop ? 6 : 14, gap = shop ? 0.5 : 2;
+  for (let u = -w / 2 - m; u <= w / 2 + m + 1e-6; u += 4) for (let v = -d / 2 - m; v <= d / 2 + m + 1e-6; v += 4) {
     const [px, pz] = toWorld(x, z, rot, u, v);
-    if (Math.abs(px) > HALF - 40 || Math.abs(pz) > HALF - 40) return false;
-    if (zoneAt(px, pz) >= 0 || liftDist(px, pz) < 14) return false;
-    if (obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + 2)) return false;
-    if (cannons.some(c => Math.hypot(c.x - px, c.z - pz) < 6)) return false;
-    if (tunnels.some(T => { const tl = tunnelLocal(T, px, pz, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 26; })) return false;
+    if (Math.abs(px) > HALF - 40 || Math.abs(pz) > HALF - 40) return 'bord';
+    if (zoneAt(px, pz) >= 0 && (!shop || (Math.abs(u) < w / 2 - 3 && Math.abs(v) < d / 2 - 3))) return 'piste';
+    if (liftDist(px, pz) < liftR) return 'remontée';
+    if (obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + gap)) return 'obstacle';
+    if (cannons.some(c => Math.hypot(c.x - px, c.z - pz) < 6)) return 'canon';
+    if (tunnels.some(T => { const tl = tunnelLocal(T, px, pz, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 26; })) return 'tunnel';
   }
-  return true;
+  return null;
 }
 
 export function claim(x, z, rot, w, d) {
@@ -207,6 +213,30 @@ export function finish(grp, parts, rails, partsMat) {
   scene.add(grp);
 }
 
+/** T6 : les commerces d'OpenStreetMap (PLAGNE.shops) à moins de 8 m de l'emprise vont à cet immeuble (le premier placé,
+ *  donc le plus grand, l'emporte), ramenés sur la façade la plus proche : b.shopList = [{ k, face, x, z, nx, nz }]
+ *  (point de la vitrine et normale sortante, monde). Les vitrines (shopFront) ne s'ouvrent que là ; logements ailleurs. */
+const shopsNear = (x, z, rot, w, d) => PLAGNE && PLAGNE.shops && PLAGNE.shops.some((q, i) => { if (SHOPS_TAKEN.has(i)) return false; const dx = q.x - x, dz = q.z - z, c = Math.cos(rot), sn = Math.sin(rot); return Math.abs(dx * c - dz * sn) < w / 2 + 8 && Math.abs(dx * sn + dz * c) < d / 2 + 8; });
+export function attachShops(b) {
+  if (!PLAGNE || !PLAGNE.shops) return;
+  const ca = Math.cos(b.rot), sa = Math.sin(b.rot), list = (b.shopList = []), inner = b.type === 'paquebot';   // modules du paquebot : façades avant et arrière seulement
+  PLAGNE.shops.forEach((q, i) => {
+    if (SHOPS_TAKEN.has(i)) return;
+    const dx = q.x - b.x, dz = q.z - b.z, u = dx * ca - dz * sa, v = dx * sa + dz * ca;
+    if (Math.abs(u) > b.w / 2 + 8 || Math.abs(v) > b.d / 2 + 8) return;
+    const opts = [[Math.abs(b.d / 2 - v), 0], [Math.abs(v + b.d / 2), 1]];
+    if (!inner) opts.push([Math.abs(b.w / 2 - u), 2], [Math.abs(u + b.w / 2), 3]);
+    const face = opts.sort((a, c) => a[0] - c[0])[0][1], L = face < 2 ? b.w : b.d;
+    let s = face === 0 ? u + b.w / 2 : face === 1 ? b.w / 2 - u : face === 2 ? b.d / 2 - v : v + b.d / 2;
+    s = clamp(s, Math.min(1.8, L / 2), Math.max(L - 1.8, L / 2));
+    for (let k = 0; k < 8 && list.some(o => o.face === face && Math.abs(o.s - s) < 3.4); k++) s = s + 3.6 <= L - 1.8 ? s + 3.6 : Math.max(1.8, s - 7.2);   // deux commerces au même endroit : côte à côte
+    const [lu, lv, nu, nv] = face === 0 ? [s - b.w / 2, b.d / 2 + 0.3, 0, 1] : face === 1 ? [b.w / 2 - s, -b.d / 2 - 0.3, 0, -1] : face === 2 ? [b.w / 2 + 0.3, b.d / 2 - s, 1, 0] : [-b.w / 2 - 0.3, s - b.d / 2, -1, 0];
+    const [wx, wz] = toWorld(b.x, b.z, b.rot, lu, lv);
+    list.push({ k: q.k, face, s, x: wx, z: wz, nx: nu * ca + nv * sa, nz: -nu * sa + nv * ca, i });
+    SHOPS_TAKEN.add(i);
+  });
+}
+
 export function startGroup(x, z, rot, w, d) {
   // T5 ter : un immeuble à terrasse a son rez-de-chaussée au niveau de la neige du front de neige (CUR_FLOOR)
   const top = CUR_FLOOR != null ? CUR_FLOOR : groundMax(x, z, w, d, rot) + 0.3, y0 = Math.min(groundMin(x, z, w, d, rot), top - 0.3);
@@ -214,6 +244,7 @@ export function startGroup(x, z, rot, w, d) {
   // the foundation down the slope: stone under the procedural chalets; in La Plagne the facade material runs down to
   // the ground (board-formed concrete under the slabs and towers, cream render under the wood residences)
   const bm = CUR_PAL ? baseMats[CUR_PAL.base] || (baseMats[CUR_PAL.base] = pbr({ color: CUR_PAL.base, roughness: 0.9 })) : bmat('plinth');
+  if (CUR_PAL && CUR_PAL.bridge) return { grp, top, y0: top };   // T6 : section en pont (Le France) : rien sous la sous-face
   const ph = top - y0 + 1.5, pl = new THREE.Mesh(facadeBox(w + (CUR_PAL ? 0.1 : 0.6), ph, d + (CUR_PAL ? 0.1 : 0.6)), bm); pl.position.y = y0 - 1.2 + ph / 2; grp.add(pl);
   return { grp, top, y0 };
 }
@@ -223,6 +254,7 @@ export function bldWoodRes(x, z, rot, w, d) {
   const pal = CUR_PAL, floors = 3 + (rnd() < 0.5 ? 1 : 0) + (w > 30 ? 1 : 0) + (pal ? 1 : 0), gf = 3.4;
   const { grp, top, y0 } = startGroup(x, z, rot, w, d), parts = [], rails = [];
   BUILDINGS.push({ type: 'woodres', x, z, rot, w, d, top, y0, floors, grp, detail: null, pal });
+  attachShops(BUILDINGS[BUILDINGS.length - 1]);
   facadeMesh(grp, pal ? pal.ground : 'arcade', w, gf, d, 0, top + gf / 2, 0, 3.4);
   const H1 = floors * FLOOR; facadeMesh(grp, pal ? pal.facade : 'woodres', w, H1, d, 0, top + gf + H1 / 2, 0);
   for (let f = 0; f < floors; f++) {
@@ -342,7 +374,10 @@ export function bldPlSlab(x, z, rot, w, d) {
   const pal = CUR_PAL, floors = pal.floors, gf = 3.4, type = pal.tower ? 'tower' : 'block';
   const { grp, top, y0 } = startGroup(x, z, rot, w, d), parts = [];
   BUILDINGS.push({ type, x, z, rot, w, d, top, y0, floors, grp, detail: null, pal, gf });
-  facadeMesh(grp, pal.shops ? 'shops' : pal.facade, w, gf, d, 0, top + gf / 2, 0, 3.4);
+  const ent = BUILDINGS[BUILDINGS.length - 1];
+  if (pal.bridge) ent.shopList = []; else attachShops(ent);   // T6 : commerces d'après OSM (sinon : logements)
+  const shopsHere = ent.shopList ? ent.shopList.length > 0 : pal.shops, galleryHere = !ent.shopList || ent.shopList.some(q => q.face === 0);
+  facadeMesh(grp, shopsHere ? 'shops' : pal.facade, w, gf, d, 0, top + gf / 2, 0, 3.4);
   const H1 = (floors - 1) * FLOOR; facadeMesh(grp, pal.facade, w, H1, d, 0, top + gf + H1 / 2, 0);
   const faces2 = pal.tower ? [['x', 1], ['x', -1], ['z', 1], ['z', -1]] : [['z', 1], ['z', -1]];
   for (const [ax, sd] of faces2) {
@@ -356,7 +391,7 @@ export function bldPlSlab(x, z, rot, w, d) {
     }
     const nf = Math.max(2, Math.round(L / 6.4)), pc = isPC(pal), fw = pc ? 0.42 : 0.3, fd = pc ? dep + 0.35 : dep;
     for (let k = 0; k <= nf; k++) B(fw, H1, fd, -L / 2 + k * L / nf, top + gf + H1 / 2, D / 2 + fd / 2, pal.slab);   // fins between loggias (T5 : saillants à Plagne Centre)
-    if (pc && sd === 1 && ax === 'z') {   // T5 : galerie couverte au pied (mêmes cotes que la version détaillée, GALLERY)
+    if (pc && sd === 1 && ax === 'z' && !pal.bridge && galleryHere) {   // T5 : galerie couverte au pied (mêmes cotes que la version détaillée, GALLERY) ; T6 : devant des commerces
       const G = GALLERY, n = Math.max(2, Math.round(L / G.step));
       B(L + 0.2, G.slab, G.depth, 0, top + gf + G.slab / 2, D / 2 + G.depth / 2, pal.slab);
       B(L + 0.1, 0.32, G.depth - 0.1, 0, top + gf + G.slab + 0.16, D / 2 + G.depth / 2, SNOWC);
@@ -364,6 +399,7 @@ export function bldPlSlab(x, z, rot, w, d) {
     }
   }
   const yt = top + gf + H1;
+  if (pal.bridge) boxP(parts, w + 0.2, 0.7, d + 0.2, 0, top - 0.35, 0, pal.slab);   // T6 : sous-face du pont au-dessus de la piste
   boxP(parts, w + 0.5, 0.9, d + 0.5, 0, yt + 0.45, 0, pal.parapet);
   boxP(parts, w + 0.3, 0.55, d + 0.3, 0, yt + 0.95, 0, SNOWC);
   if (!pal.tower && w > 26 && !isPC(pal)) boxP(parts, 5, 2.6, 4, w * 0.25, yt + 1.6, -d * 0.15, pal.parapet);   // lift machine room
@@ -371,15 +407,53 @@ export function bldPlSlab(x, z, rot, w, d) {
   finish(grp, parts, null, isPC(pal) ? pcParts() : null);
 }
 
+/* T6 : l'immeuble Le France (Plagne Centre) : la piste Boulevard passe dessous. BD TOPO : emprise 101 × 37 m, 9 niveaux ;
+   les parties d'OSM font environ 20 m de profondeur. Le passage est déduit de l'emprise de la piste (grille des zones de
+   piste) sous l'immeuble, 2 m de marge de chaque côté, sous-face à 7,2 m au-dessus de la neige : deux ailes posées au sol
+   (seules à faire obstacle) et une section en pont entre elles, jusqu'au même toit. */
+export function bldLeFrance(x, z, rot, w, d) {
+  const pal = CUR_PAL, at = (u, v) => toWorld(x, z, rot, u, v);
+  // la piste qui traverse (le plus de cases sous l'emprise) fait le passage ; les autres (liaisons qui frôlent les
+  // extrémités) raccourcissent les ailes
+  const cells = new Map();
+  for (let u = -w / 2; u <= w / 2; u += 1) for (let v = -d / 2; v <= d / 2 + 1e-6; v += 2) { const k = zoneAt(...at(u, v)); if (k >= 0) { const c = cells.get(k) || { n: 0, a: Infinity, b: -Infinity }; c.n++; c.a = Math.min(c.a, u); c.b = Math.max(c.b, u); cells.set(k, c); } }
+  if (!cells.size) { bldPlSlab(x, z, rot, w, d); claim(x, z, rot, w, d); return; }
+  const [pk, pc] = [...cells].sort((a, b) => b[1].n - a[1].n)[0];
+  let p0 = pc.a - 2, p1 = pc.b + 2, e0 = -w / 2, e1 = w / 2;
+  for (const [k, c] of cells) if (k !== pk) { if (c.b < p0) e0 = Math.max(e0, c.b + 2); else if (c.a > p1) e1 = Math.min(e1, c.a - 2); }
+  if (p0 - e0 < 8 || e1 - p1 < 8) { console.info('La Plagne: Le France not placed (wings too short)'); return; }
+  const wings = [];
+  for (const [a, b] of [[e0, p0], [p1, e1]]) {
+    const [cx, cz] = at((a + b) / 2, 0); bldPlSlab(cx, cz, rot, b - a, d); claim(cx, cz, rot, b - a, d);
+    const B = BUILDINGS[BUILDINGS.length - 1]; B.wing = true; wings.push(B);
+  }
+  let g = -Infinity; for (let u = p0; u <= p1 + 1e-6; u += 1) for (let v = -d / 2; v <= d / 2 + 1e-6; v += 2) g = Math.max(g, gridH(...at(u, v)));
+  const C = g + 7.2, roof = Math.max(...wings.map(B => B.top + B.gf + (B.floors - 1) * FLOOR));
+  const floors = Math.max(2, Math.round((roof - C - 3.4) / FLOOR) + 1), [cx, cz] = at((p0 + p1) / 2, 0);
+  CUR_FLOOR = C; CUR_PAL = { ...pal, floors, shops: false, bridge: true };
+  bldPlSlab(cx, cz, rot, p1 - p0, d);
+  CUR_FLOOR = null; CUR_PAL = pal;
+  const B = BUILDINGS[BUILDINGS.length - 1]; B.bridge = true; B.clear = Math.round((C - g) * 10) / 10; B.span = [p0, p1];
+  for (let u = p0; u <= p1; u += 4) for (let v = -d / 2; v <= d / 2; v += 4) { const [px, pz] = at(u, v); rasterSeg(ZR, ZN - 1, px, pz, px, pz, 9, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); }   // pas d'arbres dessous
+  LE_FRANCE = { x, z, rot, w, d, p0, p1, e0, e1, clear: B.clear, g, piste: PISTES[pk] ? PISTES[pk].name : pk };
+}
+
 // the Paquebot des neiges: modules along its length, the roofline in three waves, every floor stepped back on both faces
 export function bldPlPaquebot(x, z, rot, w, d) {
-  const pal = CUR_PAL, n = Math.max(3, Math.round(w / 20)), mw = w / n, step = 1.15, gf = 3.4;
+  const pal = CUR_PAL, n = Math.max(3, Math.round(w / 20)), mw = w / n, step = 1.15, Q = CUR_PAQ;
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n, floors = Math.round(7 + 6 * (0.5 + 0.5 * Math.cos(2 * Math.PI * 3 * (t - 1 / 6))));
     const u = -w / 2 + (i + 0.5) * mw, [mx, mz] = toWorld(x, z, rot, u, 0);
+    // T6 : rez-de-chaussée par paliers au niveau de la neige (gfl : six paliers par module) ; top = le plus bas, et le
+    // premier étage au-dessus du plus haut
+    const gfl = Q && Q.gfl[i], gf = gfl ? 3.4 + Math.max(...gfl) - Math.min(...gfl) : 3.4;
+    if (gfl) CUR_FLOOR = Math.min(...gfl);
     const { grp, top, y0 } = startGroup(mx, mz, rot, mw, d), parts = [], boxes = [];
-    BUILDINGS.push({ type: 'paquebot', x: mx, z: mz, rot, w: mw, d, top, y0, floors, grp, detail: null, pal, step, gf });
-    facadeMesh(grp, 'shops', mw, gf, d + 0.6, 0, top + gf / 2, 0, 3.4);
+    BUILDINGS.push({ type: 'paquebot', x: mx, z: mz, rot, w: mw, d, top, y0, floors, grp, detail: null, pal, step, gf, gfl: gfl || null });
+    const ent = BUILDINGS[BUILDINGS.length - 1]; attachShops(ent);
+    const gk = !ent.shopList || ent.shopList.length ? 'shops' : pal.facade;   // T6 : rez-de-chaussée de logements sans commerce
+    if (gfl) gfl.forEach((y, s) => { const h = top + gf - y, k = gfl.length; facadeMesh(grp, gk, mw / k + 0.01, h, d + 0.6, -mw / 2 + (s + 0.5) * mw / k, y + h / 2, 0, h); });
+    else facadeMesh(grp, gk, mw, gf, d + 0.6, 0, top + gf / 2, 0, 3.4);
     for (let f = 0; f < floors; f++) {
       const dd = d - 2 * step * (f + 1), y = top + gf + f * FLOOR;
       if (dd < 6) break;
@@ -414,6 +488,7 @@ export function buildPlagneBuildings() {
     let spec, pal = null;
     if (b.kind === 'construction' || /dameuse|Parking/i.test(nm) && area > 2000) continue;
     if (/Paquebot/i.test(nm)) { pal = PAL.aime; spec = { b: bldPlPaquebot, w: Math.min(w, 205), d: clamp(d, 30, 40) }; }
+    else if (/Le France/i.test(nm)) { pal = { ...PAL.centre, floors: Math.max(2, b.levels || 9), tower: false }; spec = { b: bldLeFrance, w: Math.min(w, 102), d: clamp(d, 16, 20) }; }
     else if (/Club Med/i.test(nm) && !/ex /i.test(nm)) { pal = { ...PAL.red, floors: 11, tower: w < 30 }; spec = { b: bldPlSlab, w: clamp(w, 16, 70), d: clamp(d, 13, 18) }; }
     else if (/Salle|Parking|Garage|Funi|omnisport/i.test(nm)) { pal = { ...PAL.low, floors: 2 }; spec = { b: bldPlSlab, w: clamp(w, 12, 70), d: clamp(d, 10, 30) }; }
     else if (modern && area > 220) {
@@ -430,18 +505,31 @@ export function buildPlagneBuildings() {
     else if (area > 160) { pal = PAL.village; spec = { b: bldWoodRes, w: clamp(w, 18, 46), d: clamp(d, 11, 15) }; }
     else spec = { b: (x, z, r, ww, dd) => bldStoneChalet(x, z, r, ww, dd, area < 110), w: clamp(w, 9, 16), d: clamp(d, 8, 11) };
     // the landmarks stand where they are, whatever runs past them; everything else keeps off runs and lift lines
-    const landmark = spec.b === bldPlPaquebot || /Club Med/i.test(nm);
+    const landmark = spec.b === bldPlPaquebot || spec.b === bldLeFrance || /Club Med/i.test(nm);
     let bx = b.x, bz = b.z;
     if (landmark) {   // where a lift line runs into it (the gondola arrives at the end of the Paquebot), keep the longest clear stretch
       const cols = []; for (let u = -spec.w / 2; u <= spec.w / 2; u += 4) cols.push([u, landmarkOK(...toWorld(b.x, b.z, rot, u, 0), rot, 4, spec.d)]);
       let best = null, cur = null; for (const [u, ok] of cols) { if (ok) { cur = cur ? [cur[0], u] : [u, u]; if (!best || cur[1] - cur[0] > best[1] - best[0]) best = cur.slice(); } else cur = null; }
       if (!best || best[1] - best[0] < 40) { console.info('La Plagne: landmark not placed', nm); continue; }
       [bx, bz] = toWorld(b.x, b.z, rot, (best[0] + best[1]) / 2, 0); spec.w = best[1] - best[0];
-    } else if (!footprintOK(b.x, b.z, rot, spec.w, spec.d, 14)) continue;
-    claim(bx, bz, rot, spec.w, spec.d);
+    } else {
+      let why = footprintWhy(b.x, b.z, rot, spec.w, spec.d, 14);
+      // T6 : un immeuble qui porte des commerces d'OSM est gardé au bord du front de neige (règle assouplie)
+      if (why && why !== 'pente' && shopsNear(b.x, b.z, rot, spec.w, spec.d)) why = footprintWhy(b.x, b.z, rot, spec.w, spec.d, 14, true);
+      if (why) { REJECTED.push({ x: b.x, z: b.z, w: spec.w, d: spec.d, name: nm, kind: b.kind, why, rank: list.indexOf(b) }); continue; }
+    }
+    if (spec.b !== bldLeFrance) claim(bx, bz, rot, spec.w, spec.d);   // Le France : seules ses ailes font obstacle (bldLeFrance)
     // T5 ter : la façade avant (v > 0 : galerie, commerces, terrasse) est tournée vers le front de neige
     if (frontSide(bx, bz, rot, spec.w, spec.d) < 0) rot += Math.PI;
-    const tp = spec.b === bldPlPaquebot ? null : planTerrace(bx, bz, rot, spec.w, spec.d, isPC(pal));
+    const tp = spec.b === bldPlPaquebot || spec.b === bldLeFrance ? null : planTerrace(bx, bz, rot, spec.w, spec.d, isPC(pal));
+    // T6 : Aime 2000 d'après les photos fournies — front de neige du Paquebot, replat au pied des autres immeubles
+    const paq = spec.b === bldPlPaquebot ? planPaquebot(bx, bz, rot, spec.w, spec.d) : null;
+    const fr = !tp && !paq && /Aime/.test(town) && pal && pal !== PAL.village && frontScore(bx, bz, rot, spec.w, spec.d, 1) <= 60 ? planFront(bx, bz, rot, spec.w, spec.d) : null;
+    if (fr) {
+      const g0 = groundMax(bx, bz, spec.w, spec.d, rot) + 0.3;
+      CUR_FLOOR = fr.L;
+      if (pal.floors) pal = { ...pal, floors: Math.max(2, pal.floors + Math.round((g0 - fr.L) / FLOOR)) };
+    }
     if (tp) {
       const g0 = groundMax(bx, bz, spec.w, spec.d, rot) + 0.3;
       flattenRect(bx, bz, rot, tp.uc - tp.W / 2 - 1, tp.uc + tp.W / 2 + 1, spec.d / 2 - 1.5, spec.d / 2 + tp.g + tp.D + 1, tp.L);
@@ -450,8 +538,11 @@ export function buildPlagneBuildings() {
       if (pal && pal !== PAL.village && pal.floors) pal = { ...pal, floors: Math.max(2, pal.floors + Math.round((g0 - tp.L) / FLOOR)) };
     }
     const n0 = BUILDINGS.length;
-    CUR_PAL = pal; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; CUR_FLOOR = null; placed++;
+    CUR_PAL = pal; CUR_PAQ = paq; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; CUR_FLOOR = null; CUR_PAQ = null; placed++;
+    for (let i = n0; i < BUILDINGS.length; i++) if (!BUILDINGS[i].shopList) attachShops(BUILDINGS[i]);   // chalets et autres : vitrines OSM ou logements
     if (tp && BUILDINGS.length > n0) BUILDINGS[BUILDINGS.length - 1].terrace = tp;
+    if (paq) for (const t of paq.decks) if (BUILDINGS[n0 + t.k]) BUILDINGS[n0 + t.k].terrace = t;
+    if (fr && BUILDINGS.length > n0) { const b = BUILDINGS[BUILDINGS.length - 1]; FRONTS.push({ x: b.x, z: b.z, rot: b.rot, w: b.w, d: b.d, L: fr.L, top: b.top, ok: fr.ok }); }
   }
   console.info('La Plagne: ' + placed + ' buildings of ' + list.length);
   buildTerraces();
@@ -465,16 +556,18 @@ export function buildPlagneBuildings() {
    - la neige n'est aplanie que sous la terrasse et la bande jusqu'à la façade (jamais sur une piste, près d'une
      remontée ou sous un autre immeuble) ; pas de pilotis ni de marche. */
 const liftNear = (x, z, r) => LIFTS.some(L => L.B && (Math.hypot(L.B.x - x, L.B.z - z) < r || Math.hypot(L.T.x - x, L.T.z - z) < r));
-export function frontSide(x, z, rot, w, d) {
+/** Distance (m) de la façade sd (±1) à la première piste ou gare de remontée, au plus 120 m ; au-delà, 1000 + l'altitude
+ *  devant la façade (pas de piste en vue : le côté aval l'emporte). */
+export function frontScore(x, z, rot, w, d, sd) {
   const ca = Math.cos(rot), sa = Math.sin(rot);
-  const score = sd => {
-    for (let s = 2; s <= 120; s += 3) for (const u of [-w * 0.3, 0, w * 0.3]) {
-      const v = sd * (d / 2 + s), px = x + u * ca + v * sa, pz = z - u * sa + v * ca;
-      if (zoneAt(px, pz) >= 0 || liftNear(px, pz, 20)) return s;
-    }
-    return 1000 + gridH(x + sd * (d / 2 + 10) * sa, z + sd * (d / 2 + 10) * ca);   // pas de piste en vue : côté aval
-  };
-  return score(1) <= score(-1) ? 1 : -1;
+  for (let s = 2; s <= 120; s += 3) for (const u of [-w * 0.3, 0, w * 0.3]) {
+    const v = sd * (d / 2 + s), px = x + u * ca + v * sa, pz = z - u * sa + v * ca;
+    if (zoneAt(px, pz) >= 0 || liftNear(px, pz, 20)) return s;
+  }
+  return 1000 + gridH(x + sd * (d / 2 + 10) * sa, z + sd * (d / 2 + 10) * ca);
+}
+export function frontSide(x, z, rot, w, d) {
+  return frontScore(x, z, rot, w, d, 1) <= frontScore(x, z, rot, w, d, -1) ? 1 : -1;
 }
 const inOther = (px, pz, m) => BUILDINGS.some(b => { const dx = px - b.x, dz = pz - b.z, c = Math.cos(b.rot), s = Math.sin(b.rot); return Math.abs(dx * c - dz * s) < b.w / 2 + m && Math.abs(dx * s + dz * c) < b.d / 2 + m; });
 export function planTerrace(x, z, rot, w, d, pc) {
@@ -491,17 +584,21 @@ export function planTerrace(x, z, rot, w, d, pc) {
   L /= n;
   const why = k => { TERRACES.why[k] = (TERRACES.why[k] || 0) + 1; return null; };
   if (hi - lo > 4) return why('pente');                                            // terrain trop pentu pour un replat
-  // zone aplanie pour de bon (terrasse + 9 m) : ni piste, ni remontée, ni autre immeuble ; dans le raccord (9 à 15 m),
-  // ces endroits-là sont simplement laissés tels quels (flattenRect)
+  const z0 = zoneWhy(at, uc, W, D, d, g); if (z0) return why(z0);
+  const t = { uc, W, D, g, L: Math.round(L * 100) / 100, venues: vs.length, outdoor: vs.some(([q]) => q.outdoor) ? 1 : 0, src: 'osm' };
+  TERRACES.push(t); return t;
+}
+/** Zone aplanie pour de bon autour d'une terrasse (terrasse + 9 m) : ni bord de carte, ni piste, ni remontée, ni autre
+ *  immeuble (dans le raccord, de 9 à 15 m, ces endroits-là sont simplement laissés tels quels : flattenRect). */
+function zoneWhy(at, uc, W, D, d, g) {
   for (let u = uc - W / 2 - 10; u <= uc + W / 2 + 10; u += 2) for (let v = d / 2 - 1; v <= d / 2 + g + D + 10; v += 2) {
     const [px, pz] = at(u, v);
-    if (Math.abs(px) > HALF - 30 || Math.abs(pz) > HALF - 30) return why('bord');
-    if (zoneAt(px, pz) >= 0) return why('piste');
-    if (liftDist(px, pz) < 10) return why('remontée');
-    if (inOther(px, pz, 1)) return why('immeuble');
+    if (Math.abs(px) > HALF - 30 || Math.abs(pz) > HALF - 30) return 'bord';
+    if (zoneAt(px, pz) >= 0) return 'piste';
+    if (liftDist(px, pz) < 10) return 'remontée';
+    if (inOther(px, pz, 1)) return 'immeuble';
   }
-  const t = { uc, W, D, g, L: Math.round(L * 100) / 100, venues: vs.length, outdoor: vs.some(([q]) => q.outdoor) ? 1 : 0 };
-  TERRACES.push(t); return t;
+  return null;
 }
 /** Aplanit la neige à L dans un rectangle de la façade (repère u, v), pleinement jusqu'à 9 m autour (les sommets de la
  *  grille de 6,25 m qui portent les triangles), raccord en douceur jusqu'à 15 m. */
@@ -519,18 +616,123 @@ export function flattenRect(x, z, rot, u0, u1, v0, v1, L) {
   }
 }
 
+/* ---------------- T6 : Aime 2000, d'après les photos fournies ----------------
+   Sur les photos (vue aérienne et vue du front de neige), la neige arrive au rez-de-chaussée des immeubles d'Aime 2000
+   et le Paquebot a des terrasses sur la neige, côté pistes. Le relief IGN, lui, creuse un fossé de 1 à 3 m au pied de
+   la façade (interpolation autour du bâtiment) et descend d'environ 8 % le long du Paquebot. Règles :
+   - Paquebot : la neige est remise au niveau du profil pris 5 à 11 m devant la façade (lissé sur ±8 m), qui suit la
+     pente ; les commerces du rez-de-chaussée suivent la neige par paliers (trois par module de ~19 m) ;
+   - deux terrasses sur la neige, à plat, d'après les photos (positions approchées : grande terrasse vers l'extrémité
+     nord-ouest construite, terrasse aux parasols vers le milieu) ;
+   - autres immeubles d'Aime 2000 qui ont une piste à moins de 60 m : un replat de neige au niveau du rez-de-chaussée
+     devant la façade avant, si la pente le permet ;
+   - aucun sommet de piste, de remontée (10 m) ou d'un autre immeuble n'est modifié, ni dans la bande ni dans le
+     raccord : pistes, robot et slalom ne changent pas. */
+export let FRONTS = [];
+/** Met la neige au niveau prof(u) dans la bande [u0,u1]×[v0,v1] du repère de la façade, raccord sur `blend` m. */
+export function fillBand(x, z, rot, u0, u1, v0, v1, prof, blend = 6, keep = Infinity) {
+  const ca = Math.cos(rot), sa = Math.sin(rot), R = Math.hypot(u1 - u0, v1 - v0) / 2 + blend + CELL;
+  const cu = (u0 + u1) / 2, cv = (v0 + v1) / 2, cx = x + cu * ca + cv * sa, cz = z - cu * sa + cv * ca;
+  const i0 = Math.max(0, Math.floor((cx - R + HALF) / CELL)), i1 = Math.min(VN - 1, Math.ceil((cx + R + HALF) / CELL));
+  const j0 = Math.max(0, Math.floor((cz - R + HALF) / CELL)), j1 = Math.min(VN - 1, Math.ceil((cz + R + HALF) / CELL));
+  let n = 0, kept = 0;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const px = -HALF + i * CELL, pz = -HALF + j * CELL, dx = px - x, dz = pz - z, u = dx * ca - dz * sa, v = dx * sa + dz * ca;
+    const dist = Math.hypot(Math.max(u0 - u, 0, u - u1), Math.max(v0 - v, 0, v - v1)), t = 1 - smoothstep(0, blend, dist);
+    if (t <= 0) continue;
+    if (zoneAt(px, pz) >= 0 || liftDist(px, pz) < 10 || inOther(px, pz, 0.5)) { kept++; continue; }
+    const h0 = heights[j * VN + i], L = prof(clamp(u, u0, u1)), tk = keep < Infinity ? t * (1 - smoothstep(keep, keep + 1.5, Math.abs(h0 - L))) : t;   // keep : au-delà, le relief est laissé
+    if (tk <= 0) { kept++; continue; }
+    heights[j * VN + i] = lerp(h0, L, tk); n++;
+  }
+  return { n, kept };
+}
+const meanH = (at, u0, u1, v0, v1, st = 2) => { let s = 0, k = 0, lo = 1e9, hi = -1e9; for (let u = u0; u <= u1 + 1e-6; u += st) for (let v = v0; v <= v1 + 1e-6; v += st) { const h = gridH(...at(u, v)); s += h; k++; lo = Math.min(lo, h); hi = Math.max(hi, h); } return { h: s / k, lo, hi }; };
+
+/** Front de neige du Paquebot : profil de neige, terrasses des photos, paliers des commerces (CUR_PAQ pour bldPlPaquebot).
+ *  Le profil T(u) le long de la façade suit la neige naturelle (lissée), sauf au droit des terrasses où il est à plat
+ *  (terrasse ± 9 m : les sommets de la grille de 6,25 m qui portent la neige sous la terrasse) ; l'écart entre les
+ *  deux est réparti en pente douce entre les replats. */
+export function planPaquebot(x, z, rot, w, d) {
+  const n = Math.max(3, Math.round(w / 20)), mw = w / n, np = 6, at = (u, v) => toWorld(x, z, rot, u, v), g = 0.6;
+  const us = [], raw = [];
+  for (let u = -w / 2 - 20; u <= w / 2 + 20.01; u += 2) { us.push(u); raw.push(meanH(at, u, u, d / 2 + 5, d / 2 + 11).h); }
+  const sm0 = raw.map((_, i) => { let s = 0, k = 0; for (let j = Math.max(0, i - 4); j <= Math.min(raw.length - 1, i + 4); j++, k++) s += raw[j]; return s / k; });
+  const sm = u => { const f = clamp((u - us[0]) / 2, 0, us.length - 1.001), i = Math.floor(f); return lerp(sm0[i], sm0[i + 1], f - i); };
+  const avg = (u0, u1) => { let s = 0, k = 0; for (let u = u0; u <= u1 + 1e-6; u += 1) { s += sm(u); k++; } return s / k; };
+  // terrasses d'après les photos : grande terrasse vers l'extrémité nord-ouest construite, terrasse aux parasols vers
+  // le milieu
+  const P = { n, mw, np, gfl: [], decks: [], fill: null }, flats = [];
+  // (premier module possible dans l'ordre de préférence ; deux replats à 18 m au moins l'un de l'autre, pour que la
+  // neige garde une pente douce entre eux)
+  for (const q of [{ ks: [0, 1, 2], W: 12, D: 10 }, { ks: [Math.floor(n / 2), Math.floor(n / 2) + 1, Math.floor(n / 2) - 1], W: 12, D: 8 }]) {
+    for (const k of q.ks) {
+      if (k < 0 || k >= n) continue;
+      const um = -w / 2 + (k + 0.5) * mw, a = um - q.W / 2 - 9, b = um + q.W / 2 + 9;
+      if (flats.some(f => a < f.b + 18 && b > f.a - 18)) { TERRACES.why['photo:écart'] = (TERRACES.why['photo:écart'] || 0) + 1; continue; }
+      const z0 = zoneWhy(at, um, q.W, q.D, d, g);
+      if (z0) { TERRACES.why['photo:' + z0] = (TERRACES.why['photo:' + z0] || 0) + 1; continue; }
+      flats.push({ a, b, L: Math.round(avg(um - q.W / 2, um + q.W / 2) * 100) / 100, um, q: { ...q, k } });
+      break;
+    }
+  }
+  flats.sort((p, q) => p.a - q.a);
+  const R = 15, off = u => {   // décalage du profil par rapport à la neige naturelle
+    for (const f of flats) if (u >= f.a && u <= f.b) return f.L - sm(u);
+    const prev = flats.filter(f => f.b < u).pop(), next = flats.find(f => f.a > u);
+    const o0 = prev ? prev.L - sm(prev.b) : 0, o1 = next ? next.L - sm(next.a) : 0;
+    const a0 = prev ? prev.b : (next ? next.a - R : u), a1 = next ? next.a : (prev ? prev.b + R : u);
+    return a1 > a0 ? lerp(o0, o1, smoothstep(a0, a1, clamp(u, a0, a1))) : 0;
+  };
+  const T = u => sm(u) + off(u);
+  P.fill = fillBand(x, z, rot, -w / 2 - 3, w / 2 + 3, d / 2 - 9, d / 2 + 8, T, 6);   // jusque sous la façade : la neige au pied du mur dépend des sommets voisins
+  for (const f of flats) {
+    fillBand(x, z, rot, f.a, f.b, d / 2 - 10.5, d / 2 + g + f.q.D + 9, () => f.L, 6);
+    const t = { uc: f.um - (-w / 2 + (f.q.k + 0.5) * mw), W: f.q.W, D: f.q.D, g, L: f.L, venues: 0, outdoor: 1, src: 'photo', k: f.q.k };
+    TERRACES.push(t); P.decks.push(t);
+  }
+  // paliers : le niveau de la neige au pied de chaque sixième de module (après les terrasses)
+  for (let i = 0; i < n; i++) {
+    const row = [];
+    for (let s = 0; s < np; s++) { const u0 = -w / 2 + i * mw + s * mw / np, du = mw / np; row.push(Math.round(meanH(at, u0 + du / 4, u0 + du * 3 / 4, d / 2 + 0.6, d / 2 + 2.6, du / 4).h * 100) / 100); }
+    P.gfl.push(row);
+  }
+  return P;
+}
+/** Autres immeubles d'Aime 2000 : rez-de-chaussée au niveau de la neige médiane devant la façade avant (étages ajoutés
+ *  si le sol descend côté front de neige), replat de neige devant elle là où l'écart ne dépasse pas 2,5 m (au-delà, le
+ *  relief est laissé : bout de façade en pente). null si moins de 60 % de la façade peut être mis à niveau, ou si une
+ *  piste, une remontée ou un immeuble voisin est dans la bande. */
+export function planFront(x, z, rot, w, d) {
+  const at = (u, v) => toWorld(x, z, rot, u, v), why = k => { FRONTS.why[k] = (FRONTS.why[k] || 0) + 1; return null; };
+  const hs = [];
+  for (let u = -w / 2 + 1; u <= w / 2 - 1 + 1e-6; u += 2) for (let v = d / 2 + 3; v <= d / 2 + 9; v += 2) hs.push(gridH(...at(u, v)));
+  hs.sort((a, b) => a - b);
+  const L = Math.round(hs[hs.length >> 1] * 100) / 100, ok = hs.filter(h => Math.abs(h - L) <= 2.5).length / hs.length;
+  if (ok < 0.6) return why('pente');
+  for (let u = -w / 2 - 2; u <= w / 2 + 2; u += 2) for (let v = d / 2 - 1; v <= d / 2 + 8; v += 2) {
+    const [px, pz] = at(u, v);
+    if (zoneAt(px, pz) >= 0) return why('piste');
+    if (liftDist(px, pz) < 10) return why('remontée');
+    if (inOther(px, pz, 1)) return why('immeuble');
+  }
+  fillBand(x, z, rot, -w / 2 - 1, w / 2 + 1, d / 2 - 9, d / 2 + 6, () => L, 6, 2.5);
+  return { L, ok: Math.round(ok * 100) / 100 };
+}
+
 export function buildTerraces() {
   let n = 0;
+  const share = Math.ceil((IS_TOUCH ? 70 : 150) / Math.max(1, BUILDINGS.filter(b => b.terrace).length));   // T6 : clientèle partagée entre les terrasses
   for (const b of BUILDINGS) {
     const t = b.terrace; if (!t) continue;
     const [cx, cz] = toWorld(b.x, b.z, b.rot, t.uc, b.d / 2 + t.g + t.D / 2);
-    buildDeck(cx, cz, b.rot, t.W, t.D, t.L, hashSeed(cx, cz, 41), true);
+    buildDeck(cx, cz, b.rot, t.W, t.D, t.L, hashSeed(cx, cz, 41), true, share);
     claim(cx, cz, b.rot, t.W, t.D); t.cx = cx; t.cz = cz; t.rot = b.rot; t.floor = b.top; n++;
   }
-  console.info('La Plagne: ' + n + ' terraces (OSM venues), ' + TERRACE_FOLK.length + ' people on them');
+  console.info('La Plagne: ' + n + ' terraces (OSM venues, photos), ' + TERRACE_FOLK.length + ' people on them');
 }
 
-export function buildDeck(cx, cz, rot, W, D, y, seed, flush = false) {
+export function buildDeck(cx, cz, rot, W, D, y, seed, flush = false, maxFolk = Infinity) {
   const r = mulberry32(seed), parts = [], grp = new THREE.Group(); grp.position.set(cx, 0, cz); grp.rotation.y = rot;
   const WOODT = '#8a5d3a', WOODK = '#5b3b27', at = (u, v) => toWorld(cx, cz, rot, u, v);
   boxP(parts, W, 0.16, D, 0, y - 0.08, 0, WOODT);                                                       // deck
@@ -598,8 +800,9 @@ export function buildDeck(cx, cz, rot, W, D, y, seed, flush = false) {
   }
   const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; grp.userData.W = W; grp.userData.D = D; grp.userData.merge = true; scene.add(grp);   // T5 ter : planchers fusionnés au démarrage (batch.ts)   // repère pour les prototypes (T3)
   const DR = ['mug', 'beer', 'wine', 'mug', 'beer'];
+  let nf = 0;
   for (const f of folk) {
-    if (TERRACE_FOLK.length >= (IS_TOUCH ? 70 : 150)) break;   // T5 ter : plus de terrasses, clientèle plafonnée
+    if (TERRACE_FOLK.length >= (IS_TOUCH ? 70 : 150) || nf++ >= maxFolk) break;   // T5 ter : plus de terrasses, clientèle plafonnée
     const [x, z] = at(f.u, f.v);
     TERRACE_FOLK.push({ x, z, y, yaw: rot + f.yaw, pose: f.pose, prop: f.pose === 'fries' ? 'fries' : r() < 0.85 ? DR[Math.floor(r() * DR.length)] : null,
       jacket: JACKETS[Math.floor(r() * JACKETS.length)], fem: r() < 0.5, gear: r() < 0.75 ? 'beanie' : 'helmet', swing: r() * 20 });
@@ -728,5 +931,5 @@ CUR_PAL = null;
    the bar or the parapet, with a mulled wine, a beer, a glass of red or a cone of chips. */
 TERRACE_FOLK = [];
 CUR_FLOOR = null;
-TERRACES = Object.assign([], { cap: IS_TOUCH ? 10 : 20, why: {}, cand: 0 });
+TERRACES = Object.assign([], { cap: IS_TOUCH ? 10 : 20, why: {}, cand: 0 }); FRONTS = Object.assign([], { why: {} }); CUR_PAQ = null; LE_FRANCE = null; SHOPS_TAKEN = new Set(); REJECTED = [];
 }

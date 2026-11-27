@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Enseignes des commerces (tranche T5) : 8 bandeaux de 512 × 128 px empilés (512 × 1024), premier en haut, écrits
+/* Enseignes des commerces (tranche T5, 16 depuis T6) : bandeaux de 512 × 128 px empilés (512 × 2048), premier en haut, écrits
    dans ../assets/shop_signs.png puis compressés par `npm run assets -- shop_signs.png`.
    Remplace le rendu Blender de blender/interiors.py (même ordre, mêmes couleurs : l'indice d'enseigne est partagé avec
    l'intérieur de la boutique et la veste du commerçant). Aucun nom de marque : intitulés génériques.
@@ -19,9 +19,18 @@ export const SIGNS = [
   ['FROMAGERIE', 'Beaufort · Reblochon', '#6b4a24', '#f2d39a'],
   ['SOUVENIRS', 'Cadeaux · Cartes', '#2a6a9a', '#ffffff'],
   ['BOULANGERIE', 'Pâtisserie', '#7a4a24', '#f6e2b0'],
+  // T6 : commerces référencés d'après OpenStreetMap (tools/osm_shops.py), intitulés génériques
+  ['PHARMACIE', 'Parapharmacie', '#2f7d55', '#ffffff'],
+  ['AGENCE IMMOBILIÈRE', 'Locations · Ventes', '#3a4a5c', '#ffffff'],
+  ['BANQUE', 'Distributeur · Change', '#24406b', '#ffffff'],
+  ['FORFAITS · INFOS', 'Office de tourisme', '#0f6e8a', '#ffffff'],
+  ['SERVICES', 'Laverie · Coiffure · Poste', '#5b5f66', '#ffffff'],
+  ['RESTAURANT', 'Cuisine savoyarde', '#6a2f22', '#f2d39a'],
+  ['BAR', 'Après-ski', '#2a2238', '#f2c65a'],
+  ['CAFÉ · SNACK', 'Crêpes · Boissons chaudes', '#8a5a2a', '#ffffff'],
 ];
 const font = (pkg, file) => 'data:font/woff2;base64,' + fs.readFileSync(path.join(WEB, 'node_modules/@fontsource', pkg, 'files', file)).toString('base64');
-const html = `<!doctype html><meta charset="utf-8"><body style="margin:0"><canvas id="c" width="512" height="1024"></canvas><script>
+const html = `<!doctype html><meta charset="utf-8"><body style="margin:0"><canvas id="c" width="512" height="${SIGNS.length * 128}"></canvas><script>
 (async () => {
   const f1 = new FontFace('BC', 'url(${font('barlow-condensed', 'barlow-condensed-latin-700-normal.woff2')})');
   const f2 = new FontFace('BR', 'url(${font('barlow', 'barlow-latin-500-normal.woff2')})');

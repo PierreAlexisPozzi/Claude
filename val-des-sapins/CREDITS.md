@@ -33,6 +33,7 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 |---|---|---|
 | IGN — BD TOPO® V3, couche « batiment » (édition 2026-09-15, service WFS de la Géoplateforme) | Licence Ouverte Etalab 2.0 (vérifiée sur data.gouv.fr, jeu « BD TOPO® » de l'IGN) | Emplacement, emprise, hauteur et étages des bâtiments depuis T5 bis (`tools/bdtopo_buildings.py`, provenance : `assets/plagne_buildings_source.json`) |
 | OpenStreetMap (pistes, remontées, noms des bâtiments) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | `tools/plagne_data.py` ; les bâtiments OSM d'avant T5 bis restent dans `assets/plagne_buildings_osm.json` pour les noms |
+| OpenStreetMap (commerces : position, catégorie) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | Vitrines aux emplacements réels depuis T6 (`tools/osm_shops.py`, liste : `review/commerces_osm.md`) ; noms et marques non repris dans le jeu (enseignes génériques) |
 | OpenStreetMap (restaurants, bars et cafés : position, genre, terrasse déclarée) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | Emplacement des terrasses depuis T5 ter (`tools/osm_venues.py`, extrait de l'API OSM, liste : `review/terrasses_osm.md`) ; noms commerciaux non repris dans le jeu |
 | IGN RGE ALTI (via tuiles Mapterhorn) | Licence ouverte Etalab 2.0 | Relief du secteur |
 | Copernicus DEM GLO-30 (via tuiles Mapterhorn) | Licence Copernicus (libre, attribution) | Relief lointain et horizon |

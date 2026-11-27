@@ -16,7 +16,7 @@ import { H, HALF, gridH, minimapImg, mulberry32, obstacles, trees } from './terr
 import { BLEND } from './world-data';
 
 export const ABORDS = { n: 0 };
-export let ATOM, MATTER_MAT, matCache, mmat, hashSeed, _am, _av, _au, _an, _ay, _ac, NEAR, BUILDINGS, onFace, SHOP_N, shopCol, X1, Z1, rocks, FURN, netMat, SKI_COLS, blob, v3;
+export let ATOM, MATTER_MAT, matCache, mmat, hashSeed, _am, _av, _au, _an, _ay, _ac, NEAR, BUILDINGS, onFace, SHOP_N, shopCol, SHOP_INTERIOR, X1, Z1, rocks, FURN, netMat, SKI_COLS, blob, v3;
 
 
 export function atomGeo(name) {
@@ -238,8 +238,19 @@ export function boardCladding(A, F, y0, y1, holes, col) {
    // shop index carried by the instance colour (window + sign)
 export function shopFront(A, F, uc, yc, w, hh, depth, signY, signOut, signW) {
   let k = Math.floor(A.r() * SHOP_N);
-  if (CUR_BLD) { const lp = onFace(F, uc, yc, depth), [wx, wz] = bldToWorld(CUR_BLD, lp.x, lp.z); for (const an of SHOP_ANCHORS) if (Math.hypot(an.x - wx, an.z - wz) < 2.6) k = an.shop; }   // within 2.6 m: the one or two bays facing the shopkeeper
-  let p = onFace(F, uc, yc, depth); A.put('box', BLEND.tex.shops_atlas ? 'winshop' : 'winlit', p.x, p.y, p.z, F.u, _ay, F.n, w, hh, 0.04, BLEND.tex.shops_atlas ? shopCol(k) : A.jit('#f0c27c', 0.15));
+  if (CUR_BLD) {
+    const lp = onFace(F, uc, yc, depth), [wx, wz] = bldToWorld(CUR_BLD, lp.x, lp.z);
+    // T6 (La Plagne) : une vitrine seulement là où OpenStreetMap situe un commerce (shopList, ramené sur la façade la plus
+    // proche), un logement ailleurs
+    if (CUR_BLD.shopList) { let bd = 2.6; k = -1; for (const q of CUR_BLD.shopList) { const dd = Math.hypot(q.x - wx, q.z - wz); if (dd < bd) { bd = dd; k = q.k; } } }
+    for (const an of SHOP_ANCHORS) if (Math.hypot(an.x - wx, an.z - wz) < 2.6) k = an.shop;   // within 2.6 m: the one or two bays facing the shopkeeper
+  }
+  let p = onFace(F, uc, yc, depth);
+  if (k < 0) {   // logement : fenêtre (éclairée une fois sur trois), rideau
+    const lit = A.r() < 0.3; A.put('box', lit ? 'winlit' : 'win', p.x, p.y, p.z, F.u, _ay, F.n, w, hh, 0.04, lit ? A.jit('#f0c27c', 0.15) : A.jit('#25303c', 0.25));
+    if (A.r() < 0.6) { p = onFace(F, uc - w * 0.3, yc, depth + 0.03); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, w * 0.3, hh * 0.95, 0.02, A.jit(['#c9b48a', '#9a3b2e', '#d8d2c4'][Math.floor(A.r() * 3)], 0.1)); }
+    return;
+  } A.put('box', BLEND.tex.shops_atlas ? 'winshop' : 'winlit', p.x, p.y, p.z, F.u, _ay, F.n, w, hh, 0.04, BLEND.tex.shops_atlas ? shopCol(k) : A.jit('#f0c27c', 0.15));
   if (BLEND.tex.shop_signs) { p = onFace(F, uc, signY, signOut); const sw = signW || Math.min(w + 0.2, 4.2); A.put('box', 'sign', p.x, p.y, p.z, F.u, _ay, F.n, sw, Math.min(0.55, sw / 4), 0.04, shopCol(k)); }
 }
 
@@ -442,7 +453,12 @@ export function flatRoof(A, w, d, y, oz, wall, mat = 'stone') {
 export function assemblePlPaquebot(b) {
   const A = new Assembly(hashSeed(b.x, b.z, 29)), { w, d, top, pal, step } = b, gf = b.gf || 3.4;
   plinthStones(A, b);
-  faces(w, d).forEach(F => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 4, pier: 0.5, depth: 0.6, lit: 0.35, shop: true }));
+  const shopO = { wall: pal.wall, frame: pal.frame, bay: 4, pier: 0.5, depth: 0.6, lit: 0.35, shop: true };
+  faces(w, d).forEach(F => {
+    // T6 : côté front de neige, les commerces suivent la neige par paliers (b.gfl), jusqu'au premier étage
+    if (F.front && b.gfl) b.gfl.forEach((y, s) => framedFloor(A, { ...F, o: F.o.clone().addScaledVector(F.u, s * F.L / b.gfl.length), L: F.L / b.gfl.length }, y, top + gf, shopO));
+    else framedFloor(A, F, top, top + gf, shopO);
+  });
   for (let f = 0; f < b.floors; f++) {
     const dd = d - 2 * step * (f + 1), y = top + gf + f * FLOOR; if (dd < 6) break;
     A.put('box', 'stone', 0, y + FLOOR / 2, 0, X1, _ay, Z1, w - 0.6, FLOOR, dd - 0.6, new THREE.Color(pal.core));
@@ -498,9 +514,10 @@ export function assemblePlSlab(b) {
   const A = new Assembly(hashSeed(b.x, b.z, 23)), { w, d, top, pal } = b, gf = b.gf || 3.4, fl = b.floors;
   // T5 : Plagne Centre en béton banché (refends saillants, galerie couverte au pied) ; les autres palettes inchangées
   const pc = isPC(pal), SM = pc ? 'concrete' : 'stone';
-  plinthStones(A, b);
+  if (pal.bridge) A.put('box', SM, 0, top - 0.35, 0, X1, _ay, Z1, w + 0.2, 0.7, d + 0.2, A.jit(pal.slab, 0.03));   // T6 : sous-face du pont (Le France)
+  else plinthStones(A, b);
   A.put('box', SM, 0, top + (gf + (fl - 1) * FLOOR) / 2, 0, X1, _ay, Z1, w - 0.8, gf + (fl - 1) * FLOOR, d - 0.8, new THREE.Color(pal.core));
-  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || i === 0, stone: SM }));
+  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || (i === 0 && !pal.bridge), stone: SM }));
   faces(w, d).forEach((F, i) => {
     const loggia = i < 2 || pal.tower, dep = pal.tower ? 1.0 : 1.3;
     for (let f = 1; f < fl; f++) {
@@ -513,7 +530,7 @@ export function assemblePlSlab(b) {
       for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 / 2, fd / 2); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, fw, H1, fd, A.jit(pal.slab, 0.04)); }
       if (pc) for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 + 0.08, fd / 2); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, fw + 0.1, 0.16, fd + 0.05, A.jit('#f2f6fb', 0.02)); }   // neige en tête de refend
     }
-    if (pc && i === 0) galleryAt(A, F, top, gf, pal, SM);
+    if (pc && i === 0 && !pal.bridge && (!b.shopList || b.shopList.some(q => q.face === 0))) galleryAt(A, F, top, gf, pal, SM);
   });
   const yt = top + gf + (fl - 1) * FLOOR;
   flatRoof(A, w, d, yt, 0, pal.parapet, SM);
@@ -826,7 +843,7 @@ MATTER_MAT = {
     const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.55, map: BLEND.tex.shop_signs || null, emissive: '#ffffff', emissiveIntensity: 0.12, emissiveMap: BLEND.tex.shop_signs || null });
     if (!BLEND.tex.shop_signs) return m;
     m.onBeforeCompile = sh => {
-      const tile = 'vec2 sUv = vec2(vMapUv.x, 1.0 - (floor(vColor.r * 8.0 + 0.5) + 1.0 - vMapUv.y) / 8.0);';
+      const tile = 'vec2 sUv = vec2(vMapUv.x, 1.0 - (floor(vColor.r * 16.0 + 0.5) + 1.0 - vMapUv.y) / 16.0);';   // T6 : 16 enseignes
       sh.fragmentShader = patchShader(sh.fragmentShader, '#include <map_fragment>', tile + '\n  diffuseColor *= texture2D(map, sUv);', 'sign');
       sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', '', 'sign');
       sh.fragmentShader = patchShader(sh.fragmentShader, '#include <emissivemap_fragment>', 'totalEmissiveRadiance *= texture2D(emissiveMap, sUv).rgb;', 'sign');
@@ -855,7 +872,10 @@ NEAR = { treeR: IS_TOUCH ? 70 : 130, buildR: IS_TOUCH ? 110 : 230, chunk: 48, pr
 BUILDINGS = [];
 onFace = (F, s, y, out) => _av.copy(F.o).addScaledVector(F.u, s).setY(y).addScaledVector(F.n, out);
 SHOP_N = 8;
-shopCol = k => new THREE.Color(k / 8, 0, 0);
+// T6 : rouge = enseigne (16, web/tools/shop-signs.mjs), vert = intérieur (les 8 boutiques rendues sous Blender) ; les
+// nouveaux commerces reprennent l'intérieur le plus proche (pharmacie → épicerie, restaurant et bar → Le Caquelon…)
+SHOP_INTERIOR = [0, 1, 2, 3, 4, 5, 6, 7, 1, 6, 6, 0, 6, 3, 3, 7];
+shopCol = k => new THREE.Color(k / 16, SHOP_INTERIOR[k] / 8, 0);
 
 /* ---- modern station buildings, church, bridge: real relief (recessed glazing, piers, slabs, railings) ---- */
 X1 = new V3(1, 0, 0);

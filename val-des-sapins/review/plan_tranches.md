@@ -7,7 +7,7 @@ performances, `README.md` à jour, résumé court (changements, mesures, limites
 
 Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en français.
 
-**État** : T1 à T5 livrées (mesures : `mesures_T1.md` à `mesures_T5.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. T5 = typologie Plagne Centre ; T5 bis = bâtiments d'après la BD TOPO de l'IGN (`donnees_batiments_ign.md`) ; T5 ter = terrasses côté front de neige, au niveau de la neige et du rez-de-chaussée, placées d'après les restaurants et bars d'OpenStreetMap (`mesures_T5ter.md`, `terrasses_osm.md`). Prochaine : T6 (autres typologies, une validation après chacune), après ton retour sur T5 ter.
+**État** : T1 à T5 livrées (mesures : `mesures_T1.md` à `mesures_T5.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. T5 = typologie Plagne Centre ; T5 bis = bâtiments d'après la BD TOPO de l'IGN (`donnees_batiments_ign.md`) ; T5 ter = terrasses côté front de neige, au niveau de la neige et du rez-de-chaussée, placées d'après les restaurants et bars d'OpenStreetMap (`mesures_T5ter.md`, `terrasses_osm.md`). T6 en cours : première livraison (Aime 2000 d'après tes photos, Le France, commerces réels d'OSM, téléphone en paysage ; `mesures_T6.md`), en attente de ton retour ; restent les autres typologies (Plagne 1800, Villages, Soleil) et le niveau de détail sans « pop ».
 
 ## Constats de départ (lecture du code)
 

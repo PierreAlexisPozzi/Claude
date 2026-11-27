@@ -27,12 +27,31 @@ export function spotClear(x, z) {
   return true;
 }
 
+const SHOP_LIKE = { 0: [0, 2], 1: [1], 2: [2, 0], 3: [13, 14, 15], 4: [4, 1], 5: [5, 1], 6: [6, 12], 7: [7, 15, 1] }, SHOP_TAKEN_BY = new Set();
+function placeAtShop(d) {
+  const all = []; for (const b of BUILDINGS) if (b.shopList) for (const q of b.shopList) if (!SHOP_TAKEN_BY.has(q)) all.push(q);
+  if (!all.length) return null;
+  const dist = q => Math.hypot(q.x - d.near[0], q.z - d.near[1]);
+  for (const pool of [all.filter(q => (SHOP_LIKE[d.shop] || [d.shop]).includes(q.k)), all]) {
+    for (const q of pool.filter(q => dist(q) < 350).sort((a, c) => dist(a) - dist(c))) {
+      const x = q.x + q.nx * 3, z = q.z + q.nz * 3; if (!spotClear(x, z)) continue;
+      SHOP_TAKEN_BY.add(q); d.osmShop = q.k; q.k = d.shop; SHOP_ANCHORS.push({ x: q.x, z: q.z, shop: d.shop });
+      return [x, z, Math.atan2(q.nx, q.nz)];
+    }
+  }
+  return null;
+}
+
 export function placePeople() {
   if (placePeople.done) return; placePeople.done = true;
-  const shops = BUILDINGS.filter(b => (PLAGNE ? /woodres|paquebot|tower|block/ : /woodres|paquebot|tower/).test(b.type)), taken = new Set();
+  const shops = BUILDINGS.filter(b => !b.bridge && (PLAGNE ? /woodres|paquebot|tower|block/ : /woodres|paquebot|tower/).test(b.type)), taken = new Set();
   for (const d of PEOPLE) {
     let x, z, yaw = 0;
-    if (d.shop !== undefined) {
+    // T6 (La Plagne) : chaque commerçant tient le commerce réel (OpenStreetMap) de son type le plus proche de son village
+    // (à défaut, un type voisin, puis n'importe quel commerce à moins de 350 m), qui prend son enseigne
+    const placed = d.shop !== undefined && placeAtShop(d);
+    if (placed) { [x, z, yaw] = placed; }
+    else if (d.shop !== undefined) {
       const free = shops.filter(q => !taken.has(q)), b = (free.length ? free : shops).reduce((m, q) => Math.hypot(q.x - d.near[0], q.z - d.near[1]) < Math.hypot(m.x - d.near[0], m.z - d.near[1]) ? q : m);
       taken.add(b);
       // try the four faces: stand 3 m in front of the middle bay, on a free spot

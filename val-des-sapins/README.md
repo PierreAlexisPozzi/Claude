@@ -64,8 +64,26 @@ test (exécutions reproductibles au bit près).
 | `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre, ordinateur et tactile, par préréglage ; plafonds bloquants en Moyenne (1 700 / 400) depuis T4 |
 | `quality` | choix automatique du préréglage : table d'appareils (rendu logiciel, PC de jeu, portables, téléphones) |
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
+| `aime` | Aime 2000 : neige au niveau de chaque palier des commerces du Paquebot (± 35 cm), replats au pied des autres immeubles, terrasses d'après les photos (T6) |
+| `lefrance` | Le France : deux ailes et une section en pont, hauteur libre > 6 m, aucun obstacle sur la piste Boulevard, ailes hors piste (T6) |
+| `shops` | commerces d'OSM : plus de la moitié placés en vitrine, la plupart des immeubles en logements au rez-de-chaussée, chaque commerçant devant un commerce réel (T6) |
 | `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+
+**Tranche T6 (première livraison) — Aime 2000, Le France, commerces réels, téléphone** (mesures :
+`review/mesures_T6.md`, commerces : `review/commerces_osm.md`, planches : `review/planche_T6_*.jpg`) :
+- **Aime 2000, d'après tes photos** : la neige arrive au rez-de-chaussée du Paquebot sur toute la façade côté pistes
+  (les commerces suivent la pente par paliers, neige à ± 27 cm), deux terrasses posées sur la neige ; replat de neige
+  au pied des autres immeubles d'Aime 2000 qui donnent sur une piste (dont Club Med 2100).
+- **Le France** (Plagne Centre) : construit, avec la piste Boulevard qui passe sous une section en pont (7,2 m de
+  hauteur libre) entre deux ailes ; il manquait parce qu'une piste traverse son emprise.
+- **Commerces** : 132 commerces d'OpenStreetMap référencés, 83 placés en vitrine sur la façade la plus proche
+  (16 types d'enseignes génériques) ; **logements** aux autres rez-de-chaussée. Les 8 commerçants du jeu tiennent un
+  commerce réel de leur type dans leur village.
+- **Téléphone** : caméra 35 % plus reculée, conseil « paysage » sur l'écran d'accueil en portrait, plein écran et
+  paysage verrouillé au départ quand le navigateur le permet.
+- Vues de référence : visages qui suivent la personne, téléphone en paysage, vues du front de neige et aérienne
+  d'Aime 2000 (cadrées comme tes photos), passage de Le France, vue de jeu.
 
 **Tranche T5 ter — terrasses au front de neige** (mesures : `review/mesures_T5ter.md`, liste OSM :
 `review/terrasses_osm.md`, planches : `review/planche_T5ter_terrasses.jpg`, `review/planche_T5ter_telephone.jpg`,
@@ -254,6 +272,7 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 | Relief lointain (8 km) | Modèle TerraPrinter fourni (mêmes sources) | Recalé par moindres carrés sur le relief fin (écart médian 1,6 m) |
 | Horizon (30 km) | Tuiles Mapterhorn z11 (mêmes sources) | Grille à 150 m : vallée de l’Isère, Beaufortain, Vanoise (437 – 3 800 m) |
 | Bâtiments (depuis T5 bis) | IGN BD TOPO® V3, édition 2026-09-15 (Licence Ouverte Etalab 2.0) | 374 emprises ≥ 40 m² (constructions légères écartées), rectangle orienté, étages d'après le toit au-dessus du sol amont ; noms repris d'OSM (`tools/bdtopo_buildings.py`, rapport `review/donnees_batiments_ign.md`) |
+| Commerces (depuis T6) | OpenStreetMap (ODbL) | 132 commerces de plain-pied (position, type de vitrine), sans noms ni marques ; vitrines aux emplacements réels, logements ailleurs (`tools/osm_shops.py`, liste `review/commerces_osm.md`) |
 | Restaurants, bars, cafés (depuis T5 ter) | OpenStreetMap (ODbL) | 46 établissements (position, genre, terrasse déclarée ; écartés : « pas de terrasse » et « à l’étage »), sans les noms ; servent à placer les terrasses (`tools/osm_venues.py`, liste `review/terrasses_osm.md`) |
 | Pistes, remontées (et bâtiments jusqu'en T5) | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
 
