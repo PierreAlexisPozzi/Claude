@@ -91,7 +91,7 @@
  },
  {
   "id": "terrasse-aime-2000",
-  "title": "Aime 2000 · front de neige du Paquebot (aucun restaurant dans OSM : pas de terrasse)",
+  "title": "Aime 2000 · front de neige du Paquebot, terrasse (d'après les photos fournies)",
   "kind": "terrasse",
   "from": [
    -917.21,
@@ -138,271 +138,217 @@
   "id": "visage-lucie-face",
   "title": "Lucie · face",
   "kind": "visage",
-  "from": [
-   66.27,
-   109.88,
-   -958.17
-  ],
-  "at": [
-   66.86,
-   109.84,
-   -958.35
-  ]
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-lucie-trois-quarts",
   "title": "Lucie · trois-quarts",
   "kind": "visage",
-  "from": [
-   66.57,
-   109.88,
-   -957.8
-  ],
-  "at": [
-   66.86,
-   109.84,
-   -958.35
-  ]
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-lucie-profil",
   "title": "Lucie · profil",
   "kind": "visage",
-  "from": [
-   67.04,
-   109.88,
-   -957.75
-  ],
-  "at": [
-   66.86,
-   109.84,
-   -958.35
-  ]
+  "person": {
+   "id": "lucie",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-marco-face",
   "title": "Marco · face",
   "kind": "visage",
-  "from": [
-   -6.51,
-   89.71,
-   -1021.75
-  ],
-  "at": [
-   -5.9,
-   89.67,
-   -1021.88
-  ]
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-marco-trois-quarts",
   "title": "Marco · trois-quarts",
   "kind": "visage",
-  "from": [
-   -6.24,
-   89.71,
-   -1021.36
-  ],
-  "at": [
-   -5.9,
-   89.67,
-   -1021.88
-  ]
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-marco-profil",
   "title": "Marco · profil",
   "kind": "visage",
-  "from": [
-   -5.77,
-   89.71,
-   -1021.27
-  ],
-  "at": [
-   -5.9,
-   89.67,
-   -1021.88
-  ]
+  "person": {
+   "id": "marco",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-yanis-face",
   "title": "Yanis · face",
   "kind": "visage",
-  "from": [
-   -290.34,
-   236.87,
-   -244.82
-  ],
-  "at": [
-   -290.33,
-   236.83,
-   -244.2
-  ]
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-yanis-trois-quarts",
   "title": "Yanis · trois-quarts",
   "kind": "visage",
-  "from": [
-   -290.77,
-   236.87,
-   -244.63
-  ],
-  "at": [
-   -290.33,
-   236.83,
-   -244.2
-  ]
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-yanis-profil",
   "title": "Yanis · profil",
   "kind": "visage",
-  "from": [
-   -290.95,
-   236.87,
-   -244.19
-  ],
-  "at": [
-   -290.33,
-   236.83,
-   -244.2
-  ]
+  "person": {
+   "id": "yanis",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-henri-face",
   "title": "Henri · face",
   "kind": "visage",
-  "from": [
-   -193.28,
-   244.38,
-   -217
-  ],
-  "at": [
-   -193.12,
-   244.34,
-   -216.4
-  ]
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-henri-trois-quarts",
   "title": "Henri · trois-quarts",
   "kind": "visage",
-  "from": [
-   -193.66,
-   244.38,
-   -216.7
-  ],
-  "at": [
-   -193.12,
-   244.34,
-   -216.4
-  ]
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-henri-profil",
   "title": "Henri · profil",
   "kind": "visage",
-  "from": [
-   -193.72,
-   244.38,
-   -216.23
-  ],
-  "at": [
-   -193.12,
-   244.34,
-   -216.4
-  ]
+  "person": {
+   "id": "henri",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-jeanne-face",
   "title": "Jeanne · face",
   "kind": "visage",
-  "from": [
-   -190.76,
-   240.61,
-   -275.25
-  ],
-  "at": [
-   -190.99,
-   240.57,
-   -275.82
-  ]
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-jeanne-trois-quarts",
   "title": "Jeanne · trois-quarts",
   "kind": "visage",
-  "from": [
-   -190.42,
-   240.61,
-   -275.59
-  ],
-  "at": [
-   -190.99,
-   240.57,
-   -275.82
-  ]
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-jeanne-profil",
   "title": "Jeanne · profil",
   "kind": "visage",
-  "from": [
-   -190.42,
-   240.61,
-   -276.06
-  ],
-  "at": [
-   -190.99,
-   240.57,
-   -275.82
-  ]
+  "person": {
+   "id": "jeanne",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-mireille-face",
   "title": "Mireille · face",
   "kind": "visage",
-  "from": [
-   -249.8,
-   246.14,
-   -176.28
-  ],
-  "at": [
-   -249.81,
-   246.1,
-   -176.9
-  ]
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-mireille-trois-quarts",
   "title": "Mireille · trois-quarts",
   "kind": "visage",
-  "from": [
-   -249.37,
-   246.14,
-   -176.47
-  ],
-  "at": [
-   -249.81,
-   246.1,
-   -176.9
-  ]
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "visage-mireille-profil",
   "title": "Mireille · profil",
   "kind": "visage",
-  "from": [
-   -249.19,
-   246.14,
-   -176.91
-  ],
-  "at": [
-   -249.81,
-   246.1,
-   -176.9
-  ]
+  "person": {
+   "id": "mireille",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
  },
  {
   "id": "joueur-trois-quarts",
@@ -464,181 +410,145 @@
   "id": "gros-plan-lucie-face",
   "title": "Lucie · gros plan face",
   "kind": "visage",
-  "from": [
-   66.38,
-   109.87,
-   -958.2
-  ],
-  "at": [
-   66.86,
-   109.84,
-   -958.35
-  ]
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-lucie-trois-quarts",
   "title": "Lucie · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   66.63,
-   109.87,
-   -957.91
-  ],
-  "at": [
-   66.86,
-   109.84,
-   -958.35
-  ]
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-marco-face",
   "title": "Marco · gros plan face",
   "kind": "visage",
-  "from": [
-   -6.39,
-   89.7,
-   -1021.77
-  ],
-  "at": [
-   -5.9,
-   89.67,
-   -1021.88
-  ]
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-marco-trois-quarts",
   "title": "Marco · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   -6.17,
-   89.7,
-   -1021.46
-  ],
-  "at": [
-   -5.9,
-   89.67,
-   -1021.88
-  ]
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-yanis-face",
   "title": "Yanis · gros plan face",
   "kind": "visage",
-  "from": [
-   -290.34,
-   236.86,
-   -244.7
-  ],
-  "at": [
-   -290.33,
-   236.83,
-   -244.2
-  ]
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-yanis-trois-quarts",
   "title": "Yanis · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   -290.69,
-   236.86,
-   -244.54
-  ],
-  "at": [
-   -290.33,
-   236.83,
-   -244.2
-  ]
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-henri-face",
   "title": "Henri · gros plan face",
   "kind": "visage",
-  "from": [
-   -193.25,
-   244.37,
-   -216.88
-  ],
-  "at": [
-   -193.12,
-   244.34,
-   -216.4
-  ]
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-henri-trois-quarts",
   "title": "Henri · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   -193.55,
-   244.37,
-   -216.65
-  ],
-  "at": [
-   -193.12,
-   244.34,
-   -216.4
-  ]
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-jeanne-face",
   "title": "Jeanne · gros plan face",
   "kind": "visage",
-  "from": [
-   -190.8,
-   240.6,
-   -275.36
-  ],
-  "at": [
-   -190.99,
-   240.57,
-   -275.82
-  ]
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-jeanne-trois-quarts",
   "title": "Jeanne · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   -190.53,
-   240.6,
-   -275.63
-  ],
-  "at": [
-   -190.99,
-   240.57,
-   -275.82
-  ]
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-mireille-face",
   "title": "Mireille · gros plan face",
   "kind": "visage",
-  "from": [
-   -249.8,
-   246.13,
-   -176.4
-  ],
-  "at": [
-   -249.81,
-   246.1,
-   -176.9
-  ]
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "gros-plan-mireille-trois-quarts",
   "title": "Mireille · gros plan trois-quarts",
   "kind": "visage",
-  "from": [
-   -249.45,
-   246.13,
-   -176.55
-  ],
-  "at": [
-   -249.81,
-   246.1,
-   -176.9
-  ]
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
  },
  {
   "id": "abords-plagne-centre",
@@ -684,5 +594,55 @@
    250,
    -240
   ]
+ },
+ {
+  "id": "aime-2000-front-de-neige",
+  "title": "Aime 2000 · front de neige du Paquebot, à hauteur d'homme (comme la photo fournie)",
+  "kind": "terrasse",
+  "from": [
+   -931.4,
+   363.43,
+   -707.7
+  ],
+  "at": [
+   -903.3,
+   364.0,
+   -704.5
+  ]
+ },
+ {
+  "id": "aime-2000-vue-aerienne",
+  "title": "Aime 2000 · vue aérienne du Paquebot depuis le nord-ouest (comme la photo fournie)",
+  "kind": "village",
+  "from": [
+   -1035.7,
+   479.4,
+   -790.9
+  ],
+  "at": [
+   -901.0,
+   356.9,
+   -693.6
+  ]
+ },
+ {
+  "id": "le-france-passage",
+  "title": "Plagne Centre · Le France, la piste Boulevard passe sous l'immeuble",
+  "kind": "village",
+  "from": [
+   75.56,
+   244.8,
+   -142.17
+  ],
+  "at": [
+   91.2,
+   239.0,
+   -200.3
+  ]
+ },
+ {
+  "id": "jeu-depart",
+  "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
+  "kind": "jeu"
  }
 ]

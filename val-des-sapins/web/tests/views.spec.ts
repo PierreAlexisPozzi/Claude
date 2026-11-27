@@ -6,14 +6,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openGame, pump, start, REPO, HAS_LEGACY, TRANCHE, type Target } from './helpers';
 
-const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number> }[];
+// person : caméra placée devant une personne nommée (__ski.PEOPLE), calculée à la capture (depuis T6 : les commerçants
+// suivent leurs boutiques, une caméra fixe ne les cadrerait plus) ; kind 'jeu' : caméra de jeu derrière le skieur, HUD
+// affiché (pour juger le recul de la caméra)
+type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number } };
+const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as View[];
 const OUT = path.join(REPO, 'review/vues', TRANCHE);
-const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur']);
+const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur', 'jeu']);
 
-async function shoot(page: Page, v: (typeof VIEWS)[number], file: string): Promise<void> {
-  await page.evaluate((v) => {
+async function shoot(page: Page, v: View, file: string): Promise<void> {
+  if (v.kind === 'jeu') {
+    await page.evaluate(() => (window as any).__ski.photo(null));
+    await pump(page, 30, 1 / 60);   // la caméra de poursuite se recale
+  } else await page.evaluate((v) => {
     const s = (window as any).__ski, T = s.THREE;
-    s.photo(v.rel ? v.rel : { from: new T.Vector3(...v.from!), at: new T.Vector3(...v.at!) });
+    if (v.person) {
+      const q = s.PEOPLE.find((x: any) => x.id === v.person!.id), y = q.n.y + 1.6 * (q.n.h || 1), a = q.yaw + v.person.a, d = v.person.d;
+      s.photo({ from: new T.Vector3(q.x + Math.sin(a) * d, y + v.person.dy, q.z + Math.cos(a) * d), at: new T.Vector3(q.x, y + v.person.ly, q.z) });
+    } else s.photo(v.rel ? v.rel : { from: new T.Vector3(...v.from!), at: new T.Vector3(...v.at!) });
   }, v);
   await pump(page, 1, 1 / 60);
   await page.evaluate(() => (window as any).__ski.nearNow());
@@ -23,7 +33,8 @@ async function shoot(page: Page, v: (typeof VIEWS)[number], file: string): Promi
 }
 
 async function capture(browser: Browser, target: Target, phone: boolean): Promise<string[]> {
-  const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } : { viewport: { width: 1000, height: 560 }, deviceScaleFactor: 1 });
+  // téléphone tenu en paysage depuis T6 (format conseillé) ; la vue de jeu est aussi prise en portrait (jeu-portrait)
+  const ctx = await browser.newContext(phone ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true } : { viewport: { width: 1000, height: 560 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   await openGame(page, target);
   await page.evaluate(() => (window as any).__ski.quality('medium'));
@@ -37,6 +48,11 @@ async function capture(browser: Browser, target: Target, phone: boolean): Promis
     const f = path.join(target === 'web' ? OUT : path.resolve('.cache/vues-legacy', TRANCHE), phone ? 'telephone' : 'ordinateur', v.id + '.jpg');
     await shoot(page, v, f);
     files.push(f);
+  }
+  if (phone && target === 'web' && (!only || only.test('jeu-portrait'))) {   // la vue de jeu, téléphone tenu en portrait
+    await page.setViewportSize({ width: 390, height: 844 });
+    await shoot(page, { id: 'jeu-portrait', kind: 'jeu' }, path.join(OUT, 'telephone', 'jeu-portrait.jpg'));
+    files.push(path.join(OUT, 'telephone', 'jeu-portrait.jpg'));
   }
   await ctx.close();
   return files;
