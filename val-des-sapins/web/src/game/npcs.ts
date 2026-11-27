@@ -18,6 +18,8 @@ import { SMALL_LAYER, camera, scene } from './render';
 import { H, normalAt, rnd } from './terrain';
 import { BLEND, PLAGNE } from './world-data';
 
+const HAIR = ['#2b1d14', '#4a2f1d', '#6b4a2b', '#a87b4f', '#c9a26b', '#1a1410', '#8a4b2a', '#8f8c86'];   // T7 : cheveux (bruns, blonds, noir, auburn, gris)
+const IRIS = ['#5a3a22', '#6b5230', '#4f6a3e', '#5a7a8c', '#3b2616', '#4d6f99', '#7a6040'];   // T7 : couleur des yeux (brun, noisette, vert, gris-bleu, brun foncé, bleu, ambre)
 export let NPC_N, npcs, npcMesh, JACKETS, npcSpeed, skiPistes, STY, RIG_PARTS, PANTS_C, FREE_LINES, _rb, SKIN_TONES, HELMETS, BEANIES, humanPool, _hmat, npcSlot, chairSeats, ZERO_M;
 
 
@@ -110,7 +112,7 @@ export function assignHumans() {
     for (const H of pool) if (!keep.has(H.k)) H.k = -1; else keep.delete(H.k);
     for (const H of pool) if (H.k < 0 && keep.size) {
       const k = keep.values().next().value; keep.delete(k); H.k = k;
-      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : npcs[k].jacket || JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]);
+      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : npcs[k].jacket || JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]); U.uIris.value.set(IRIS[(k * 11) % IRIS.length]);   // T7 : couleur des yeux U.uHair.value.set(HAIR[(k * 13) % HAIR.length]);
       U.uHelmet.value.set(HELMETS[(k * 5) % HELMETS.length]); U.uBeanie.value.set(BEANIES[(k * 3) % BEANIES.length]);
       setGear(H, npcs[k].gear || (pr && !pr.skis ? 'beanie' : 'helmet'));
     }

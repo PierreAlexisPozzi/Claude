@@ -11,14 +11,14 @@ import { updatePlumes } from './cannons';
 import { $, IS_TOUCH, Q, QUALITY, V3, __set_qName, fmt, qName } from './core';
 import { updateFauna } from './fauna';
 import { showTrick, updateHud } from './hud';
-import { skier } from './humans';
+import { headDetail, playerHuman, skier } from './humans';
 import { __set_running, helpTouched, running, toggleHelp } from './input';
 import { dlgOpen, jnlOpen } from './journal';
 import { liftClock, updateLiftAnim } from './lifts';
 import { mapOpen } from './maps';
 import { terrainMesh } from './materials';
 import { updatePeopleFx } from './missions';
-import { updateNPCs } from './npcs';
+import { humanPool, updateNPCs } from './npcs';
 import { updateSpray } from './particles';
 import { PEOPLE } from './people';
 import { P, STEP, stepSim } from './player';
@@ -62,6 +62,13 @@ export function frame(now) {
     const c = skier.root.position, a = P.yaw + photoCam.a;
     camera.position.set(c.x + Math.sin(a) * photoCam.d, c.y + photoCam.h, c.z + Math.cos(a) * photoCam.d); camera.position.y = Math.max(camera.position.y, H(camera.position.x, camera.position.z) + 2); camera.lookAt(c.x, c.y - 0.1 + (photoCam.ly || 0), c.z);
   }
+  // T7 : occlusion ambiante à l'échelle du sujet : en gros plan (visages, mode photo), le rayon de 2,5 m creusait les
+  // orbites et le nez ; il suit la distance au point visé (inchangé en jeu)
+  { const c = post.n8.configuration, d = photoCam && photoCam.at ? camera.position.distanceTo(photoCam.at) : 99;
+    const r = d >= 8 ? 2.5 : Math.min(2.5, Math.max(0.12, d * 0.3)), it = d >= 8 ? 2.0 : 1.3;
+    if (Math.abs(c.aoRadius - r) > 0.005) c.aoRadius = r; if (c.intensity !== it) c.intensity = it; }
+  for (const Hh of humanPool.list) headDetail(Hh, camera.position, qName !== 'low');   // T7 : têtes proches détaillées
+  if (playerHuman) headDetail(playerHuman, camera.position, qName !== 'low');
   sky.position.copy(camera.position);
   updateSun(P.pos); updateSunFar(camera.position); updateNearShadows(P.pos);
   dust.update(clock);
