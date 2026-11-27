@@ -117,6 +117,10 @@ export function startGame() {
   if (running) return;
   __set_running(true); $('start').hidden = true; $('hud').hidden = false;
   if (IS_TOUCH) { $('touch').hidden = false; $('help').hidden = true; requestAnimationFrame(placeUtil); }
+  // T6 : sur téléphone, plein écran et paysage verrouillé quand le navigateur le permet (Android) ; sinon, rien ne change
+  if (IS_TOUCH && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => (screen.orientation as any)?.lock?.('landscape')).catch(() => {});
+  }
   if (window.innerWidth < 760) $('help').hidden = true;
   if (window.innerHeight < 700) toggleHelp(false);
   setTimeout(() => { if (!helpTouched) toggleHelp(false); }, 15000);

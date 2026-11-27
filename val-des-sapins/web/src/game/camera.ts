@@ -47,7 +47,9 @@ export function updateCamera(dt, snap) {
     camLook.copy(camPos).addScaledVector(camDir, 10); camLook.y -= 2.2;
     camera.position.copy(camPos); camera.lookAt(camLook); return;
   }
-  const dist = camMode === 1 ? 15 : P.state === 'lift' ? 10 : P.state === 'sled' ? 7.5 : 6.6, hgt = camMode === 1 ? 6.5 : P.state === 'lift' ? 3.5 : P.state === 'sled' ? 3 : 2.5;
+  // T6 : sur écran tactile (petit écran), 35 % de recul et de hauteur en plus pour mieux voir le terrain autour du skieur
+  const far = IS_TOUCH && camMode !== 1 ? 1.35 : 1;
+  const dist = (camMode === 1 ? 15 : P.state === 'lift' ? 10 : P.state === 'sled' ? 7.5 : 6.6) * far, hgt = (camMode === 1 ? 6.5 : P.state === 'lift' ? 3.5 : P.state === 'sled' ? 3 : 2.5) * far;
   _q.copy(target).addScaledVector(camDir, -dist); _q.y += hgt;
   if (P.state === 'lift') _q.addScaledVector(P.lift.side, P.lift.type === 'tbar' ? 4 : 3);   // look past the hanger
   const kp = snap ? 1 : 1 - Math.exp(-dt * 7);
