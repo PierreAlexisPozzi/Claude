@@ -67,6 +67,17 @@ test (exécutions reproductibles au bit près).
 | `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Tranche T5 ter — terrasses au front de neige** (mesures : `review/mesures_T5ter.md`, liste OSM :
+`review/terrasses_osm.md`, planches : `review/planche_T5ter_terrasses.jpg`, `review/planche_T5ter_telephone.jpg`,
+vue de dessus : `review/terrasses_front_de_neige.jpg`) :
+- Ni l'IGN ni OpenStreetMap ne tracent les terrasses : le jeu en pose une devant l'immeuble qui contient un
+  restaurant, un bar ou un café situé par OSM (46 établissements), **sur la façade côté front de neige** (celle qui voit
+  le plus tôt une piste ou une remontée). C'est une déduction, pas un relevé.
+- **Un seul niveau** : plancher de la terrasse = rez-de-chaussée de l'immeuble = neige, aplanie autour sans toucher
+  pistes, remontées ni immeubles voisins ; plus de pilotis ni de marche.
+- 7 terrasses (Plagne Centre 3, Plagne 1800 3, Plagne Soleil 1) ; test `terraces` (plancher ± 1 cm, neige ± 15 cm).
+- Tactile 334 / ordinateur 540 appels à Plagne Centre (Moyenne) ; robot, slalom, HUD identiques.
+
 **Tranche T5 bis — bâtiments d'après l'IGN** (rapport : `review/donnees_batiments_ign.md`, superposition :
 `review/batiments_osm_ign.jpg`, planche : `review/planche_T5bis_ign.jpg`) :
 - Emplacement, emprise, hauteur et étages de tous les bâtiments repris de la **BD TOPO® de l'IGN** (couche
