@@ -19,8 +19,10 @@ graphique. Point de mesure : cœur de Plagne Centre, caméra de jeu, `tests/perf
   400 à 1 600 m, plus grossièrement qu'objet par objet. C'est le prix de la baisse des appels.
 - Sur tactile, Moyenne = Basse côté géométrie : la carte d'ombre lointaine (≈ 130 appels) n'est plus dessinée en
   Moyenne sur tactile ; elle reste en Haute et Ultra.
-- Non compté par ce relevé (comme avant) : les passes plein écran du post-traitement (N8AO, flou lumineux,
-  étalonnage), une dizaine de triangles chacune.
+- Non compté par ce relevé (comme avant T4) : le post-traitement. Mesuré sur une image complète au point de départ
+  (version en ligne) : **+47 appels** sur ordinateur en Moyenne (N8AO, flou lumineux, étalonnage, sortie) et **+17**
+  sur tactile (sans occlusion). À Plagne Centre, cela donne ≈ 710 sur ordinateur et ≈ 400 sur tactile : la marge
+  tactile est nulle si l'on compte le post-traitement, à surveiller en T5.
 
 ## Répartition avant / après (Moyenne, ordinateur)
 
@@ -50,6 +52,11 @@ graphique. Point de mesure : cœur de Plagne Centre, caméra de jeu, `tests/perf
   `planche_T4_heures.jpg` (soleil à 8 h 30, 10 h, 15 h 30).
 
 ## Limites
+
+- Réglage de l'image (exposition, ciel, étalonnage) fait sur des captures en rendu logiciel seulement.
+- Sur tactile, Moyenne a perdu les ombres lointaines ; les iPhone récents démarrent désormais en Moyenne (avant :
+  Basse), non vérifié sur un vrai téléphone.
+- Prototypes `?proto=facade,visage` : ils démarrent (101 s en rendu logiciel, le temps de décoder les textures).
 
 - Rien n'est mesuré sur un vrai GPU : le coût de N8AO, du MSAA ×8 et des ombres 4096 px en Ultra, et l'objectif de
   60 images/s sur un PC de jeu restent à vérifier sur ta machine.
