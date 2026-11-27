@@ -9,7 +9,9 @@ import { openGame, pump, start, REPO, HAS_LEGACY, TRANCHE, type Target } from '.
 // person : caméra placée devant une personne nommée (__ski.PEOPLE), calculée à la capture (depuis T6 : les commerçants
 // suivent leurs boutiques, une caméra fixe ne les cadrerait plus) ; kind 'jeu' : caméra de jeu derrière le skieur, HUD
 // affiché (pour juger le recul de la caméra)
-type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number } };
+// T7 : hour (heure du soleil, sinon celle du départ) ; hold (expression figée ; par défaut, visage neutre et yeux ouverts
+// sur les vues de visage, pour qu'aucun clignement ne tombe sur une capture)
+type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number }; hour?: number; hold?: Record<string, number> };
 const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as View[];
 const OUT = path.join(REPO, 'review/vues', TRANCHE);
 const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur', 'jeu']);
@@ -19,7 +21,10 @@ async function shoot(page: Page, v: View, file: string): Promise<void> {
     await page.evaluate(() => (window as any).__ski.photo(null));
     await pump(page, 30, 1 / 60);   // la caméra de poursuite se recale
   } else await page.evaluate((v) => {
-    const s = (window as any).__ski, T = s.THREE;
+    const s = (window as any).__ski, T = s.THREE, w = window as any;
+    if (w.__vdsH0 === undefined) w.__vdsH0 = s.SKY.hour;
+    if (s.SKY.hour !== (v.hour ?? w.__vdsH0)) s.setHour(v.hour ?? w.__vdsH0);
+    s.faceHold = v.hold || (v.person ? { blink: 0, smile: 0.15, open: 0, brows: 0, squint: 0 } : null);
     if (v.person) {
       const q = s.PEOPLE.find((x: any) => x.id === v.person!.id), y = q.n.y + 1.6 * (q.n.h || 1), a = q.yaw + v.person.a, d = v.person.d;
       s.photo({ from: new T.Vector3(q.x + Math.sin(a) * d, y + v.person.dy, q.z + Math.cos(a) * d), at: new T.Vector3(q.x, y + v.person.ly, q.z) });

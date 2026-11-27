@@ -656,6 +656,278 @@
   ]
  },
  {
+  "id": "visage-lucie-yeux-fermes",
+  "title": "Lucie · face, yeux fermés (contrôle : la cornée ne traverse pas les paupières)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 1,
+   "smile": 0.1,
+   "open": 0,
+   "brows": 0,
+   "squint": 0
+  }
+ },
+ {
+  "id": "visage-lucie-plisses",
+  "title": "Lucie · face, yeux plissés et sourire",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.6,
+   "open": 0.1,
+   "brows": 0.2,
+   "squint": 0.8
+  }
+ },
+ {
+  "id": "visage-lucie-face-soir",
+  "title": "Lucie · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-lucie-trois-quarts-soir",
+  "title": "Lucie · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-lucie-profil-soir",
+  "title": "Lucie · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-face-soir",
+  "title": "Marco · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-trois-quarts-soir",
+  "title": "Marco · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-profil-soir",
+  "title": "Marco · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-face-soir",
+  "title": "Yanis · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-trois-quarts-soir",
+  "title": "Yanis · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-profil-soir",
+  "title": "Yanis · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-face-soir",
+  "title": "Henri · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-trois-quarts-soir",
+  "title": "Henri · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-profil-soir",
+  "title": "Henri · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-face-soir",
+  "title": "Jeanne · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-trois-quarts-soir",
+  "title": "Jeanne · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-profil-soir",
+  "title": "Jeanne · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-face-soir",
+  "title": "Mireille · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-trois-quarts-soir",
+  "title": "Mireille · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-profil-soir",
+  "title": "Mireille · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
   "id": "jeu-depart",
   "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
   "kind": "jeu"
