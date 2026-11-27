@@ -143,11 +143,11 @@ export function __init_6559() {
 
 /* ---- people of the resort ---- */
 PEOPLE = [
-  { id: 'lucie', name: 'Lucie', role: 'Skiset · location de skis', shop: 0, near: [63, 1066], jacket: '#c8302a', idle: 'Les skis de location sont fartés tous les soirs. Profites-en !' },
-  { id: 'marco', name: 'Marco', role: 'Spar · alimentation', shop: 1, near: [-55, 1191], jacket: '#2f8a3c', idle: 'Pain frais, génépi, piles pour la frontale : on a tout.' },
+  { id: 'lucie', name: 'Lucie', role: 'Location de skis', shop: 0, near: [63, 1066], jacket: '#c8302a', idle: 'Les skis de location sont fartés tous les soirs. Profites-en !' },
+  { id: 'marco', name: 'Marco', role: 'Épicerie · alimentation', shop: 1, near: [-55, 1191], jacket: '#2f8a3c', idle: 'Pain frais, génépi, piles pour la frontale : on a tout.' },
   { id: 'sophie', name: 'Sophie', role: 'Boulangerie', shop: 7, near: [99, 1021], jacket: '#e7cf9e', idle: 'Le pain aux noix sort du four à 7 h. Après 8 h, il n\'y en a plus.' },
   { id: 'paul', name: 'Paul', role: 'Boucherie-charcuterie', shop: 4, near: [159, 1044], jacket: '#8a2a24', idle: 'Diots, saucisses, jambon cru : tout vient des fermes de la vallée.' },
-  { id: 'yanis', name: 'Yanis', role: 'Sport 2000 · magasin de sport', shop: 2, near: [-55, 178], jacket: '#1d3f8a', idle: 'Un masque photochromique, et le jour blanc n\'est plus un problème.' },
+  { id: 'yanis', name: 'Yanis', role: 'Magasin de sport', shop: 2, near: [-55, 178], jacket: '#1d3f8a', idle: 'Un masque photochromique, et le jour blanc n\'est plus un problème.' },
   { id: 'henri', name: 'Henri', role: 'Chef · Le Caquelon', shop: 3, near: [-26, 216], jacket: '#f4f0e8', idle: 'Trois fromages dans ma fondue, et le secret, c\'est la noix de muscade.' },
   { id: 'jeanne', name: 'Jeanne', role: 'Fromagerie', shop: 5, near: [-11, 235], jacket: '#6b4a24', idle: 'Le beaufort d\'été, c\'est le meilleur. L\'herbe d\'alpage, ça se goûte.' },
   { id: 'mireille', name: 'Mireille', role: 'Souvenirs · cartes postales', shop: 6, near: [-73, 257], jacket: '#2a6a9a', idle: 'Une cloche, un magnet, un chamois en peluche ? Il y en a pour tous les goûts.' },
@@ -156,7 +156,7 @@ PEOPLE = [
   { id: 'elodie', name: 'Élodie', role: 'Pisteuse-secouriste', liftTop: 'Télésiège du Sommet', jacket: '#e03a2a', skis: true, idle: 'Risque d\'avalanche 2 sur 5. Reste prudent hors des pistes.' },
   { id: 'chloe', name: 'Chloé', role: 'Photographe de la station', piste: ['Snowpark', 46, -1, 8], jacket: '#f2b51d', skis: true, idle: 'La lumière est parfaite en fin de journée sur le park.' },
   // only during their mission
-  { id: 'nadia', name: 'Nadia', role: 'Cliente de Skiset', liftTop: 'Télécabine du Village', off: [7, 4], jacket: '#8e44ad', hidden: true, idle: 'Il fait froid à attendre sans skis !' },
+  { id: 'nadia', name: 'Nadia', role: 'Cliente de la location de skis', liftTop: 'Télécabine du Village', off: [7, 4], jacket: '#8e44ad', hidden: true, idle: 'Il fait froid à attendre sans skis !' },
   { id: 'joseph', name: 'Joseph', role: 'Berger · alpage du Plan', piste: ['Liaison Snowpark', 4, 1, 24], jacket: '#5a4632', hidden: true, idle: 'Les vaches sont redescendues en octobre, mais la cave reste ici.' },
   { id: 'thomas', name: 'Thomas', role: 'Skieur égaré', lost: true, jacket: '#19a7b8', skis: true, hidden: true, idle: 'Je ne sais plus du tout où je suis…' },
 ];

@@ -3,7 +3,7 @@
 Outputs (val-des-sapins/assets):
 - shops_atlas.jpg   2048x256: eight ground-floor shops rendered with Cycles, one 256x256 tile each, from a camera one
                     room-depth in front of the window plane (same projection as rooms_atlas.jpg):
-                    0 ski rental (Skiset), 1 grocery (Spar), 2 sports shop (Sport 2000), 3 cheese restaurant,
+                    0 ski rental, 1 grocery, 2 sports shop (generic names, no brands), 3 cheese restaurant,
                     4 butcher-charcuterie, 5 cheese shop, 6 souvenirs, 7 bakery
 - lift_atlas.jpg    512x256: lift operator cabin (control desk, screens, panel, chair) and drive room (bullwheel
                     gearbox, motor, electrical cabinets)
@@ -228,9 +228,11 @@ def lift_room(variant, path):
 
 
 def signs():
-    """Fascia boards: painted wood or enamel colours, plain lettering rendered from Blender text objects."""
-    spec = [('SKISET', 'Location de skis', '#c8302a', '#ffffff'), ('SPAR', 'Alimentation', '#2f8a3c', '#ffffff'),
-            ('SPORT 2000', 'Sport · Mode', '#1d3f8a', '#ffffff'), ('LE CAQUELON', 'Fondue · Raclette', '#5a3a22', '#f2d39a'),
+    """Fascia boards: painted wood or enamel colours, plain lettering rendered from Blender text objects.
+    Since T5 the game's atlas is produced by web/tools/shop-signs.mjs (Barlow fonts, generic names, no brands);
+    this spec is kept in sync so that a Blender run cannot bring brand names back."""
+    spec = [('LOCATION DE SKIS', 'Skis · Snowboards · Réglages', '#c8302a', '#ffffff'), ('ÉPICERIE', 'Alimentation · Primeurs', '#2f8a3c', '#ffffff'),
+            ('SPORT & MODE', 'Vêtements · Accessoires', '#1d3f8a', '#ffffff'), ('LE CAQUELON', 'Fondue · Raclette', '#5a3a22', '#f2d39a'),
             ('BOUCHERIE', 'Charcuterie', '#8a2a24', '#f4efe6'), ('FROMAGERIE', 'Beaufort · Reblochon', '#6b4a24', '#f2d39a'),
             ('SOUVENIRS', 'Cadeaux · Cartes', '#2a6a9a', '#ffffff'), ('BOULANGERIE', 'Pâtisserie', '#7a4a24', '#f6e2b0')]
     tiles = []
