@@ -21,6 +21,11 @@ export function makeLabel(text, color, sub) {
   s.scale.set(9, 2.8, 1); return s;
 }
 
+/* T5 : les panneaux de nom (pistes, remontées) ne sont dessinés qu'à moins de 700 m : au-delà ils font quelques
+   pixels, et chacun coûtait un appel de dessin (une texture par panneau). */
+export const LABELS = [];
+export function updateLabels(cam) { for (const s of LABELS) { const dx = s.position.x - cam.x, dz = s.position.z - cam.z; s.visible = dx * dx + dz * dz < 700 * 700; } }
+
 export function buildMarkers() {
   const geo = new THREE.CylinderGeometry(0.045, 0.045, 1.6, 5); geo.translate(0, 0.8, 0);
   const list = [];
@@ -35,7 +40,7 @@ export function buildMarkers() {
     const s0 = S[1]; const lab = makeLabel(p.name, p.color, LEVELS[p.lvl].label);
     const a = S[0], b = S[2], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz);
     const lx = s0.x - dz / l * (p.w / 2 + 3), lz = s0.z + dx / l * (p.w / 2 + 3);
-    lab.position.set(lx, gridH(lx, lz) + 4.2, lz); scene.add(lab);
+    lab.position.set(lx, gridH(lx, lz) + 4.2, lz); scene.add(lab); LABELS.push(lab);
   });
   const mesh = new THREE.InstancedMesh(geo, pbr({ color: '#ffffff' }), list.length);
   const d = new THREE.Object3D(), c = new THREE.Color();
@@ -44,7 +49,7 @@ export function buildMarkers() {
   LIFTS.forEach(L => {
     const lab = makeLabel(L.code + ' · ' + L.name.replace(/^(Télécabine|Télésiège|Téléski) (du|de la|des) /, ''), '#a6dcff', L.name.split(' ')[0]);
     const p = L.board.clone().addScaledVector(L.side, -L.off - 6).addScaledVector(L.dir, -4);
-    lab.position.set(p.x, gridH(p.x, p.z) + 4.5, p.z); scene.add(lab);
+    lab.position.set(p.x, gridH(p.x, p.z) + 4.5, p.z); scene.add(lab); LABELS.push(lab);
   });
 }
 

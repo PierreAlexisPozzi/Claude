@@ -158,6 +158,9 @@ camera.layers.enable(SMALL_LAYER);
  sun.shadow.camera.layers.enable(SMALL_LAYER);
 camera.layers.enable(TREE_LAYER);
  sun.shadow.camera.layers.enable(TREE_LAYER);
+// T5 : objets regroupés (batch.ts) : calque 10 = image + ombre lointaine, 12 = image seule, 11 = ombre proche, ajouté
+// seulement aux regroupements qui ont un objet près du skieur (sinon ils coûtaient un appel dans la carte nette)
+camera.layers.enable(10); camera.layers.enable(12); sun.shadow.camera.layers.enable(11);
 sunFar = new THREE.DirectionalLight(0xffffff, 0);
 sunFar.castShadow = true;
  sunFar.shadow.mapSize.set(QUALITY[qName].farShadow || 1024, QUALITY[qName].farShadow || 1024);
@@ -173,6 +176,7 @@ sunFar.shadow.bias = -0.0006;
 sunFar.visible = QUALITY[qName].farShadow > 0;
 SCF.layers.set(0);
  SCF.layers.enable(PROXY_LAYER);
+ SCF.layers.enable(10);
    // buildings, towers, people + tree proxies; no terrain, no detailed trees
 scene.add(sunFar);
  scene.add(sunFar.target);

@@ -194,7 +194,7 @@ export function buildChronoGates() {
     x.fillText(label + ' · ' + p.name.toUpperCase() + ' · CHRONO', 512, 66, 980);
     const yb = Math.max(H(a.x + lx * bw / 2, a.z + lz * bw / 2), H(a.x - lx * bw / 2, a.z - lz * bw / 2)) + 3.0, bm = new THREE.MeshStandardMaterial({ map: colorCanvasTex(c), roughness: 0.8 });
     for (const face of [0, Math.PI]) { const ban = new THREE.Mesh(new THREE.PlaneGeometry(bw, 1.1), bm); ban.position.set(a.x, yb, a.z); ban.rotation.y = hd + Math.PI + face; g.add(ban); }   // readable from both sides
-    g.traverse(o => { o.layers.set(SMALL_LAYER); o.castShadow = false; o.receiveShadow = true; }); scene.add(g);
+    g.traverse(o => { o.layers.set(SMALL_LAYER); o.castShadow = false; o.receiveShadow = true; }); g.userData.merge = true; scene.add(g);   // T5 : fusionnées au démarrage (batch.ts)
   }
 }
 

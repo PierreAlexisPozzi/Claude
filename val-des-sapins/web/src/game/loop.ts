@@ -22,6 +22,7 @@ import { updateNPCs } from './npcs';
 import { updateSpray } from './particles';
 import { PEOPLE } from './people';
 import { P, STEP, stepSim } from './player';
+import { updateNearShadows } from './batch';
 import { camera, canvas, configureAO, post, renderer, sky, sun, sunFar, updateSun, updateSunFar } from './render';
 import { ALT0, H } from './terrain';
 import { placeUtil, touchFrame } from './touch';
@@ -62,7 +63,7 @@ export function frame(now) {
     camera.position.set(c.x + Math.sin(a) * photoCam.d, c.y + photoCam.h, c.z + Math.cos(a) * photoCam.d); camera.position.y = Math.max(camera.position.y, H(camera.position.x, camera.position.z) + 2); camera.lookAt(c.x, c.y - 0.1 + (photoCam.ly || 0), c.z);
   }
   sky.position.copy(camera.position);
-  updateSun(P.pos); updateSunFar(camera.position);
+  updateSun(P.pos); updateSunFar(camera.position); updateNearShadows(P.pos);
   dust.update(clock);
   post.film.uniforms.uTime.value = clock;
   post.composer.render(dt);

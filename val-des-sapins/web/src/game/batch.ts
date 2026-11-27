@@ -20,6 +20,27 @@ const _m = new THREE.Matrix4(), _v = new THREE.Vector3(), _s = new THREE.Vector3
 export const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const cellOf = (x, z, c = CELL) => Math.floor(x / c) + ':' + Math.floor(z / c);
 
+/* T5 : ombre proche à la demande. Un regroupement couvre une grande cellule : il entrait dans la carte d'ombre nette
+   (84 m autour du skieur) même sans aucun objet proche. Son calque 0 (image + deux ombres) devient 10 (image + ombre
+   lointaine), son calque 8 (petits objets : image + ombre proche) devient 12 (image seule) ; le calque 11 (ombre
+   proche) est ajouté chaque image aux seuls regroupements qui ont un objet à moins de NEAR_R du skieur. */
+const L_MAIN_FAR = 1 << 10, L_NEAR = 1 << 11, L_MAIN = 1 << 12;
+export function splitMask(mask) {
+  let m = mask & ~(1 | (1 << 8)), near = false;
+  if (mask & 1) { m |= L_MAIN_FAR; near = true; }
+  if (mask & (1 << 8)) { m |= L_MAIN; near = true; }
+  return { base: m, near: near ? m | L_NEAR : m };
+}
+const NEARS = [];   // { mesh, base, near, pts: [x, z, r][] }
+export function registerNear(mesh, mask, pts) { const s = splitMask(mask); const e = { mesh, base: s.base, near: s.near, pts }; mesh.layers.mask = s.base; NEARS.push(e); return e; }
+export function updateNearShadows(p) {
+  for (const e of NEARS) {
+    let on = false;
+    for (const q of e.pts) { if (q.off) continue; const dx = q.x - p.x, dz = q.z - p.z; if (dx * dx + dz * dz < (q.r + 95) * (q.r + 95)) { on = true; break; } }
+    e.mesh.layers.mask = on ? e.near : e.base;
+  }
+}
+
 /* ---------------- neige accumulée (T4) ----------------
    Les objets fixes du domaine (bâtiments, gares, pylônes, mobilier) reçoivent une variante de leur matière avec
    USE_SNOWACC : la neige se pose sur leurs faces tournées vers le ciel (nuanceur commun, materials.ts). Les
@@ -43,7 +64,7 @@ class Slab {
     this.r0 = this.geo.boundingSphere.radius + this.geo.boundingSphere.center.length();
     this.src = src.material; this.mat = snowAcc(src.material); this.color = !!src.instanceColor;
     this.cast = src.castShadow; this.recv = src.receiveShadow; this.mask = src.layers.mask; this.order = src.renderOrder;
-    this.cap = 0; this.top = 0; this.free = []; this.mesh = null;
+    this.cap = 0; this.top = 0; this.free = []; this.mesh = null; this.pts = []; this.nearE = null;
     this.box = new THREE.Box3(); this.pad = 0;
     this.geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
     this.grow(64);
@@ -57,7 +78,8 @@ class Slab {
       if (this.color) m.instanceColor.array.set(this.mesh.instanceColor.array.subarray(0, this.cap * 3));
       scene.remove(this.mesh); this.mesh.dispose();
     }
-    m.castShadow = this.cast; m.receiveShadow = this.recv; m.layers.mask = this.mask; m.renderOrder = this.order;
+    m.castShadow = this.cast; m.receiveShadow = this.recv; m.renderOrder = this.order;
+    if (this.nearE) { this.nearE.mesh = m; m.layers.mask = this.nearE.base; } else this.nearE = registerNear(m, this.mask, this.pts);
     m.count = this.top; m.visible = this.top > 0; m.userData.pool = this.name; m.userData.tag = 'pool:' + this.name;
     scene.add(m); this.mesh = m; this.cap = cap;
   }
@@ -106,7 +128,7 @@ export class InstancePool {
    *  simples, panneaux…) reste dans le groupe, qui est ajouté à la scène s'il n'y est pas. */
   add(group, shown = true) {
     group.updateMatrixWorld(true);
-    group.getWorldPosition(_v); const cell = cellOf(_v.x, _v.z, this.cell), h = { parts: [], rest: group, shown };
+    group.getWorldPosition(_v); const cell = cellOf(_v.x, _v.z, this.cell), h = { parts: [], rest: group, shown, pt: { x: _v.x, z: _v.z, r: group.userData.radius || 30, off: !shown } };
     const list = []; group.traverse(o => { if (o.isInstancedMesh && !o.isSkinnedMesh) list.push(o); });
     for (const m of list) {
       const n = m.count; if (!n) { m.parent.remove(m); continue; }
@@ -114,7 +136,7 @@ export class InstancePool {
       for (let i = 0; i < n; i++) { _m.fromArray(m.instanceMatrix.array, i * 16).premultiply(m.matrixWorld); _m.toArray(mats, i * 16); }
       const cols = m.instanceColor ? m.instanceColor.array.slice(0, n * 3) : null, off = s.alloc(n);
       s.write(off, n, shown ? mats : null, cols);
-      h.parts.push({ s, off, n, mats, cols });
+      h.parts.push({ s, off, n, mats, cols }); if (!s.pts.includes(h.pt)) s.pts.push(h.pt);
       m.parent.remove(m); m.geometry.dispose(); m.dispose();
     }
     let rest = false; group.traverse(o => { if (o !== group && (o.isMesh || o.isLine || o.isPoints || o.isSprite)) rest = true; });
@@ -124,13 +146,13 @@ export class InstancePool {
     return h;
   }
   show(h, on) {
-    if (!h || h.shown === on) return; h.shown = on;
+    if (!h || h.shown === on) return; h.shown = on; h.pt.off = !on;
     for (const p of h.parts) p.s.write(p.off, p.n, on ? p.mats : null, null);
     h.rest.visible = on;
   }
   remove(h) {
     if (!h) return;
-    for (const p of h.parts) p.s.release(p.off, p.n);
+    for (const p of h.parts) { p.s.release(p.off, p.n); const i = p.s.pts.indexOf(h.pt); if (i >= 0) p.s.pts.splice(i, 1); }
     h.parts.length = 0;
     if (h.rest.parent) h.rest.parent.remove(h.rest);
     h.rest.traverse(o => { if (o.isMesh) { o.geometry.dispose(); } });
@@ -200,8 +222,8 @@ export function mergeShells(blds) {
       const n = g.attributes.position.count; g.setAttribute('aBid', new THREE.BufferAttribute(new Float32Array(n).fill(i), 1));
       o.getWorldPosition(_v);
       const k = [sg, +o.castShadow, +o.receiveShadow, o.layers.mask, cellOf(_v.x, _v.z, SHELL_CELL), Object.keys(g.attributes).sort().join(','), +!!g.index].join('#');
-      let l = buckets.get(k); if (!l) buckets.set(k, l = { mat: canon.get(sg), cast: o.castShadow, recv: o.receiveShadow, mask: o.layers.mask, cell: cellOf(_v.x, _v.z, SHELL_CELL), geos: [] });
-      l.geos.push(g);
+      let l = buckets.get(k); if (!l) buckets.set(k, l = { mat: canon.get(sg), cast: o.castShadow, recv: o.receiveShadow, mask: o.layers.mask, cell: cellOf(_v.x, _v.z, SHELL_CELL), geos: [], pts: [] });
+      l.geos.push(g); if (!l.pts.some(q => q.b === b)) l.pts.push({ b, x: b.x, z: b.z, r: Math.hypot(b.w, b.d) / 2 + (b.floors || 4) * 3 });
     }
     scene.remove(b.grp); b.grp.userData.merged = true;
   });
@@ -210,7 +232,7 @@ export function mergeShells(blds) {
     const g = mergeGeometries(l.geos, false); if (!g) throw new Error('batch : fusion des coques impossible');
     l.geos.forEach(x => x.dispose());
     g.computeBoundingSphere();
-    const m = new THREE.Mesh(g, hideMat(l.mat)); m.castShadow = l.cast; m.receiveShadow = l.recv; m.layers.mask = l.mask;
+    const m = new THREE.Mesh(g, hideMat(l.mat)); m.castShadow = l.cast; m.receiveShadow = l.recv; registerNear(m, l.mask, l.pts);
     m.customDepthMaterial = depthMat(); m.userData.shells = true;
     m.userData.tag = 'coques@' + l.cell; scene.add(m); made++;
   }

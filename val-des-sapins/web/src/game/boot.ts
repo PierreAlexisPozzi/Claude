@@ -35,6 +35,7 @@ import { buildSled, sled } from './vehicles';
 import { BLEND, PLAGNE, loadBlenderAssets, loadWorldData } from './world-data';
 import { BATCH, batchScene, POOLS } from './batch-scene';
 import { setSunTime } from './daylight';
+import { updateLabels } from './furniture';
 import { SKY } from './sky';
 
 export let steps;
@@ -88,7 +89,7 @@ window.__ski = {
   get npcMesh() { return npcMesh; },
   NEAR, BUILDINGS, obstacleList: obstacles, THREE, firPrototype, assembleBuilding, get playerHuman() { return playerHuman; }, set faceHold(v) { __set_faceHold(v); }, humanPool, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
   camNow() { updateCamera(0, true); },
-  nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateFauna(0.016, clock, camera.position); },
+  nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateLabels(camera.position); updateFauna(0.016, clock, camera.position); },
   fauna, FURN, rocks, POOLS, batch: BATCH, setHour: setSunTime, SKY, farHeight, anyH, groomW, zoneGrid,
   trailTick(dt) { __set_clock(clock + (dt)); updateTrails(dt, clock); }, trailStats() { return { me: trailsMe ? trailsMe.i : 0, others: trailsOthers ? trailsOthers.i : 0 }; },
   tunnelLocal, SLALOM, GHOSTS, LINE, trackT, get pose() { return pose; }, get plant() { return plant; }, get FREE_LINES() { return FREE_LINES; }, get chrono() { return chrono; }, RIDER, MISSIONS, PEOPLE, DEFIS, missionTargets, riderEvent, chronoPistes, medalTimes, missionStep, riderLevel, talk(id) { openDialog(person(id)); }, dlgChoose(i) { dlgActs[i][1](); }, dlgText() { return $('dlgText').textContent; }, journal: toggleJournal, get chrono() { return chrono; }, saveRider, unlockAll() { RIDER.allOpen = true; fillMapLists(); }, resetChallenges() { Object.assign(RIDER, { xp: 0, stats: STATS0(), tiers: {}, runs: {}, missions: {}, active: null, legacyLifts: [] }); saveRider(); fillMapLists(); updateMarkers(); refreshTracker(); updateLevelChip(); }, teleportLiftTop, get obstacles() { return obstacles.length; },

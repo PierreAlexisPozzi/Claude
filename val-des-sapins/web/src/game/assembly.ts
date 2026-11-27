@@ -11,6 +11,7 @@ import { CUR_BLD, PEOPLE, SHOP_ANCHORS, __set_CUR_BLD, bldToWorld, placePeople, 
 import { LIFTS, PISTES, pisteHeading, zoneAt } from './pistes';
 import { SMALL_LAYER, TREE_LAYER, scene } from './render';
 import { POOLS, setShellHidden } from './batch';
+import { updateLabels } from './furniture';
 import { H, HALF, gridH, minimapImg, mulberry32, obstacles, trees } from './terrain';
 import { BLEND } from './world-data';
 
@@ -50,7 +51,7 @@ export class Assembly {
   jit(c, amt) { const k = 1 + (this.r() - 0.5) * amt; return _ac.copy(new THREE.Color(c)).multiplyScalar(k).clone(); }
   // near version for a placed object: one instanced mesh per (atom, material), with a real bounding sphere
   toGroup(radius) {
-    const g = new THREE.Group();
+    const g = new THREE.Group(); g.userData.radius = radius;
     for (const [k, l] of this.parts) {
       const [atom, mat] = k.split('|'), n = l.length / 2;
       const geo = atomGeo(atom).clone(); geo.boundingSphere = new THREE.Sphere(new V3(0, 0, 0), radius); geo.userData.atom = atom;
@@ -382,7 +383,7 @@ export function updateNearBuildings(cam, budgetMs) {
 
 export function updateNear(cam, dt) {
   NEAR.acc = (NEAR.acc || 0) + dt; if (NEAR.acc < 0.15) return; NEAR.acc = 0;
-  updateNearTrees(cam, 3); updateNearRocks(cam); updateNearTowers(cam); updateNearBuildings(cam, 6); updateFurniture(cam);
+  updateNearTrees(cam, 3); updateNearRocks(cam); updateNearTowers(cam); updateNearBuildings(cam, 6); updateFurniture(cam); updateLabels(cam);
 }
 
 export function plinthStones(A, b) {
