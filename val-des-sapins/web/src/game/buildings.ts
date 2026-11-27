@@ -13,7 +13,7 @@ import { LIFTS, PISTES, ZN, ZR, clearGrid, pisteHeading, rasterSeg, tunnelLocal,
 import { MAX_ANISO, scene } from './render';
 import { CELL, HALF, VN, gridH, heights, mulberry32, obstacles, rnd } from './terrain';
 
-export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK, CUR_FLOOR, TERRACES, CUR_PAQ, LE_FRANCE, SHOPS_TAKEN, REJECTED;
+export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK, CUR_FLOOR, TERRACES, CUR_PAQ, LE_FRANCE, SHOPS_TAKEN, REJECTED, CUR_FOOT, SLID;
 
 
 export function makeFacade(kind) {
@@ -165,6 +165,17 @@ export function liftDist(x, z) {
   return m;
 }
 
+/** T6 : distance à la ligne des remontées hors des 25 premiers et derniers mètres (les gares, que les immeubles d'un pôle
+ *  de gare peuvent entourer). */
+export function liftLineDist(x, z) {
+  let m = 1e9;
+  for (const L of LIFTS) {
+    const ax = L.b[0], az = L.b[1], dx = L.t[0] - ax, dz = L.t[1] - az, len = Math.hypot(dx, dz) || 1, e = Math.min(0.45, 25 / len);
+    const t = ((x - ax) * dx + (z - az) * dz) / (len * len); if (t < e || t > 1 - e) continue;
+    m = Math.min(m, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  }
+  return m;
+}
 export function landmarkOK(x, z, rot, w, d) {
   for (let u = -w / 2; u <= w / 2; u += 4) for (let v = -d / 2; v <= d / 2; v += 4) {
     const [px, pz] = toWorld(x, z, rot, u, v);
@@ -174,17 +185,30 @@ export function landmarkOK(x, z, rot, w, d) {
 }
 
 export function footprintOK(x, z, rot, w, d, maxDrop = 6) { return !footprintWhy(x, z, rot, w, d, maxDrop); }
+/** T6 : distance à l'axe de la piste la plus proche, rapportée à sa demi-largeur damée (0 sur l'axe, 1 au bord) : un
+ *  immeuble commerçant peut couvrir le bord extérieur de la zone damée (la piste le longe), jamais les 60 % centraux. */
+function runCore(x, z) {
+  let best = Infinity;
+  for (const p of PISTES) {
+    const S = p.samples, hw = (p.w || 20) / 2; if (!S) continue;
+    for (let i = 0; i + 1 < S.length; i++) {
+      const a = S[i], b = S[i + 1], ex = b.x - a.x, ez = b.z - a.z, L2 = ex * ex + ez * ez || 1, t = clamp(((x - a.x) * ex + (z - a.z) * ez) / L2, 0, 1);
+      const r = Math.hypot(x - a.x - ex * t, z - a.z - ez * t) / hw; if (r < best) best = r;
+    }
+  }
+  return best;
+}
 /** Raison du refus d'une emprise (null si elle convient). Par défaut : 3 m de marge autour, ni piste, ni remontée à
  *  moins de 14 m, 2 m d'écart aux obstacles. shop (T6, immeubles qui portent des commerces d'OSM, au bord des fronts de
  *  neige) : une piste peut toucher le bord (pas l'intérieur, 3 m en retrait), remontée à 6 m, 0,5 m d'écart. */
-export function footprintWhy(x, z, rot, w, d, maxDrop = 6, shop = false) {
+export function footprintWhy(x, z, rot, w, d, maxDrop = 6, shop = false, liftInside = false) {
   if (groundMax(x, z, w, d, rot) - groundMin(x, z, w, d, rot) > maxDrop) return 'pente';
   const m = shop ? 0 : 3, liftR = shop ? 6 : 14, gap = shop ? 0.5 : 2;
   for (let u = -w / 2 - m; u <= w / 2 + m + 1e-6; u += 4) for (let v = -d / 2 - m; v <= d / 2 + m + 1e-6; v += 4) {
     const [px, pz] = toWorld(x, z, rot, u, v);
     if (Math.abs(px) > HALF - 40 || Math.abs(pz) > HALF - 40) return 'bord';
-    if (zoneAt(px, pz) >= 0 && (!shop || (Math.abs(u) < w / 2 - 3 && Math.abs(v) < d / 2 - 3))) return 'piste';
-    if (liftDist(px, pz) < liftR) return 'remontée';
+    if (zoneAt(px, pz) >= 0 && (!shop || (Math.abs(u) < w / 2 - 3 && Math.abs(v) < d / 2 - 3 && runCore(px, pz) < 0.6))) return 'piste';
+    if ((liftInside ? liftLineDist(px, pz) : liftDist(px, pz)) < liftR) return 'remontée';   // T6 : pôle de gare (Télémétro, Le Pelvoux)
     if (obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + gap)) return 'obstacle';
     if (cannons.some(c => Math.hypot(c.x - px, c.z - pz) < 6)) return 'canon';
     if (tunnels.some(T => { const tl = tunnelLocal(T, px, pz, 4); return tl && tl.s > -30 && tl.s < T.len + 30 && Math.abs(tl.w) < 26; })) return 'tunnel';
@@ -231,13 +255,18 @@ export function finish(grp, parts, rails, partsMat) {
  *  donc le plus grand, l'emporte), ramenés sur la façade la plus proche : b.shopList = [{ k, face, x, z, nx, nz }]
  *  (point de la vitrine et normale sortante, monde). Les vitrines (shopFront) ne s'ouvrent que là ; logements ailleurs. */
 const shopsNear = (x, z, rot, w, d) => PLAGNE && PLAGNE.shops && PLAGNE.shops.some((q, i) => { if (SHOPS_TAKEN.has(i)) return false; const dx = q.x - x, dz = q.z - z, c = Math.cos(rot), sn = Math.sin(rot); return Math.abs(dx * c - dz * sn) < w / 2 + 8 && Math.abs(dx * sn + dz * c) < d / 2 + 8; });
+/** Marque une zone sans arbres (repère u, v d'un immeuble), par pas de 4 m. */
+export function clearRect(x, z, rot, u0, u1, v0, v1) {
+  for (let u = u0; u <= u1 + 1e-6; u += 4) for (let v = v0; v <= v1 + 1e-6; v += 4) { const [px, pz] = toWorld(x, z, rot, u, v); rasterSeg(ZR, ZN - 1, px, pz, px, pz, 3, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); }
+}
 export function attachShops(b) {
   if (!PLAGNE || !PLAGNE.shops) return;
   const ca = Math.cos(b.rot), sa = Math.sin(b.rot), list = (b.shopList = []), inner = b.type === 'paquebot';   // modules du paquebot : façades avant et arrière seulement
   PLAGNE.shops.forEach((q, i) => {
     if (SHOPS_TAKEN.has(i)) return;
     const dx = q.x - b.x, dz = q.z - b.z, u = dx * ca - dz * sa, v = dx * sa + dz * ca;
-    if (Math.abs(u) > b.w / 2 + 8 || Math.abs(v) > b.d / 2 + 8) return;
+    const F = CUR_FOOT, inFoot = F && (() => { const c = Math.cos(F.rot), sn = Math.sin(F.rot), fx = q.x - F.x, fz = q.z - F.z; return Math.abs(fx * c - fz * sn) < F.w / 2 + 3 && Math.abs(fx * sn + fz * c) < F.d / 2 + 3; })();
+    if (!inFoot && (Math.abs(u) > b.w / 2 + 8 || Math.abs(v) > b.d / 2 + 8)) return;
     const opts = [[Math.abs(b.d / 2 - v), 0], [Math.abs(v + b.d / 2), 1]];
     if (!inner) opts.push([Math.abs(b.w / 2 - u), 2], [Math.abs(u + b.w / 2), 3]);
     const face = opts.sort((a, c) => a[0] - c[0])[0][1], L = face < 2 ? b.w : b.d;
@@ -546,7 +575,7 @@ export function buildPlagneBuildings() {
     else spec = { b: (x, z, r, ww, dd) => bldStoneChalet(x, z, r, ww, dd, area < 110), w: clamp(w, 9, 16), d: clamp(d, 8, 11) };
     // the landmarks stand where they are, whatever runs past them; everything else keeps off runs and lift lines
     const landmark = spec.b === bldPlPaquebot || spec.b === bldLeFrance || /Club Med/i.test(nm);
-    let bx = b.x, bz = b.z;
+    let bx = b.x, bz = b.z, stationIn = null;
     if (landmark) {   // where a lift line runs into it (the gondola arrives at the end of the Paquebot), keep the longest clear stretch
       const cols = []; for (let u = -spec.w / 2; u <= spec.w / 2; u += 4) cols.push([u, landmarkOK(...toWorld(b.x, b.z, rot, u, 0), rot, 4, spec.d)]);
       let best = null, cur = null; for (const [u, ok] of cols) { if (ok) { cur = cur ? [cur[0], u] : [u, u]; if (!best || cur[1] - cur[0] > best[1] - best[0]) best = cur.slice(); } else cur = null; }
@@ -555,8 +584,23 @@ export function buildPlagneBuildings() {
     } else {
       let why = footprintWhy(b.x, b.z, rot, spec.w, spec.d, 14);
       // T6 : un immeuble qui porte des commerces d'OSM est gardé au bord du front de neige (règle assouplie)
-      if (why && why !== 'pente' && shopsNear(b.x, b.z, rot, spec.w, spec.d)) why = footprintWhy(b.x, b.z, rot, spec.w, spec.d, 14, true);
-      if (why) { REJECTED.push({ x: b.x, z: b.z, w: spec.w, d: spec.d, name: nm, kind: b.kind, why, rank: list.indexOf(b) }); continue; }
+      const shopB = why && why !== 'pente' && shopsNear(b.x, b.z, rot, Math.max(w, spec.w), Math.max(d, spec.d));
+      // pôle de gare : une gare de remontée à moins de 20 m de l'emprise (la gare du Télémétro est dans le complexe de Le
+      // Pelvoux) : seule la ligne au-delà des 25 premiers mètres compte pour la règle des 6 m ; l'embarquement reste dégagé
+      const inF = (px, pz) => { const c = Math.cos(rot), sn = Math.sin(rot), fx = px - b.x, fz = pz - b.z; return Math.abs(fx * c - fz * sn) < w / 2 + 20 && Math.abs(fx * sn + fz * c) < d / 2 + 20; };
+      stationIn = shopB ? LIFTS.find(L => L.B && (inF(L.B.x, L.B.z) || inF(L.T.x, L.T.z))) || null : null;
+      if (shopB) why = footprintWhy(b.x, b.z, rot, spec.w, spec.d, 14, true, !!stationIn);
+      // T6 : une piste ou une gare longe l'immeuble (Le Pelvoux, G1G2) : la barre du jeu, moins profonde que l'emprise IGN,
+      // est glissée dans l'emprise réelle, du côté opposé
+      let tried = null;
+      if ((why === 'piste' || why === 'remontée') && shopB) {
+        const ru = Math.max(0, (w - spec.w) / 2), rv = Math.max(0, (d - spec.d) / 2), offs = [];
+        for (let du = -ru; du <= ru + 1e-6; du += 2) for (let dv = -rv; dv <= rv + 1e-6; dv += 2) offs.push([du, dv]);
+        offs.sort((a, c) => Math.hypot(a[0], a[1]) - Math.hypot(c[0], c[1]));
+        tried = {};
+        for (const [du, dv] of offs) { const [px, pz] = toWorld(b.x, b.z, rot, du, dv), wy = footprintWhy(px, pz, rot, spec.w, spec.d, 14, true, !!stationIn); tried[wy] = (tried[wy] || 0) + 1; if (!wy) { [bx, bz] = [px, pz]; why = null; SLID.push({ name: nm, du, dv }); break; } }
+      }
+      if (why) { REJECTED.push({ x: b.x, z: b.z, w: spec.w, d: spec.d, name: nm, kind: b.kind, why, rank: list.indexOf(b), tried }); continue; }
     }
     if (spec.b !== bldLeFrance) claim(bx, bz, rot, spec.w, spec.d);   // Le France : seules ses ailes font obstacle (bldLeFrance)
     // T5 ter : la façade avant (v > 0 : galerie, commerces, terrasse) est tournée vers le front de neige
@@ -578,8 +622,19 @@ export function buildPlagneBuildings() {
       if (pal && pal !== PAL.village && pal.floors) pal = { ...pal, floors: Math.max(2, pal.floors + Math.round((g0 - tp.L) / FLOOR)) };
     }
     const n0 = BUILDINGS.length;
+    CUR_FOOT = { x: b.x, z: b.z, rot, w, d };   // emprise IGN : les commerces qu'elle contient vont à cet immeuble
+    const o0 = obstacles.length;
     CUR_PAL = pal; CUR_PAQ = paq; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; CUR_FLOOR = null; CUR_PAQ = null; placed++;
     for (let i = n0; i < BUILDINGS.length; i++) if (!BUILDINGS[i].shopList) attachShops(BUILDINGS[i]);   // chalets et autres : vitrines OSM ou logements
+    CUR_FOOT = null;
+    if (stationIn) {   // la gare reste accessible : pas d'obstacle de cet immeuble autour de la gare, de l'embarquement et de l'arrivée
+      const pts = [stationIn.board, stationIn.exit && { x: stationIn.exit[0], z: stationIn.exit[1] }].filter(Boolean);
+      for (let i = obstacles.length - 1; i >= o0; i--) { const o = obstacles[i]; if (pts.some(q => Math.hypot(o.x - q.x, o.z - q.z) < o.r + 6)) obstacles.splice(i, 1); }
+      const B = BUILDINGS[BUILDINGS.length - 1]; if (B) B.station = stationIn.name;
+    }
+    // T6 : pas de sapins au cœur ni sur le front de neige de Plagne Centre : 25 m autour des immeubles, 45 m devant leur
+    // façade avant
+    if (/Centre/.test(town)) for (let i = n0; i < BUILDINGS.length; i++) { const B = BUILDINGS[i]; clearRect(B.x, B.z, B.rot, -B.w / 2 - 25, B.w / 2 + 25, -B.d / 2 - 25, B.d / 2 + 45); }
     if (tp && BUILDINGS.length > n0) BUILDINGS[BUILDINGS.length - 1].terrace = tp;
     if (paq) for (const t of paq.decks) if (BUILDINGS[n0 + t.k]) BUILDINGS[n0 + t.k].terrace = t;
     if (fr && BUILDINGS.length > n0) { const b = BUILDINGS[BUILDINGS.length - 1]; FRONTS.push({ x: b.x, z: b.z, rot: b.rot, w: b.w, d: b.d, L: fr.L, top: b.top, ok: fr.ok }); }
@@ -973,5 +1028,5 @@ CUR_PAL = null;
    the bar or the parapet, with a mulled wine, a beer, a glass of red or a cone of chips. */
 TERRACE_FOLK = [];
 CUR_FLOOR = null;
-TERRACES = Object.assign([], { cap: IS_TOUCH ? 10 : 20, why: {}, cand: 0 }); FRONTS = Object.assign([], { why: {} }); CUR_PAQ = null; LE_FRANCE = null; SHOPS_TAKEN = new Set(); REJECTED = [];
+TERRACES = Object.assign([], { cap: IS_TOUCH ? 10 : 20, why: {}, cand: 0 }); FRONTS = Object.assign([], { why: {} }); CUR_PAQ = null; LE_FRANCE = null; SHOPS_TAKEN = new Set(); REJECTED = []; CUR_FOOT = null; SLID = [];
 }
