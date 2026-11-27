@@ -77,6 +77,20 @@ export function makeFacade(kind) {
         }
       }
       break; }
+    case 'lf_wood': {            // T6 : Le France (photos fournies) : bardage bois orangé, sous-faces de balcons blanches
+      g.fillStyle = '#b5622c'; g.fillRect(0, 0, W, Hh);
+      for (let x = 0; x < W; x += 5) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.07})`; g.fillRect(x, 0, 1, Hh); }        // lames verticales
+      for (let fy = 0; fy < 2; fy++) {
+        const y0 = fy * 128;
+        g.fillStyle = '#eeede7'; g.fillRect(0, y0 + 110, W, 18);                                                           // sous-face blanche du balcon
+        for (let bx = 0; bx < 2; bx++) window_(bx * 128 + 12, y0 + 18, 104, 74, '#4a2a16', r() < 0.12);
+      }
+      break; }
+    case 'lf_blue': {            // T6 : Le France, niveau au-dessus du passage : panneaux bleu clair, petites fenêtres carrées
+      g.fillStyle = '#a8c0dc'; g.fillRect(0, 0, W, Hh);
+      for (let x = 0; x < W; x += 64) { g.fillStyle = '#8a4a26'; g.fillRect(x, 0, 6, Hh); }                               // montants bois
+      for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 4; bx++) window_(bx * 64 + 24, fy * 128 + 48, 22, 22, '#5b3a22', false);
+      break; }
     case 'pv_wood': {            // Plagne Villages: dark brown boards, windows with light frames
       planks('#5b3b27', true, 9);
       for (let fy = 0; fy < 2; fy++) for (let bx = 0; bx < 2; bx++) window_(bx * 128 + 28, fy * 128 + 20, 72, 84, '#d9cdb5', r() < 0.2);
@@ -377,7 +391,7 @@ export function bldPlSlab(x, z, rot, w, d) {
   const ent = BUILDINGS[BUILDINGS.length - 1];
   if (pal.bridge) ent.shopList = []; else attachShops(ent);   // T6 : commerces d'après OSM (sinon : logements)
   const shopsHere = ent.shopList ? ent.shopList.length > 0 : pal.shops, galleryHere = !ent.shopList || ent.shopList.some(q => q.face === 0);
-  facadeMesh(grp, shopsHere ? 'shops' : pal.facade, w, gf, d, 0, top + gf / 2, 0, 3.4);
+  facadeMesh(grp, shopsHere ? 'shops' : pal.gfFacade || pal.facade, w, gf, d, 0, top + gf / 2, 0, 3.4);
   const H1 = (floors - 1) * FLOOR; facadeMesh(grp, pal.facade, w, H1, d, 0, top + gf + H1 / 2, 0);
   const faces2 = pal.tower ? [['x', 1], ['x', -1], ['z', 1], ['z', -1]] : [['z', 1], ['z', -1]];
   for (const [ax, sd] of faces2) {
@@ -390,7 +404,7 @@ export function bldPlSlab(x, z, rot, w, d) {
       B(L + 0.2, 0.09, 0.16, 0, y + 1.17, D / 2 + dep - 0.05, SNOWC);                      // snow on the rail
     }
     const nf = Math.max(2, Math.round(L / 6.4)), pc = isPC(pal), fw = pc ? 0.42 : 0.3, fd = pc ? dep + 0.35 : dep;
-    for (let k = 0; k <= nf; k++) B(fw, H1, fd, -L / 2 + k * L / nf, top + gf + H1 / 2, D / 2 + fd / 2, pal.slab);   // fins between loggias (T5 : saillants à Plagne Centre)
+    for (let k = 0; k <= nf; k++) B(fw, H1, fd, -L / 2 + k * L / nf, top + gf + H1 / 2, D / 2 + fd / 2, pal.fin || pal.slab);   // fins between loggias (T5 : saillants à Plagne Centre ; T6 : bois à Le France)
     if (pc && sd === 1 && ax === 'z' && !pal.bridge && galleryHere) {   // T5 : galerie couverte au pied (mêmes cotes que la version détaillée, GALLERY) ; T6 : devant des commerces
       const G = GALLERY, n = Math.max(2, Math.round(L / G.step));
       B(L + 0.2, G.slab, G.depth, 0, top + gf + G.slab / 2, D / 2 + G.depth / 2, pal.slab);
@@ -430,12 +444,38 @@ export function bldLeFrance(x, z, rot, w, d) {
   let g = -Infinity; for (let u = p0; u <= p1 + 1e-6; u += 1) for (let v = -d / 2; v <= d / 2 + 1e-6; v += 2) g = Math.max(g, gridH(...at(u, v)));
   const C = g + 7.2, roof = Math.max(...wings.map(B => B.top + B.gf + (B.floors - 1) * FLOOR));
   const floors = Math.max(2, Math.round((roof - C - 3.4) / FLOOR) + 1), [cx, cz] = at((p0 + p1) / 2, 0);
-  CUR_FLOOR = C; CUR_PAL = { ...pal, floors, shops: false, bridge: true };
+  CUR_FLOOR = C; CUR_PAL = { ...pal, floors, shops: false, bridge: true, gfFacade: 'lf_blue', gfWall: '#a8c0dc' };
   bldPlSlab(cx, cz, rot, p1 - p0, d);
   CUR_FLOOR = null; CUR_PAL = pal;
   const B = BUILDINGS[BUILDINGS.length - 1]; B.bridge = true; B.clear = Math.round((C - g) * 10) / 10; B.span = [p0, p1];
   for (let u = p0; u <= p1; u += 4) for (let v = -d / 2; v <= d / 2; v += 4) { const [px, pz] = at(u, v); rasterSeg(ZR, ZN - 1, px, pz, px, pz, 9, (ix, iz) => { clearGrid[iz * ZN + ix] = 1; }); }   // pas d'arbres dessous
   LE_FRANCE = { x, z, rot, w, d, p0, p1, e0, e1, clear: B.clear, g, piste: PISTES[pk] ? PISTES[pk].name : pk };
+  // piliers du passage (photos : béton, matelas orange au pied), dans la marge de 2 m hors de la piste ; socle blanc
+  // vitré d'un niveau devant les ailes côté pistes ; cage d'escalier en bois au bout ouest
+  const parts = [], grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rot;
+  for (const u of [p0 + 0.9, p1 - 0.9]) for (const v of [-d / 2 + 1.5, 0, d / 2 - 1.5]) {
+    const [px, pz] = at(u, v), g0 = gridH(px, pz);
+    boxP(parts, 0.9, C - g0 + 0.3, 0.9, u, (C + g0) / 2 - 0.15, v, '#cfcac2');
+    boxP(parts, 1.15, 1.7, 1.15, u, g0 + 0.75, v, '#e8641e');
+    obstacles.push({ x: px, z: pz, r: 0.7 });
+  }
+  const sd = frontScore(...at((e0 + p0) / 2, 0), rot, p0 - e0, d, 1) <= frontScore(...at((e0 + p0) / 2, 0), rot, p0 - e0, d, -1) ? 1 : -1;
+  for (const B2 of wings) {
+    const a = (B2.x - x) * Math.cos(rot) - (B2.z - z) * Math.sin(rot), L = B2.w - 3, D = 5, v = sd * (d / 2 + D / 2);
+    let ok = true, gl = Infinity;
+    for (let u = a - L / 2; u <= a + L / 2 && ok; u += 2) for (let q = -D / 2; q <= D / 2; q += 1.25) { const [px, pz] = at(u, v + q); gl = Math.min(gl, gridH(px, pz)); if (zoneAt(px, pz) >= 0 || liftDist(px, pz) < 6) ok = false; }
+    if (!ok) continue;
+    const y = B2.top, y0 = Math.min(gl, y) - 0.3;
+    boxP(parts, L, y + 0.9 - y0, D, a, (y0 + y + 0.9) / 2, v, '#f0efe9');            // allège blanche (jusqu'au sol)
+    boxP(parts, L + 0.06, 2.4, D + 0.06, a, y + 2.1, v, '#5d7a90');                   // vitrage
+    boxP(parts, L + 0.1, 0.6, D + 0.1, a, y + 3.6, v, '#f0efe9');                     // bandeau blanc
+    boxP(parts, L - 0.2, 0.35, D - 0.2, a, y + 4.05, v, SNOWC);
+    claim(...at(a, v), rot, L, D);
+  }
+  { const B0 = wings[0], u = e0 + 3.5, yt = B0.top + B0.gf + (B0.floors - 1) * FLOOR;
+    boxP(parts, 7, yt - B0.top + 1.5, 9, u, (B0.top + yt + 1.5) / 2, -sd * (d / 2 - 2), '#8a5a35');
+    for (let k = -3; k <= 3; k++) boxP(parts, 0.08, yt - B0.top + 1.5, 9.04, u + k, (B0.top + yt + 1.5) / 2, -sd * (d / 2 - 2), '#6e4426'); }   // lames
+  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.merge = true; scene.add(grp);
 }
 
 // the Paquebot des neiges: modules along its length, the roofline in three waves, every floor stepped back on both faces
@@ -488,7 +528,7 @@ export function buildPlagneBuildings() {
     let spec, pal = null;
     if (b.kind === 'construction' || /dameuse|Parking/i.test(nm) && area > 2000) continue;
     if (/Paquebot/i.test(nm)) { pal = PAL.aime; spec = { b: bldPlPaquebot, w: Math.min(w, 205), d: clamp(d, 30, 40) }; }
-    else if (/Le France/i.test(nm)) { pal = { ...PAL.centre, floors: Math.max(2, b.levels || 9), tower: false }; spec = { b: bldLeFrance, w: Math.min(w, 102), d: clamp(d, 16, 20) }; }
+    else if (/Le France/i.test(nm)) { pal = { ...PAL.france, floors: Math.max(2, Math.round((b.h || 29) / FLOOR)), tower: false }; spec = { b: bldLeFrance, w: Math.min(w, 102), d: clamp(d, 16, 20) }; }   // 28,8 m (BD TOPO) : 10 niveaux, comme sur les photos
     else if (/Club Med/i.test(nm) && !/ex /i.test(nm)) { pal = { ...PAL.red, floors: 11, tower: w < 30 }; spec = { b: bldPlSlab, w: clamp(w, 16, 70), d: clamp(d, 13, 18) }; }
     else if (/Salle|Parking|Garage|Funi|omnisport/i.test(nm)) { pal = { ...PAL.low, floors: 2 }; spec = { b: bldPlSlab, w: clamp(w, 12, 70), d: clamp(d, 10, 30) }; }
     else if (modern && area > 220) {
@@ -921,6 +961,8 @@ PAL = {
   aime: { facade: 'pq_dark', base: '#625c55', wall: '#6f6961', slab: '#9a9389', boards: '#5a4a3c', frame: '#2b2826', parapet: '#7d776f', core: '#3a3632' },
   red: { facade: 'cm_cream', base: '#cfc6b4', wall: '#e4dccb', slab: '#d4cbb8', boards: '#b3223f', frame: '#e9e4da', parapet: '#b3223f', core: '#8c8577' },
   low: { facade: 'pq_dark', base: '#77726b', wall: '#8a857d', slab: '#77726b', boards: '#4a4540', frame: '#2b2826', parapet: '#6a655e', core: '#4a4540' },
+  // T6 : Le France (photos fournies) : bois orangé, dalles et corniche blanches
+  france: { facade: 'lf_wood', base: '#e6e4dd', wall: '#b5622c', slab: '#f0efe9', fin: '#9a5126', boards: '#c46d30', frame: '#4a2a16', parapet: '#f3f2ec', core: '#7a4a30' },
   village: { facade: 'pv_wood', base: '#d6cab0', ground: 'pv_render', wood: '#5b3b27', render: '#e3d8c0', slab: '#4a2f1f', boards: '#3e2819', frame: '#d9cdb5' },
 };
 CUR_PAL = null;

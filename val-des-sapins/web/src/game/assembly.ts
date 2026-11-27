@@ -517,7 +517,7 @@ export function assemblePlSlab(b) {
   if (pal.bridge) A.put('box', SM, 0, top - 0.35, 0, X1, _ay, Z1, w + 0.2, 0.7, d + 0.2, A.jit(pal.slab, 0.03));   // T6 : sous-face du pont (Le France)
   else plinthStones(A, b);
   A.put('box', SM, 0, top + (gf + (fl - 1) * FLOOR) / 2, 0, X1, _ay, Z1, w - 0.8, gf + (fl - 1) * FLOOR, d - 0.8, new THREE.Color(pal.core));
-  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || (i === 0 && !pal.bridge), stone: SM }));
+  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.gfWall || pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || (i === 0 && !pal.bridge), stone: SM }));
   faces(w, d).forEach((F, i) => {
     const loggia = i < 2 || pal.tower, dep = pal.tower ? 1.0 : 1.3;
     for (let f = 1; f < fl; f++) {
@@ -527,7 +527,7 @@ export function assemblePlSlab(b) {
     }
     if (loggia) {
       const nf = Math.max(2, Math.round(F.L / 6.4)), H1 = (fl - 1) * FLOOR, fw = pc ? 0.42 : 0.3, fd = pc ? dep + 0.35 : dep;
-      for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 / 2, fd / 2); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, fw, H1, fd, A.jit(pal.slab, 0.04)); }
+      for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 / 2, fd / 2); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, fw, H1, fd, A.jit(pal.fin || pal.slab, 0.04)); }
       if (pc) for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 + 0.08, fd / 2); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, fw + 0.1, 0.16, fd + 0.05, A.jit('#f2f6fb', 0.02)); }   // neige en tête de refend
     }
     if (pc && i === 0 && !pal.bridge && (!b.shopList || b.shopList.some(q => q.face === 0))) galleryAt(A, F, top, gf, pal, SM);

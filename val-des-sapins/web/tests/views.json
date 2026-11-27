@@ -641,6 +641,21 @@
   ]
  },
  {
+  "id": "le-france-facade",
+  "title": "Plagne Centre · Le France depuis le bas de la piste Boulevard (comme la photo fournie)",
+  "kind": "village",
+  "from": [
+   133.25,
+   229.16,
+   -279.05
+  ],
+  "at": [
+   78.68,
+   250.02,
+   -202.59
+  ]
+ },
+ {
   "id": "jeu-depart",
   "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
   "kind": "jeu"
