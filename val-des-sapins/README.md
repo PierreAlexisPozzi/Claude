@@ -66,6 +66,19 @@ test (exécutions reproductibles au bit près).
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Tranche T5 — Plagne Centre, première typologie** (mesures : `review/mesures_T5.md`, planche : `review/planche_T5_plagne_centre.jpg`) :
+- **Façades** des barres et tours en béton brun rouille (palettes `pc_rust`, `pc_tower`), version détaillée et coque
+  lointaine construites avec les mêmes cotes : béton banché (texture CC0 projetée dans le plan de chaque façade, sans
+  cisaillement sur les immeubles en biais), coulures et rugosité d'usure, refends saillants plus clairs, fond de loggia
+  et garde-corps sombres, galerie marchande couverte au pied (dalle en porte-à-faux sur poteaux, neige, glaçons), local
+  d'ascenseur sur le toit. Les autres typologies (Aime 2000, Club Med, chalets) sont inchangées : T6.
+- **Intérieurs** (toutes typologies) : pièces vues en miroir, stores à hauteurs variées, lampes plus ou moins chaudes.
+- **Abords** : réverbères, bancs, poubelles, bacs, porte-skis et congères le long des galeries (réserve de mobilier, aucun
+  appel de dessin de plus) ; **terrasses** : parasols chauffants, ardoise du menu, bacs à sapins, lanternes.
+- **Marques** : enseignes régénérées sans marque (`web/tools/shop-signs.mjs`) et rôles des commerçants génériques.
+- **Appels de dessin** : marge regagnée sur tactile (ombre proche à la demande des regroupements, portes de chrono
+  fusionnées, panneaux lointains masqués) : 337 sur tactile, 617 sur ordinateur à Plagne Centre (Moyenne).
+
 **Tranche T4 — rendu général** (mesures : `review/mesures_T4.md`, planche : `review/planche_T4_rendu.jpg`) :
 - **Appels de dessin** à Plagne Centre (Moyenne) : 1 726 → 664 sur ordinateur, 1 282 → 380 sur tactile ; les
   plafonds (1 700 / 400) sont désormais bloquants dans `tests/perf.spec.ts`. Sur tactile, la qualité Moyenne n'a plus

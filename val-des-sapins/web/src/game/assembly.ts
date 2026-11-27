@@ -2,7 +2,7 @@
 /* eslint-disable */
 
 import * as THREE from 'three';
-import { FLOOR, VILLAGES } from './buildings';
+import { FLOOR, VILLAGES, liftDist } from './buildings';
 import { IS_TOUCH, V3, colorCanvasTex, lerp, patchShader } from './core';
 import { updateNearTowers } from './lifts';
 import { detailMat, interiorMat, lambertVC, pbr } from './materials';
@@ -15,6 +15,7 @@ import { updateLabels } from './furniture';
 import { H, HALF, gridH, minimapImg, mulberry32, obstacles, trees } from './terrain';
 import { BLEND } from './world-data';
 
+export const ABORDS = { n: 0 };
 export let ATOM, MATTER_MAT, matCache, mmat, hashSeed, _am, _av, _au, _an, _ay, _ac, NEAR, BUILDINGS, onFace, SHOP_N, shopCol, X1, Z1, rocks, FURN, netMat, SKI_COLS, blob, v3;
 
 
@@ -386,9 +387,12 @@ export function updateNear(cam, dt) {
   updateNearTrees(cam, 3); updateNearRocks(cam); updateNearTowers(cam); updateNearBuildings(cam, 6); updateFurniture(cam); updateLabels(cam);
 }
 
+/** T5 : typologie Plagne Centre (barres et tours en béton brun rouille) : palettes pc_rust et pc_tower. */
+export const isPC = pal => !!pal && /^pc_/.test(pal.facade);
+
 export function plinthStones(A, b) {
   // retaining wall under every building: big irregular blocks from the lowest ground up to the floor
-  if (b.pal) { A.put('box', 'stone', 0, (b.y0 + b.top) / 2 - 0.6, 0, X1, _ay, Z1, b.w + 0.1, b.top - b.y0 + 1.2, b.d + 0.1, A.jit(b.pal.base, 0.02)); return; }   // La Plagne: the facade material, no masonry
+  if (b.pal) { A.put('box', isPC(b.pal) ? 'concrete' : 'stone', 0, (b.y0 + b.top) / 2 - 0.6, 0, X1, _ay, Z1, b.w + 0.1, b.top - b.y0 + 1.2, b.d + 0.1, A.jit(b.pal.base, 0.02)); return; }   // La Plagne: the facade material, no masonry
   if (b.top - b.y0 < 0.3) return;
   const F = faces(b.w + 0.6, b.d + 0.6);
   for (const Fc of F) for (let y = b.y0 - 0.6; y < b.top - 0.05;) {
@@ -401,34 +405,34 @@ export function plinthStones(A, b) {
 
 // one bay of a framed facade: wall piers and spandrel at the facade line, glazing set back behind them
 export function bayFrame(A, F, s0, s1, y0, y1, o) {
-  const pier = o.pier || 0.4, sp = o.spandrel || 0.7, dep = o.depth || 0.4, col = o.wall;
-  let p = onFace(F, s0 + pier / 2, (y0 + y1) / 2, -0.15); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, pier, y1 - y0, 0.5, A.jit(col, 0.06));
-  p = onFace(F, (s0 + s1) / 2, y0 + sp / 2, -0.15); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, s1 - s0, sp, 0.5, A.jit(col, 0.06));
+  const pier = o.pier || 0.4, sp = o.spandrel || 0.7, dep = o.depth || 0.4, col = o.wall, SM = o.stone || 'stone';
+  let p = onFace(F, s0 + pier / 2, (y0 + y1) / 2, -0.15); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, pier, y1 - y0, 0.5, A.jit(col, 0.06));
+  p = onFace(F, (s0 + s1) / 2, y0 + sp / 2, -0.15); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, s1 - s0, sp, 0.5, A.jit(col, 0.06));
   const gx0 = s0 + pier, gx1 = s1, gy0 = y0 + sp, gy1 = y1 - 0.12, gw = gx1 - gx0, gh = gy1 - gy0, gc = (gx0 + gx1) / 2, gyc = (gy0 + gy1) / 2;
   if (gw < 0.3 || gh < 0.3) return;
   const lit = A.r() < (o.lit || 0.15);
   if (o.shop) shopFront(A, F, gc, gyc, gw, gh, 0.1 - dep, Math.min(y1 - 0.25, gy1 + 0.3), 0.08);
   else { p = onFace(F, gc, gyc, 0.1 - dep); A.put('box', o.lift ? 'winlift' : lit ? 'winlit' : 'win', p.x, p.y, p.z, F.u, _ay, F.n, gw, gh, 0.04, lit ? A.jit('#f0c27c', 0.15) : A.jit('#25303c', 0.25)); }
   for (const [du, dv, su, sv] of [[0, gh / 2, gw, 0.07], [0, -gh / 2, gw, 0.07], [-gw / 2, 0, 0.07, gh], [gw / 2, 0, 0.07, gh], [0, 0, 0.05, gh]]) { p = onFace(F, gc + du, gyc + dv, 0.14 - dep); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, su, sv, 0.08, A.jit(o.frame, 0.1)); }
-  if (o.sill) { p = onFace(F, gc, gy0 - 0.03, 0.13); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, gw + 0.2, 0.06, 0.3, A.jit('#cfc8bd', 0.05)); }
+  if (o.sill) { p = onFace(F, gc, gy0 - 0.03, 0.13); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, gw + 0.2, 0.06, 0.3, A.jit('#cfc8bd', 0.05)); }
   if (o.curtain && A.r() < 0.5) { p = onFace(F, gc - gw * 0.3, gyc, 0.14 - dep - 0.03); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, gw * 0.3, gh * 0.95, 0.02, A.jit(['#c9b48a', '#9a3b2e', '#d8d2c4'][Math.floor(A.r() * 3)], 0.1)); }
 }
 
 export function framedFloor(A, F, y0, y1, o) {
   const n = Math.max(1, Math.round(F.L / (o.bay || 3.2))), step = F.L / n;
   for (let k = 0; k < n; k++) bayFrame(A, F, k * step, (k + 1) * step, y0, y1, o);
-  const p = onFace(F, F.L - 0.2, (y0 + y1) / 2, -0.15); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, 0.4, y1 - y0, 0.5, A.jit(o.wall, 0.06));
+  const p = onFace(F, F.L - 0.2, (y0 + y1) / 2, -0.15); A.put('box', o.stone || 'stone', p.x, p.y, p.z, F.u, _ay, F.n, 0.4, y1 - y0, 0.5, A.jit(o.wall, 0.06));
 }
 
 export function balconyModern(A, F, y, depth, o) {
-  let p = onFace(F, F.L / 2, y + 0.09, depth / 2); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.05, 0.18, depth, A.jit(o.slab, 0.05));
+  let p = onFace(F, F.L / 2, y + 0.09, depth / 2); A.put('box', o.stone || 'stone', p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.05, 0.18, depth, A.jit(o.slab, 0.05));
   if (o.boards) for (let k = 0; k < 3; k++) { p = onFace(F, F.L / 2, y + 0.32 + k * 0.3, depth - 0.02); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, F.L, 0.24, 0.05, A.jit(o.boards, 0.12)); }
   else { p = onFace(F, F.L / 2, y + 0.6, depth - 0.03); A.put('box', 'glass', p.x, p.y, p.z, F.u, _ay, F.n, F.L, 0.85, 0.02, A.jit('#9fb4c4', 0.1)); p = onFace(F, F.L / 2, y + 1.06, depth - 0.03); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, F.L, 0.06, 0.08, A.jit('#c8ccd2', 0.05)); for (let s = 0.1; s < F.L; s += 1.6) { p = onFace(F, s, y + 0.6, depth - 0.03); A.put('box', 'wood', p.x, p.y, p.z, F.u, _ay, F.n, 0.05, 0.95, 0.05, A.jit('#c8ccd2', 0.05)); } }
   if (o.snow) for (let s = 0.4; s < F.L; s += 0.8 + A.r() * 0.8) { p = onFace(F, s, y + (o.boards ? 1.18 : 1.13), depth - 0.03); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, 0.5 + A.r() * 0.5, 0.1, 0.14, A.jit('#f2f6fb', 0.03)); }
 }
 
-export function flatRoof(A, w, d, y, oz, wall) {
-  for (const F of faces(w, d)) { const p = onFace(F, F.L / 2, y + 0.45, 0); p.z += oz; A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.3, 0.9, 0.3, A.jit(wall, 0.05)); }
+export function flatRoof(A, w, d, y, oz, wall, mat = 'stone') {
+  for (const F of faces(w, d)) { const p = onFace(F, F.L / 2, y + 0.45, 0); p.z += oz; A.put('box', mat, p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.3, 0.9, 0.3, A.jit(wall, 0.05)); }
   A.put('box', 'snow', 0, y + 0.55, oz, X1, _ay, Z1, w - 0.2, 0.55, d - 0.2, A.jit('#f4f7fb', 0.02));
   for (let k = 0; k < 6; k++) A.put('lump', 'snow', (A.r() - 0.5) * w * 0.8, y + 0.85, oz + (A.r() - 0.5) * d * 0.7, X1, _ay, Z1, 2 + A.r() * 3, 0.35, 1.5 + A.r() * 2, A.jit('#f4f7fb', 0.02));
 }
@@ -492,21 +496,44 @@ export function assemblePaquebot(b) {
 // faces (all four on a tower), deep-set windows and dark timber panels between them, flat roof under snow
 export function assemblePlSlab(b) {
   const A = new Assembly(hashSeed(b.x, b.z, 23)), { w, d, top, pal } = b, gf = b.gf || 3.4, fl = b.floors;
+  // T5 : Plagne Centre en béton banché (refends saillants, galerie couverte au pied) ; les autres palettes inchangées
+  const pc = isPC(pal), SM = pc ? 'concrete' : 'stone';
   plinthStones(A, b);
-  A.put('box', 'stone', 0, top + (gf + (fl - 1) * FLOOR) / 2, 0, X1, _ay, Z1, w - 0.8, gf + (fl - 1) * FLOOR, d - 0.8, new THREE.Color(pal.core));
-  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || i === 0 }));
+  A.put('box', SM, 0, top + (gf + (fl - 1) * FLOOR) / 2, 0, X1, _ay, Z1, w - 0.8, gf + (fl - 1) * FLOOR, d - 0.8, new THREE.Color(pal.core));
+  faces(w, d).forEach((F, i) => framedFloor(A, F, top, top + gf, { wall: pal.wall, frame: pal.frame, bay: 3.4, pier: 0.5, depth: 0.5, lit: 0.3, shop: !!pal.shops || i === 0, stone: SM }));
   faces(w, d).forEach((F, i) => {
     const loggia = i < 2 || pal.tower, dep = pal.tower ? 1.0 : 1.3;
     for (let f = 1; f < fl; f++) {
       const y = top + gf + (f - 1) * FLOOR;
-      framedFloor(A, F, y, y + FLOOR, { wall: pal.wall, frame: pal.frame, bay: 3.2, pier: 0.9, spandrel: 0.75, depth: loggia ? 0.25 : 0.4, lit: 0.12, curtain: true, sill: !loggia });
-      if (loggia) balconyModern(A, F, y, dep, { slab: pal.slab, boards: pal.boards, snow: true });
+      framedFloor(A, F, y, y + FLOOR, { wall: pal.wall, frame: pal.frame, bay: 3.2, pier: 0.9, spandrel: 0.75, depth: loggia ? 0.25 : 0.4, lit: 0.12, curtain: true, sill: !loggia, stone: SM });
+      if (loggia) balconyModern(A, F, y, dep, { slab: pal.slab, boards: pal.boards, snow: true, stone: SM });
     }
-    if (loggia) { const nf = Math.max(2, Math.round(F.L / 6.4)), H1 = (fl - 1) * FLOOR; for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 / 2, dep / 2); A.put('box', 'stone', p.x, p.y, p.z, F.u, _ay, F.n, 0.3, H1, dep, A.jit(pal.slab, 0.04)); } }
+    if (loggia) {
+      const nf = Math.max(2, Math.round(F.L / 6.4)), H1 = (fl - 1) * FLOOR, fw = pc ? 0.42 : 0.3, fd = pc ? dep + 0.35 : dep;
+      for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 / 2, fd / 2); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, fw, H1, fd, A.jit(pal.slab, 0.04)); }
+      if (pc) for (let k = 0; k <= nf; k++) { const p = onFace(F, k * F.L / nf, top + gf + H1 + 0.08, fd / 2); A.put('lump', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, fw + 0.1, 0.16, fd + 0.05, A.jit('#f2f6fb', 0.02)); }   // neige en tête de refend
+    }
+    if (pc && i === 0) galleryAt(A, F, top, gf, pal, SM);
   });
   const yt = top + gf + (fl - 1) * FLOOR;
-  flatRoof(A, w, d, yt, 0, pal.parapet);
+  flatRoof(A, w, d, yt, 0, pal.parapet, SM);
+  if (pc) { A.put('box', SM, w * 0.22, yt + 1.5, -d * 0.12, X1, _ay, Z1, 4.2, 2.2, 3.4, A.jit(pal.parapet, 0.05)); A.put('box', 'snow', w * 0.22, yt + 2.72, -d * 0.12, X1, _ay, Z1, 4.4, 0.3, 3.6, A.jit('#f4f7fb', 0.02)); }   // local des machines d'ascenseur
   return A;
+}
+
+/** T5 : galerie marchande couverte au pied des barres de Plagne Centre : dalle en porte-à-faux (2,6 m) sur poteaux, au
+ *  niveau du premier étage (les enseignes restent visibles dessous),
+ *  neige sur la dalle, glaçons au bord. Mêmes cotes que la coque lointaine (bldPlSlab). */
+export const GALLERY = { depth: 2.6, slab: 0.32, step: 6.4, post: 0.38 };
+export function galleryAt(A, F, top, gf, pal, SM) {
+  const G = GALLERY, n = Math.max(2, Math.round(F.L / G.step));
+  let p = onFace(F, F.L / 2, top + gf + G.slab / 2, G.depth / 2); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.2, G.slab, G.depth, A.jit(pal.slab, 0.04));
+  p = onFace(F, F.L / 2, top + gf + G.slab + 0.16, G.depth / 2); A.put('box', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, F.L + 0.1, 0.32, G.depth - 0.1, A.jit('#f4f7fb', 0.02));
+  for (let k = 0; k <= n; k++) {
+    const s = Math.min(F.L - 0.3, Math.max(0.3, k * F.L / n));
+    p = onFace(F, s, top + gf / 2, G.depth - 0.35); A.put('box', SM, p.x, p.y, p.z, F.u, _ay, F.n, G.post, gf, G.post, A.jit(pal.slab, 0.04));
+  }
+  for (let s = 0.4; s < F.L; s += 0.5 + A.r() * 0.7) if (A.r() < 0.55) { p = onFace(F, s, top + gf - 0.02, G.depth - 0.05); A.put('icicle', 'snow', p.x, p.y, p.z, F.u, _ay, F.n, 0.06, 0.25 + A.r() * 0.55, 0.06, A.jit('#dfeaf5', 0.04)); }
 }
 
 export function assembleTower(b) {
@@ -656,6 +683,10 @@ export function furnitureAt(kind, x, z, rot, extra) {
   else if (kind === 'rack') { for (const s of [-1.2, 1.2]) P('box', 'stone', s, 0.6, 0, 0.06, 1.2, 0.06, A.jit('#9aa3ae', 0.05)); P('box', 'stone', 0, 1.15, 0, 2.5, 0.06, 0.06, A.jit('#9aa3ae', 0.05)); for (let k = 0; k < 7; k++) if (A.r() < 0.75) leanGear(A.r() < 0.85 ? 'skis' : 'snowboard', -1.05 + k * 0.35 + (A.r() - 0.5) * 0.06, A.jit(SKI_COLS[Math.floor(A.r() * SKI_COLS.length)], 0.08)); }
   else if (kind === 'skistand') { for (let k = 0, cnt = 1 + Math.floor(A.r() * 3); k < cnt; k++) { const du = (k - (cnt - 1) / 2) * 0.55 + (A.r() - 0.5) * 0.2; if (BLEND.geo.skis) A.put('skis', 'gear', x + u.x * du, y - 0.28, z + u.z * du, u, _ay, n, 1, 1, 1, A.jit(SKI_COLS[Math.floor(A.r() * SKI_COLS.length)], 0.08)); } }   // planted tails-down in the snow
   else if (kind === 'sign') { P('box', 'wood', 0, 1.3, 0, 0.12, 2.6, 0.12, A.jit(WOOD, 0.1)); (extra || []).forEach((c, k) => { P('box', 'wood', 0.45 * (k % 2 ? -1 : 1), 2.2 - k * 0.38, 0.08, 0.95, 0.3, 0.04, A.jit(c, 0.05)); P('box', 'wood', 0.95 * (k % 2 ? -1 : 1), 2.2 - k * 0.38, 0.08, 0.12, 0.2, 0.04, A.jit(c, 0.05)); }); P('lump', 'snow', 0, 2.65, 0, 0.25, 0.1, 0.25, A.jit('#f4f7fb', 0.02)); }
+  // T5 : mobilier des abords de Plagne Centre (mêmes atomes et matières que le mobilier existant : aucun appel de plus)
+  else if (kind === 'bin') { P('seg', 'stone', 0, 0, 0, 0.5, 0.95, 0.5, A.jit('#2f3b33', 0.06)); P('box', 'stone', 0, 1.0, 0, 0.58, 0.08, 0.58, A.jit('#252b27', 0.05)); P('lump', 'snow', 0, 1.08, 0, 0.5, 0.14, 0.5, A.jit('#f4f7fb', 0.02)); }
+  else if (kind === 'planter') { P('box', 'wood', 0, 0.3, 0, 1.8, 0.6, 0.7, A.jit('#5b3b27', 0.1)); P('box', 'wood', 0, 0.62, 0, 1.9, 0.06, 0.8, A.jit('#3d2a1e', 0.08)); P('lump', 'snow', 0, 0.7, 0, 1.7, 0.4, 0.62, A.jit('#f4f7fb', 0.02)); }
+  else if (kind === 'snowbank') { for (let k = 0; k < 4; k++) P('lump', 'snow', -1.6 + k * 1.05 + (A.r() - 0.5) * 0.3, 0.15, (A.r() - 0.5) * 0.3, 1.4 + A.r() * 0.6, 0.55 + A.r() * 0.45, 0.9 + A.r() * 0.4, A.jit('#eef3f9', 0.03)); }
   else if (kind === 'mapboard') { for (const s of [-1.3, 1.3]) P('box', 'wood', s, 1.2, 0, 0.14, 2.4, 0.14, A.jit(WOOD, 0.1)); P('box', 'wood', 0, 2.55, 0.15, 3.1, 0.12, 0.8, A.jit('#4a2e1a', 0.1)); P('box', 'snow', 0, 2.7, 0.15, 3.2, 0.22, 0.9, A.jit('#f4f7fb', 0.02)); P('box', 'wood', 0, 1.55, -0.02, 2.5, 1.5, 0.06, A.jit('#3a2412', 0.1)); }
   const g = A.toGroup(6);
   if (kind === 'mapboard' && minimapImg) { const t = colorCanvasTex(minimapImg); const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.35), pbr({ map: t })); pl.position.set(x + n.x * 0.02, y + 1.55, z + n.z * 0.02); pl.rotation.y = rot; g.add(pl); }
@@ -664,6 +695,7 @@ export function furnitureAt(kind, x, z, rot, extra) {
 }
 
 export function buildFurniture() {
+  ABORDS.n = plagneCentreStreet();   // T5
   // nets and a trail map at every lift bottom, plus a ski rack
   for (const L of LIFTS) {
     const b = L.board, s = L.side, d = L.dir, w = L.off + (L.type === 'tbar' ? 3 : 5);
@@ -691,6 +723,30 @@ export function buildFurniture() {
       }
     }
   }
+}
+
+/* T5 : abords de Plagne Centre. Devant la galerie couverte de chaque barre ou tour (face avant), une rangée de
+   réverbères, bancs, poubelles, bacs et porte-skis, des congères contre les pignons. Placés en dernier (après la
+   végétation) avec un tirage propre à chaque immeuble : rien d'autre dans le domaine ne bouge. Pas sur les pistes,
+   ni sous une remontée, ni sur une terrasse ou dans un autre immeuble. */
+export function plagneCentreStreet() {
+  const decks = scene.children.filter(o => o.userData.kind === 'terrace' && o.userData.W);
+  const onDeck = (x, z) => decks.some(g => { const dx = x - g.position.x, dz = z - g.position.z, c = Math.cos(g.rotation.y), s = Math.sin(g.rotation.y); return Math.abs(dx * c - dz * s) < g.userData.W / 2 + 1.5 && Math.abs(dx * s + dz * c) < g.userData.D / 2 + 1.5; });
+  const ok = (x, z) => zoneAt(x, z) < 0 && liftDist(x, z) > 9 && spotClear(x, z) && !onDeck(x, z);
+  const at = (b, u, v) => [b.x + u * Math.cos(b.rot) + v * Math.sin(b.rot), b.z - u * Math.sin(b.rot) + v * Math.cos(b.rot)];
+  let n = 0;
+  for (const b of BUILDINGS) {
+    if (!isPC(b.pal)) continue;
+    const r = mulberry32(hashSeed(b.x, b.z, 61)), seq = ['lamp', 'bench', 'bin', 'planter', 'rack', 'lamp', 'planter', 'bench'];
+    const v = b.d / 2 + GALLERY.depth + 1.3, cnt = Math.max(2, Math.round(b.w / GALLERY.step));
+    for (let k = 0; k < cnt; k++) {
+      const u = -b.w / 2 + (k + 0.5) * b.w / cnt, [x, z] = at(b, u, v); if (!ok(x, z)) continue;
+      const kind = seq[(k + Math.floor(r() * 3)) % seq.length];
+      furnitureAt(kind, x, z, kind === 'bench' ? b.rot + Math.PI : kind === 'lamp' ? b.rot + Math.PI / 2 : b.rot); n++;
+    }
+    for (const sd of [-1, 1]) { const [x, z] = at(b, sd * (b.w / 2 + 1.6), (r() - 0.5) * b.d * 0.5); if (ok(x, z)) { furnitureAt('snowbank', x, z, b.rot + Math.PI / 2); n++; } }
+  }
+  return n;
 }
 
 export function updateFurniture(cam) {
@@ -759,6 +815,8 @@ MATTER_MAT = {
   glass: () => pbr({ color: '#ffffff', roughness: 0.06, metalness: 0, envMapIntensity: 1.6 }, [0.01, 0.1, 1]),   // reflects the sky
   log: () => detailMat('timber', { color: '#ffffff', roughness: 0.8 }, 0.55, 0.9, 0.85, false, [0.2, 0.4, 2.2]),      // squared logs, grain along them
   plank: () => detailMat('timber', { color: '#ffffff', roughness: 0.78 }, 0.75, 0.8, 0.8, true, [0.2, 0.4, 2.2]),    // vertical boards: grain upright
+  // T5 : béton banché de Plagne Centre (ambientCG Concrete013, CC0) : projection dans le plan de chaque façade, usure
+  concrete: () => { const m = detailMat('concrete', { color: '#ffffff', roughness: 0.9 }, 1 / 2.4, 1.6, 0.85, false, [0.5, 0.5, 0.9]); m.defines = Object.assign({}, m.defines, { DETAIL_FACING: '', USE_WEATHER: '' }); return m; },
   masonry: () => detailMat('masonry', { color: '#ffffff', roughness: 0.92 }, 0.7, 1.0, 0.7, false, [0.4, 0.5, 0.9]), // dressed stone
   lit: () => new THREE.MeshBasicMaterial({ color: '#ffffff' }),
   win: () => BLEND.tex.rooms_atlas ? interiorMat(0.3, [0.92, 0.95, 1.0]) : MATTER_MAT.glass(),          // daylight rooms

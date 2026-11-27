@@ -2,16 +2,16 @@
 /* eslint-disable */
 
 import * as THREE from 'three';
-import { BUILDINGS, furnitureAt, hashSeed } from './assembly';
+import { BUILDINGS, GALLERY, furnitureAt, hashSeed, isPC } from './assembly';
 import { cannons } from './cannons';
 import { IS_TOUCH, clamp, colorCanvasTex } from './core';
 import { makeLabel } from './furniture';
-import { lambertVC, mergeParts, pbr } from './materials';
+import { detailMat, lambertVC, mergeParts, pbr } from './materials';
+import { BLEND, PLAGNE } from './world-data';
 import { JACKETS } from './npcs';
 import { LIFTS, PISTES, ZN, ZR, clearGrid, pisteHeading, rasterSeg, tunnelLocal, tunnels, zoneAt } from './pistes';
 import { MAX_ANISO, scene } from './render';
 import { HALF, gridH, mulberry32, obstacles, rnd } from './terrain';
-import { PLAGNE } from './world-data';
 
 export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK;
 
@@ -116,8 +116,22 @@ export function facadeBox(w, h, d, bay = BAY, floor = FLOOR) {
 }
 
 export function bmat(kind) {
-  if (!buildMats[kind]) buildMats[kind] = pbr({ map: facadeTex[kind] || (facadeTex[kind] = makeFacade(kind)) });
+  if (!buildMats[kind]) {
+    const map = facadeTex[kind] || (facadeTex[kind] = makeFacade(kind));
+    // T5 : façades lointaines de Plagne Centre : le béton banché et son usure par-dessus la façade peinte
+    if (/^pc_/.test(kind) && BLEND.tex.concrete_albedo) { const m = detailMat('concrete', { map }, 1 / 2.4, 1.2, 0.5, false); m.defines = Object.assign({}, m.defines, { DETAIL_FACING: '', USE_WEATHER: '' }); buildMats[kind] = m; }
+    else buildMats[kind] = pbr({ map });
+  }
   return buildMats[kind];
+}
+let pcPartsMat = null;
+/** T5 : pièces des coques de Plagne Centre (dalles, refends, galerie) : béton à couleurs de sommets, partagé. */
+export function pcParts() {
+  if (pcPartsMat) return pcPartsMat;
+  if (!BLEND.tex.concrete_albedo) return (pcPartsMat = lambertVC());
+  pcPartsMat = detailMat('concrete', { color: '#ffffff', roughness: 0.9, vertexColors: true }, 1 / 2.4, 1.4, 0.8, false, [0.5, 0.5, 0.9]);
+  pcPartsMat.defines = Object.assign({}, pcPartsMat.defines, { DETAIL_FACING: '', USE_WEATHER: '' });
+  return pcPartsMat;
 }
 
 export function groundMin(x, z, w, d, rot) {
@@ -186,8 +200,8 @@ export function railP(rails, len, x, y, z, alongZ) { const g = new THREE.BoxGeom
 
 export function facadeMesh(grp, kind, w, h, d, x, y, z, floor) { const m = new THREE.Mesh(facadeBox(w, h, d, BAY, floor || FLOOR), bmat(kind)); m.position.set(x, y, z); grp.add(m); return m; }
 
-export function finish(grp, parts, rails) {
-  if (parts.length) grp.add(new THREE.Mesh(mergeParts(parts), lambertVC()));
+export function finish(grp, parts, rails, partsMat) {
+  if (parts.length) grp.add(new THREE.Mesh(mergeParts(parts), partsMat || lambertVC()));
   if (rails && rails.length) grp.add(new THREE.Mesh(mergeParts(rails), pbr({ vertexColors: true, map: facadeTex.rail || (facadeTex.rail = makeFacade('rail')) })));
   grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   scene.add(grp);
@@ -339,14 +353,21 @@ export function bldPlSlab(x, z, rot, w, d) {
       B(L + 0.2, 0.95, 0.1, 0, y + 0.66, D / 2 + dep - 0.05, pal.boards);                  // timber parapet
       B(L + 0.2, 0.09, 0.16, 0, y + 1.17, D / 2 + dep - 0.05, SNOWC);                      // snow on the rail
     }
-    const nf = Math.max(2, Math.round(L / 6.4));
-    for (let k = 0; k <= nf; k++) B(0.3, H1, dep, -L / 2 + k * L / nf, top + gf + H1 / 2, D / 2 + dep / 2, pal.slab);   // fins between loggias
+    const nf = Math.max(2, Math.round(L / 6.4)), pc = isPC(pal), fw = pc ? 0.42 : 0.3, fd = pc ? dep + 0.35 : dep;
+    for (let k = 0; k <= nf; k++) B(fw, H1, fd, -L / 2 + k * L / nf, top + gf + H1 / 2, D / 2 + fd / 2, pal.slab);   // fins between loggias (T5 : saillants à Plagne Centre)
+    if (pc && sd === 1 && ax === 'z') {   // T5 : galerie couverte au pied (mêmes cotes que la version détaillée, GALLERY)
+      const G = GALLERY, n = Math.max(2, Math.round(L / G.step));
+      B(L + 0.2, G.slab, G.depth, 0, top + gf + G.slab / 2, D / 2 + G.depth / 2, pal.slab);
+      B(L + 0.1, 0.32, G.depth - 0.1, 0, top + gf + G.slab + 0.16, D / 2 + G.depth / 2, SNOWC);
+      for (let k = 0; k <= n; k++) B(G.post, gf, G.post, Math.min(L / 2 - 0.3, Math.max(-L / 2 + 0.3, -L / 2 + k * L / n)), top + gf / 2, D / 2 + G.depth - 0.35, pal.slab);
+    }
   }
   const yt = top + gf + H1;
   boxP(parts, w + 0.5, 0.9, d + 0.5, 0, yt + 0.45, 0, pal.parapet);
   boxP(parts, w + 0.3, 0.55, d + 0.3, 0, yt + 0.95, 0, SNOWC);
-  if (!pal.tower && w > 26) boxP(parts, 5, 2.6, 4, w * 0.25, yt + 1.6, -d * 0.15, pal.parapet);   // lift machine room
-  finish(grp, parts);
+  if (!pal.tower && w > 26 && !isPC(pal)) boxP(parts, 5, 2.6, 4, w * 0.25, yt + 1.6, -d * 0.15, pal.parapet);   // lift machine room
+  if (isPC(pal)) { boxP(parts, 4.2, 2.2, 3.4, w * 0.22, yt + 1.5, -d * 0.12, pal.parapet); boxP(parts, 4.4, 0.3, 3.6, w * 0.22, yt + 2.72, -d * 0.12, SNOWC); }   // même local que la version détaillée
+  finish(grp, parts, null, isPC(pal) ? pcParts() : null);
 }
 
 // the Paquebot des neiges: modules along its length, the roofline in three waves, every floor stepped back on both faces
@@ -494,7 +515,25 @@ export function buildDeck(cx, cz, rot, W, D, y, seed) {
   // standing: at the bar and along the parapet
   for (let k = 0; k < 2 + Math.floor(r() * 3); k++) folk.push({ u: bx - 1.4 + k * 0.9 + (r() - 0.5) * 0.3, v: -D / 2 + 1.45, yaw: Math.PI + (r() - 0.5) * 0.6, pose: r() < 0.3 ? 'fries' : 'stand' });
   for (let k = 0; k < 1 + Math.floor(r() * 3); k++) folk.push({ u: (r() - 0.5) * (W - 3), v: D / 2 - 0.55, yaw: (r() - 0.5) * 0.8, pose: r() < 0.35 ? 'fries' : 'stand' });
-  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; scene.add(grp);   // repère pour les prototypes (T3)
+  // T5 : terrasse complète : parasols chauffants, ardoise du menu, bacs à sapins aux angles, lanternes sur le garde-corps
+  // (tirage séparé, après les clients : les places et les personnes ne bougent pas)
+  { const r2 = mulberry32(seed ^ 0x5bd1e995);
+    for (const hu of [-W / 2 + 1.2, W / 2 - 1.2]) {
+      const pole = new THREE.CylinderGeometry(0.05, 0.05, 2.1, 8); pole.translate(hu, y + 1.05, -0.6); parts.push({ g: pole, c: '#9aa3ae' });
+      const base = new THREE.CylinderGeometry(0.28, 0.32, 0.08, 12); base.translate(hu, y + 0.04, -0.6); parts.push({ g: base, c: '#3a3f46' });
+      const hood = new THREE.ConeGeometry(0.42, 0.22, 12, 1, true); hood.translate(hu, y + 2.18, -0.6); parts.push({ g: hood, c: '#c7ccd3' });
+      const glow = new THREE.CylinderGeometry(0.09, 0.09, 0.3, 8); glow.translate(hu, y + 1.95, -0.6); parts.push({ g: glow, c: '#ff8a3a' });
+    }
+    const mu = (r2() - 0.5) * (W - 4), mv = D / 2 + 1.3;   // ardoise en A au pied des marches
+    for (const sg of [-1, 1]) { const g = new THREE.BoxGeometry(0.6, 0.9, 0.04); g.rotateX(sg * 0.22); g.translate(mu + 1.4, y - 0.1, mv + sg * 0.1); parts.push({ g, c: sg > 0 ? '#1d2126' : '#5b3b27' }); }
+    for (const [pu, pv] of [[-W / 2 + 0.6, -D / 2 + 0.6], [W / 2 - 0.6, -D / 2 + 0.6], [-W / 2 + 0.6, D / 2 - 0.6], [W / 2 - 0.6, D / 2 - 0.6]]) {
+      boxP(parts, 0.7, 0.55, 0.7, pu, y + 0.28, pv, '#5b3b27');
+      const fir = new THREE.ConeGeometry(0.32, 1.1 + r2() * 0.4, 7); fir.translate(pu, y + 1.1, pv); parts.push({ g: fir, c: '#2d4a32' });
+      const cap = new THREE.ConeGeometry(0.2, 0.3, 7); cap.translate(pu, y + 1.5, pv); parts.push({ g: cap, c: SNOWC });
+    }
+    for (let u = -W / 2 + 1; u < W / 2 - 0.5; u += 2.4) if (Math.abs(u) > 1.4) { const l = new THREE.BoxGeometry(0.16, 0.22, 0.16); l.translate(u, y + 1.12, D / 2 - 0.05); parts.push({ g: l, c: '#ffcf7a' }); }   // lanternes
+  }
+  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; grp.userData.W = W; grp.userData.D = D; scene.add(grp);   // repère pour les prototypes (T3)
   const DR = ['mug', 'beer', 'wine', 'mug', 'beer'];
   for (const f of folk) {
     const [x, z] = at(f.u, f.v);
@@ -609,8 +648,9 @@ villageLabels = [];
    to it a cream tower with red fins. Plagne Villages, Soleil and 1800: dark-wood residences on a cream rendered
    ground floor, balconies all round, steep gables under heavy snow. */
 PAL = {
-  centre: { facade: 'pc_rust', base: '#6b412f', wall: '#7a4a34', slab: '#5c3a29', boards: '#3d2a1e', frame: '#2c1d14', parapet: '#4f3427', core: '#3a2418' },
-  tower: { facade: 'pc_tower', base: '#744634', wall: '#86503a', slab: '#5c3a29', boards: '#3d2a1e', frame: '#2c1d14', parapet: '#4f3427', core: '#3a2418' },
+  // T5 : nez de dalle et refends plus clairs (béton brun rouille au jour), garde-corps et fond de loggia plus sombres : le relief se lit
+  centre: { facade: 'pc_rust', base: '#6b412f', wall: '#7a4a34', slab: '#8b5a41', boards: '#2b1f18', frame: '#2c1d14', parapet: '#7d5038', core: '#2e1c13' },
+  tower: { facade: 'pc_tower', base: '#744634', wall: '#86503a', slab: '#93603f', boards: '#2b1f18', frame: '#2c1d14', parapet: '#84553b', core: '#2e1c13' },
   aime: { facade: 'pq_dark', base: '#625c55', wall: '#6f6961', slab: '#9a9389', boards: '#5a4a3c', frame: '#2b2826', parapet: '#7d776f', core: '#3a3632' },
   red: { facade: 'cm_cream', base: '#cfc6b4', wall: '#e4dccb', slab: '#d4cbb8', boards: '#b3223f', frame: '#e9e4da', parapet: '#b3223f', core: '#8c8577' },
   low: { facade: 'pq_dark', base: '#77726b', wall: '#8a857d', slab: '#77726b', boards: '#4a4540', frame: '#2b2826', parapet: '#6a655e', core: '#4a4540' },

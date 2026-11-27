@@ -161,6 +161,7 @@ export function interiorMat(lamp, tint, atlas = BLEND.tex.rooms_atlas, tiles = 4
         float v = floor(vColor.r * 8.0 + 0.5);          // shop index shared with its sign (instance colour)
       #else
         float v = floor(vWinSeed * uTiles);
+        uv.x = mix(uv.x, 1.0 - uv.x, step(0.5, fract(vWinSeed * 5.17)));   // T5 : pièce vue en miroir une fois sur deux
       #endif
       vec3 room = texture2D(uRooms, vec2((v + clamp(uv.x, 0.002, 0.998)) / uTiles, clamp(uv.y, 0.002, 0.998))).rgb;
       // curtains drawn to the sides, folded, colour per window
@@ -171,7 +172,16 @@ export function interiorMat(lamp, tint, atlas = BLEND.tex.rooms_atlas, tiles = 4
       #endif
       vec3 cc = vec3(0.55, 0.12, 0.1) + vec3(0.1, 0.35, 0.3) * fract(vWinSeed * 11.0);
       cc *= 0.7 + 0.3 * sin(vWinP.x * 70.0);
-      totalEmissiveRadiance += mix(room, pow(cc, vec3(2.2)) * 0.6, cur * 0.92) * uTint * uLamp;
+      // T5 : lampes plus ou moins chaudes ; stores enroulables descendus à des hauteurs variées (lattes visibles)
+      vec3 tint = uTint * mix(vec3(1.0), vec3(1.06, 0.93, 0.8), fract(vWinSeed * 13.1));
+      vec3 lit = mix(room, pow(cc, vec3(2.2)) * 0.6, cur * 0.92) * tint * uLamp;
+      #ifndef NO_CURTAIN
+        float bh = step(0.62, fract(vWinSeed * 9.31)) * (0.18 + 0.7 * fract(vWinSeed * 4.7));
+        float yTop = (vWinP.y + hw.y) / (2.0 * hw.y), blind = step(1.0 - bh, yTop);
+        vec3 bc = mix(vec3(0.62, 0.58, 0.5), vec3(0.78, 0.78, 0.76), fract(vWinSeed * 21.7)) * (0.86 + 0.14 * step(0.5, fract(vWinP.y * 16.0)));
+        lit = mix(lit, pow(bc, vec3(2.2)) * (0.16 + 0.5 * uLamp * uLamp) * tint, blind);
+      #endif
+      totalEmissiveRadiance += lit;
     } }`, 'interior');
   };
   return m;
@@ -395,8 +405,29 @@ grainHook = function (sh) {
   #ifdef USE_DETAIL
     // Blender-baked surface maps (timber, masonry) in world space: x = repeats per metre, y = relief, z = albedo, w = turn
     vec2 dUv = ( gTop ? vGPos.xz : ( gSide ? vGPos.zy : vGPos.xy ) ) * uDet.x;
+    #ifdef DETAIL_FACING
+      // T5 : projection dans le plan de chaque façade (axe horizontal = tangente du mur), sans cisaillement sur les
+      // immeubles posés en biais par rapport aux axes du monde
+      vec3 fN = normalize( vGNrm ); vec2 fT = normalize( vec2( -fN.z, fN.x ) + vec2( 1e-5, 0.0 ) );
+      if ( !gTop ) dUv = vec2( dot( vGPos.xz, fT ), vGPos.y ) * uDet.x;
+    #endif
     if ( uDet.w > 0.5 ) dUv = dUv.yx;
-    diffuseColor.rgb *= mix( vec3( 1.0 ), texture2D( uDetA, dUv ).rgb / 0.214, uDet.z );
+    // T5 : pas de grain de matière sur les parties presque blanches (neige posée dans une pièce à couleurs de sommets)
+    float dW = 1.0 - smoothstep( 0.55, 0.8, min( diffuseColor.r, diffuseColor.b ) );
+    diffuseColor.rgb *= mix( vec3( 1.0 ), texture2D( uDetA, dUv ).rgb / 0.214, uDet.z * dW );
+  #endif
+  #ifdef USE_WEATHER
+    // T5 : béton usé : coulures verticales sous les rebords (bruit étiré le long de la pente), colonnes plus ou moins
+    // marquées, teinte de rouille ; rugosité un peu plus forte dans les coulures
+    { vec3 wN = normalize( vGNrm );
+      if ( abs( wN.y ) < 0.4 ) {
+        vec2 wT = normalize( vec2( -wN.z, wN.x ) + vec2( 1e-5, 0.0 ) ); float al = dot( vGPos.xz, wT );
+        float colm = texture2D( uGrain, vec2( al * 0.19, 0.31 ) ).b;
+        float st = texture2D( uGrain, vec2( al * 1.3, vGPos.y * 0.03 ) ).b * 0.7 + texture2D( uGrain, vec2( al * 3.1, vGPos.y * 0.06 ) ).b * 0.3;
+        float w = smoothstep( 0.46, 0.72, st ) * smoothstep( 0.25, 0.7, colm ) * ( 1.0 - smoothstep( 0.55, 0.8, min( diffuseColor.r, diffuseColor.b ) ) );
+        diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 0.55, 0.47, 0.42 ), w * 0.8 );
+        roughnessFactor = min( 1.0, roughnessFactor + w * 0.06 );
+      } }
   #endif
   #ifdef USE_SNOWACC
     // T4 : neige accumulée sur les faces tournées vers le ciel (rebords, appuis, poutres, toits plats) ; bord irrégulier
@@ -412,7 +443,10 @@ grainHook = function (sh) {
     normal = normalize( normal + mat3( viewMatrix ) * ( t1 * gd.x + t2 * gd.y ) );
   #ifdef USE_DETAIL
     vec3 dn = texture2D( uDetN, dUv ).xyz * 2.0 - 1.0; if ( uDet.w > 0.5 ) dn.xy = dn.yx;
-    normal = normalize( normal + mat3( viewMatrix ) * ( t1 * dn.x + t2 * dn.y ) * uDet.y );
+    #ifdef DETAIL_FACING
+      if ( !gTop ) t1 = vec3( fT.x, 0.0, fT.y );
+    #endif
+    normal = normalize( normal + mat3( viewMatrix ) * ( t1 * dn.x + t2 * dn.y ) * uDet.y * dW );
   #endif
   }`, 'grain');
 };

@@ -45,7 +45,7 @@ export async function loadBlenderAssets() {
         jobs.push(new Promise((res, rej) => ktx2.parse(uri, res, rej)).then(t => {
           const key = name.replace(/\.\w+$/, '');
           t.anisotropy = MAX_ANISO; t.colorSpace = /_normal$/.test(key) || key === 'baluster_mask' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
-          if (/^(rock|timber|masonry|snowpack|massif)_/.test(key)) t.wrapS = t.wrapT = THREE.RepeatWrapping;   // tileable surface maps
+          if (/^(rock|timber|masonry|snowpack|massif|concrete)_/.test(key)) t.wrapS = t.wrapT = THREE.RepeatWrapping;   // tileable surface maps
           t.needsUpdate = true; BLEND.tex[key] = t;   // retournement vertical (flipY) déjà appliqué à l'encodage
         }));
       } else if (name.endsWith('.glb')) {
@@ -60,7 +60,7 @@ export async function loadBlenderAssets() {
         jobs.push(img.decode().then(() => {
           const key = name.replace(/\.\w+$/, ''), t = new THREE.Texture(img);
           t.flipY = false; t.anisotropy = MAX_ANISO; t.colorSpace = /_normal$/.test(key) ? THREE.NoColorSpace : THREE.SRGBColorSpace;   // normal maps are data
-          if (/^(rock|timber|masonry|snowpack|massif)_/.test(key)) t.wrapS = t.wrapT = THREE.RepeatWrapping;                                       // tileable surface maps
+          if (/^(rock|timber|masonry|snowpack|massif|concrete)_/.test(key)) t.wrapS = t.wrapT = THREE.RepeatWrapping;                                       // tileable surface maps
           if (key === 'baluster_mask') { t.flipY = true; t.colorSpace = THREE.NoColorSpace; }
           if (key === 'shop_signs') t.flipY = true;                                                                                    // box UVs                                               // box UVs, data
           t.needsUpdate = true; BLEND.tex[key] = t;

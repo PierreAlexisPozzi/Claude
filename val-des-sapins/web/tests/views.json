@@ -639,5 +639,50 @@
    240.56,
    -220.1
   ]
+ },
+ {
+  "id": "abords-plagne-centre",
+  "title": "Plagne Centre · abords (galerie, mobilier)",
+  "kind": "village",
+  "from": [
+   -236,
+   248.2,
+   -209
+  ],
+  "at": [
+   -258,
+   247,
+   -197
+  ]
+ },
+ {
+  "id": "facade-plagne-centre-biais",
+  "title": "Plagne Centre · tour vue en biais",
+  "kind": "façade",
+  "from": [
+   -240,
+   241.5,
+   -238
+  ],
+  "at": [
+   -215,
+   254,
+   -279
+  ]
+ },
+ {
+  "id": "plagne-centre-mi-distance",
+  "title": "Plagne Centre · mi-distance",
+  "kind": "village",
+  "from": [
+   -110,
+   252,
+   -300
+  ],
+  "at": [
+   -240,
+   250,
+   -240
+  ]
  }
 ]

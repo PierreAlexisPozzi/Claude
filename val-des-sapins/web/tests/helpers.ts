@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(here, '../..');
 export type Target = 'web' | 'legacy';
 /** Tranche en cours (dossier des captures, sévérité des contrôles). */
-export const TRANCHE = process.env.VDS_TRANCHE ?? 'T4';
+export const TRANCHE = process.env.VDS_TRANCHE ?? 'T5';
 export const trancheNum = (t = TRANCHE): number => Number(t.replace(/\D/g, '')) || 0;
 export const URLS: Record<Target, string> = {
   web: process.env.VDS_WEB_URL ?? 'http://localhost:4173/',

@@ -1,6 +1,8 @@
 [
  "baluster_mask.ktx2",
  "building_parts.glb",
+ "concrete_albedo.ktx2",
+ "concrete_normal.ktx2",
  "lift_atlas.ktx2",
  "lift_vehicles.glb",
  "masonry_albedo.ktx2",

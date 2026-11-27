@@ -7,7 +7,7 @@ performances, `README.md` à jour, résumé court (changements, mesures, limites
 
 Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en français.
 
-**État** : T1 à T4 livrées (mesures : `mesures_T1.md` à `mesures_T4.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. Prochaine : T5 (après ton retour sur T4 ; une validation après chaque typologie en T5 et T6).
+**État** : T1 à T5 livrées (mesures : `mesures_T1.md` à `mesures_T5.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. T5 = typologie Plagne Centre. Prochaine : T6 (autres typologies, une validation après chacune), après ton retour sur T5.
 
 ## Constats de départ (lecture du code)
 

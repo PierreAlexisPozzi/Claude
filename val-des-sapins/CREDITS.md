@@ -40,7 +40,8 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 
 | Matière | Source | Licence | Usage |
 |---|---|---|---|
-| Concrete013, WoodSiding009, Planks037A | ambientCG — <https://ambientcg.com> | CC0 1.0 | Prototype de façade et de terrasse (`?proto=facade`), converties en KTX2 par `web/tools/proto-textures.mjs` |
+| Concrete013 | ambientCG — <https://ambientcg.com> | CC0 1.0 | Béton banché des immeubles de Plagne Centre (depuis T5) ; converti en KTX2 par `web/tools/proto-textures.mjs` |
+| WoodSiding009, Planks037A | ambientCG — <https://ambientcg.com> | CC0 1.0 | Prototype de façade et de terrasse (`?proto=facade`), converties en KTX2 par `web/tools/proto-textures.mjs` |
 
 L'attribution des données est affichée sur l'écran d'accueil et sur le plan des pistes.
 Les références visuelles (photos de Wikimedia Commons) sont consultées sans être intégrées : liens, auteurs et licences
