@@ -4,16 +4,16 @@
 import * as THREE from 'three';
 import { BUILDINGS, GALLERY, furnitureAt, hashSeed, isPC } from './assembly';
 import { cannons } from './cannons';
-import { IS_TOUCH, clamp, colorCanvasTex } from './core';
+import { IS_TOUCH, clamp, colorCanvasTex, lerp, smoothstep } from './core';
 import { makeLabel } from './furniture';
 import { detailMat, lambertVC, mergeParts, pbr } from './materials';
 import { BLEND, PLAGNE } from './world-data';
 import { JACKETS } from './npcs';
 import { LIFTS, PISTES, ZN, ZR, clearGrid, pisteHeading, rasterSeg, tunnelLocal, tunnels, zoneAt } from './pistes';
 import { MAX_ANISO, scene } from './render';
-import { HALF, gridH, mulberry32, obstacles, rnd } from './terrain';
+import { CELL, HALF, VN, gridH, heights, mulberry32, obstacles, rnd } from './terrain';
 
-export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK;
+export let VILLAGES, FLOOR, BAY, facadeTex, buildMats, snowRoofMat, plinthMat, WOOD, WOOD_D, SNOWC, CONC, STONEC, toWorld, P_, baseMats, STYLE, villageLabels, PAL, CUR_PAL, TERRACE_FOLK, CUR_FLOOR, TERRACES;
 
 
 export function makeFacade(kind) {
@@ -208,7 +208,8 @@ export function finish(grp, parts, rails, partsMat) {
 }
 
 export function startGroup(x, z, rot, w, d) {
-  const y0 = groundMin(x, z, w, d, rot), top = groundMax(x, z, w, d, rot) + 0.3;
+  // T5 ter : un immeuble à terrasse a son rez-de-chaussée au niveau de la neige du front de neige (CUR_FLOOR)
+  const top = CUR_FLOOR != null ? CUR_FLOOR : groundMax(x, z, w, d, rot) + 0.3, y0 = Math.min(groundMin(x, z, w, d, rot), top - 0.3);
   const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rot;
   // the foundation down the slope: stone under the procedural chalets; in La Plagne the facade material runs down to
   // the ground (board-formed concrete under the slabs and towers, cream render under the wood residences)
@@ -437,42 +438,99 @@ export function buildPlagneBuildings() {
       if (!best || best[1] - best[0] < 40) { console.info('La Plagne: landmark not placed', nm); continue; }
       [bx, bz] = toWorld(b.x, b.z, rot, (best[0] + best[1]) / 2, 0); spec.w = best[1] - best[0];
     } else if (!footprintOK(b.x, b.z, rot, spec.w, spec.d, 14)) continue;
-    claim(bx, bz, rot, spec.w, spec.d); CUR_PAL = pal; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; placed++;
+    claim(bx, bz, rot, spec.w, spec.d);
+    // T5 ter : la façade avant (v > 0 : galerie, commerces, terrasse) est tournée vers le front de neige
+    if (frontSide(bx, bz, rot, spec.w, spec.d) < 0) rot += Math.PI;
+    const tp = spec.b === bldPlPaquebot ? null : planTerrace(bx, bz, rot, spec.w, spec.d, isPC(pal));
+    if (tp) {
+      const g0 = groundMax(bx, bz, spec.w, spec.d, rot) + 0.3;
+      flattenRect(bx, bz, rot, tp.uc - tp.W / 2 - 1, tp.uc + tp.W / 2 + 1, spec.d / 2 - 1.5, spec.d / 2 + tp.g + tp.D + 1, tp.L);
+      CUR_FLOOR = tp.L;
+      // les étages restent comptés depuis le toit réel : un rez-de-chaussée plus bas (ou plus haut) en ajoute (ou en retire)
+      if (pal && pal !== PAL.village && pal.floors) pal = { ...pal, floors: Math.max(2, pal.floors + Math.round((g0 - tp.L) / FLOOR)) };
+    }
+    const n0 = BUILDINGS.length;
+    CUR_PAL = pal; spec.b(bx, bz, rot, spec.w, spec.d); CUR_PAL = null; CUR_FLOOR = null; placed++;
+    if (tp && BUILDINGS.length > n0) BUILDINGS[BUILDINGS.length - 1].terrace = tp;
   }
   console.info('La Plagne: ' + placed + ' buildings of ' + list.length);
   buildTerraces();
 }
 
+/* ---------------- T5 ter : front de neige, terrasses d'après OpenStreetMap ----------------
+   Ni OSM ni la BD TOPO ne tracent les terrasses : on en pose une devant l'immeuble qui contient un restaurant, un bar
+   ou un café d'OSM (PLAGNE.venues), sur sa façade front de neige, au niveau de la neige. Règles :
+   - front de neige : la grande façade la plus proche d'une piste ou d'une gare de départ (sinon la façade aval) ;
+   - un seul niveau L par immeuble : neige devant la façade = rez-de-chaussée = plancher de la terrasse ;
+   - la neige n'est aplanie que sous la terrasse et la bande jusqu'à la façade (jamais sur une piste, près d'une
+     remontée ou sous un autre immeuble) ; pas de pilotis ni de marche. */
+const liftNear = (x, z, r) => LIFTS.some(L => L.B && (Math.hypot(L.B.x - x, L.B.z - z) < r || Math.hypot(L.T.x - x, L.T.z - z) < r));
+export function frontSide(x, z, rot, w, d) {
+  const ca = Math.cos(rot), sa = Math.sin(rot);
+  const score = sd => {
+    for (let s = 2; s <= 120; s += 3) for (const u of [-w * 0.3, 0, w * 0.3]) {
+      const v = sd * (d / 2 + s), px = x + u * ca + v * sa, pz = z - u * sa + v * ca;
+      if (zoneAt(px, pz) >= 0 || liftNear(px, pz, 20)) return s;
+    }
+    return 1000 + gridH(x + sd * (d / 2 + 10) * sa, z + sd * (d / 2 + 10) * ca);   // pas de piste en vue : côté aval
+  };
+  return score(1) <= score(-1) ? 1 : -1;
+}
+const inOther = (px, pz, m) => BUILDINGS.some(b => { const dx = px - b.x, dz = pz - b.z, c = Math.cos(b.rot), s = Math.sin(b.rot); return Math.abs(dx * c - dz * s) < b.w / 2 + m && Math.abs(dx * s + dz * c) < b.d / 2 + m; });
+export function planTerrace(x, z, rot, w, d, pc) {
+  if (!PLAGNE || !PLAGNE.venues || TERRACES.length >= TERRACES.cap) return null;
+  const ca = Math.cos(rot), sa = Math.sin(rot), loc = (px, pz) => { const dx = px - x, dz = pz - z; return [dx * ca - dz * sa, dx * sa + dz * ca]; };
+  const vs = PLAGNE.venues.map(q => [q, ...loc(q.x, q.z)]).filter(([, u, v]) => Math.abs(u) < w / 2 + 4 && v > -d * 0.15 && v < d / 2 + 12);
+  if (!vs.length) return null;
+  TERRACES.cand = (TERRACES.cand || 0) + 1;
+  const W = clamp(w * 0.55, 10, 20), D = 8, g = pc ? GALLERY.depth + 0.4 : 0.6;
+  const uc = clamp(vs.reduce((m, [, u]) => m + u, 0) / vs.length, -w / 2 + W / 2, w / 2 - W / 2);
+  const at = (u, v) => [x + u * ca + v * sa, z - u * sa + v * ca];
+  let L = 0, n = 0, lo = 1e9, hi = -1e9;
+  for (let i = 0; i <= 4; i++) for (let j = 0; j <= 2; j++) { const [px, pz] = at(uc - W / 2 + i * W / 4, d / 2 + g + j * D / 2), h = gridH(px, pz); L += h; n++; lo = Math.min(lo, h); hi = Math.max(hi, h); }
+  L /= n;
+  const why = k => { TERRACES.why[k] = (TERRACES.why[k] || 0) + 1; return null; };
+  if (hi - lo > 4) return why('pente');                                            // terrain trop pentu pour un replat
+  // zone aplanie pour de bon (terrasse + 9 m) : ni piste, ni remontée, ni autre immeuble ; dans le raccord (9 à 15 m),
+  // ces endroits-là sont simplement laissés tels quels (flattenRect)
+  for (let u = uc - W / 2 - 10; u <= uc + W / 2 + 10; u += 2) for (let v = d / 2 - 1; v <= d / 2 + g + D + 10; v += 2) {
+    const [px, pz] = at(u, v);
+    if (Math.abs(px) > HALF - 30 || Math.abs(pz) > HALF - 30) return why('bord');
+    if (zoneAt(px, pz) >= 0) return why('piste');
+    if (liftDist(px, pz) < 10) return why('remontée');
+    if (inOther(px, pz, 1)) return why('immeuble');
+  }
+  const t = { uc, W, D, g, L: Math.round(L * 100) / 100, venues: vs.length, outdoor: vs.some(([q]) => q.outdoor) ? 1 : 0 };
+  TERRACES.push(t); return t;
+}
+/** Aplanit la neige à L dans un rectangle de la façade (repère u, v), pleinement jusqu'à 9 m autour (les sommets de la
+ *  grille de 6,25 m qui portent les triangles), raccord en douceur jusqu'à 15 m. */
+export function flattenRect(x, z, rot, u0, u1, v0, v1, L) {
+  const ca = Math.cos(rot), sa = Math.sin(rot), R = Math.hypot(u1 - u0, v1 - v0) / 2 + 16;
+  const cu = (u0 + u1) / 2, cv = (v0 + v1) / 2, cx = x + cu * ca + cv * sa, cz = z - cu * sa + cv * ca;
+  const i0 = Math.max(0, Math.floor((cx - R + HALF) / CELL)), i1 = Math.min(VN - 1, Math.ceil((cx + R + HALF) / CELL));
+  const j0 = Math.max(0, Math.floor((cz - R + HALF) / CELL)), j1 = Math.min(VN - 1, Math.ceil((cz + R + HALF) / CELL));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const px = -HALF + i * CELL, pz = -HALF + j * CELL, dx = px - x, dz = pz - z, u = dx * ca - dz * sa, v = dx * sa + dz * ca;
+    const dist = Math.hypot(Math.max(u0 - u, 0, u - u1), Math.max(v0 - v, 0, v - v1)), t = 1 - smoothstep(9, 15, dist);
+    if (t <= 0) continue;
+    if (t < 1 && (zoneAt(px, pz) >= 0 || liftDist(px, pz) < 10 || inOther(px, pz, 0.5))) continue;   // pistes, remontées, immeubles voisins : neige intacte
+    heights[j * VN + i] = lerp(heights[j * VN + i], L, t);
+  }
+}
+
 export function buildTerraces() {
   let n = 0;
-  for (const q of villageLabels) {
-    const cands = BUILDINGS.filter(b => b.pal && /woodres|block|paquebot/.test(b.type) && Math.hypot(b.x - q.x, b.z - q.z) < 300)
-      .sort((a, c) => Math.hypot(a.x - q.x, a.z - q.z) - Math.hypot(c.x - q.x, c.z - q.z));
-    let k = 0; for (const b of cands) { if (k >= (IS_TOUCH ? 1 : 2)) break; if (terraceAt(b)) k++; }
-    n += k;
+  for (const b of BUILDINGS) {
+    const t = b.terrace; if (!t) continue;
+    const [cx, cz] = toWorld(b.x, b.z, b.rot, t.uc, b.d / 2 + t.g + t.D / 2);
+    buildDeck(cx, cz, b.rot, t.W, t.D, t.L, hashSeed(cx, cz, 41), true);
+    claim(cx, cz, b.rot, t.W, t.D); t.cx = cx; t.cz = cz; t.rot = b.rot; t.floor = b.top; n++;
   }
-  console.info('La Plagne: ' + n + ' terraces, ' + TERRACE_FOLK.length + ' people on them');
+  console.info('La Plagne: ' + n + ' terraces (OSM venues), ' + TERRACE_FOLK.length + ' people on them');
 }
 
-export function terraceAt(b) {
-  const W = clamp(b.w * 0.6, 12, 22), D = 8;
-  for (const sd of [1, -1]) {
-    const off = b.d / 2 + 1.7 + D / 2, [cx, cz] = toWorld(b.x, b.z, b.rot, 0, sd * off), rot = b.rot + (sd < 0 ? Math.PI : 0);
-    let ok = true, gmax = -1e9, gmin = 1e9, onRun = 0, cnt = 0;
-    for (let u = -W / 2; u <= W / 2 + 0.01 && ok; u += 2) for (let v = -D / 2; v <= D / 2 + 0.01; v += 2) {
-      const [px, pz] = toWorld(cx, cz, rot, u, v); cnt++;
-      if (Math.abs(px) > HALF - 30 || Math.abs(pz) > HALF - 30 || liftDist(px, pz) < 10 || obstacles.some(o => Math.hypot(o.x - px, o.z - pz) < o.r + 0.4)) { ok = false; break; }
-      const g = gridH(px, pz); gmax = Math.max(gmax, g); gmin = Math.min(gmin, g); if (zoneAt(px, pz) >= 0) onRun++;
-    }
-    if (!ok || gmax - gmin > 4.5 || onRun > cnt * 0.4) continue;
-    buildDeck(cx, cz, rot, W, D, gmax + 0.5, hashSeed(cx, cz, 41));
-    claim(cx, cz, rot, W, D);
-    return true;
-  }
-  return false;
-}
-
-export function buildDeck(cx, cz, rot, W, D, y, seed) {
+export function buildDeck(cx, cz, rot, W, D, y, seed, flush = false) {
   const r = mulberry32(seed), parts = [], grp = new THREE.Group(); grp.position.set(cx, 0, cz); grp.rotation.y = rot;
   const WOODT = '#8a5d3a', WOODK = '#5b3b27', at = (u, v) => toWorld(cx, cz, rot, u, v);
   boxP(parts, W, 0.16, D, 0, y - 0.08, 0, WOODT);                                                       // deck
@@ -484,7 +542,7 @@ export function buildDeck(cx, cz, rot, W, D, y, seed) {
   const rail = (len, x, z, along) => { if (len < 0.3) return; boxP(parts, along ? len : 0.08, 0.85, along ? 0.08 : len, x, y + 0.5, z, WOODK); boxP(parts, along ? len + 0.05 : 0.18, 0.08, along ? 0.18 : len + 0.05, x, y + 0.96, z, SNOWC); };
   rail(W / 2 - 1.2, -W / 4 - 0.6, D / 2 - 0.05, true); rail(W / 2 - 1.2, W / 4 + 0.6, D / 2 - 0.05, true);
   rail(D, -W / 2 + 0.05, 0, false); rail(D, W / 2 - 0.05, 0, false);
-  boxP(parts, 1.2, 0.18, 1.6, 0, y - 0.25, D / 2 + 0.8, WOODT);                                          // step down to the snow
+  if (!flush) boxP(parts, 1.2, 0.18, 1.6, 0, y - 0.25, D / 2 + 0.8, WOODT);                               // step down to the snow (T5 ter : aucune marche, la terrasse affleure la neige)
   // bar against the building
   const bx = (r() - 0.5) * (W - 6);
   boxP(parts, 4, 1.05, 0.7, bx, y + 0.52, -D / 2 + 0.6, WOODK); boxP(parts, 4.2, 0.08, 0.85, bx, y + 1.08, -D / 2 + 0.62, '#2e2a26');
@@ -538,9 +596,10 @@ export function buildDeck(cx, cz, rot, W, D, y, seed) {
     }
     for (let u = -W / 2 + 1; u < W / 2 - 0.5; u += 2.4) if (Math.abs(u) > 1.4) { const l = new THREE.BoxGeometry(0.16, 0.22, 0.16); l.translate(u, y + 1.12, D / 2 - 0.05); parts.push({ g: l, c: '#ffcf7a' }); }   // lanternes
   }
-  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; grp.userData.W = W; grp.userData.D = D; scene.add(grp);   // repère pour les prototypes (T3)
+  const m = new THREE.Mesh(mergeParts(parts), lambertVC()); m.castShadow = true; m.receiveShadow = true; grp.add(m); grp.userData.kind = 'terrace'; grp.userData.W = W; grp.userData.D = D; grp.userData.merge = true; scene.add(grp);   // T5 ter : planchers fusionnés au démarrage (batch.ts)   // repère pour les prototypes (T3)
   const DR = ['mug', 'beer', 'wine', 'mug', 'beer'];
   for (const f of folk) {
+    if (TERRACE_FOLK.length >= (IS_TOUCH ? 70 : 150)) break;   // T5 ter : plus de terrasses, clientèle plafonnée
     const [x, z] = at(f.u, f.v);
     TERRACE_FOLK.push({ x, z, y, yaw: rot + f.yaw, pose: f.pose, prop: f.pose === 'fries' ? 'fries' : r() < 0.85 ? DR[Math.floor(r() * DR.length)] : null,
       jacket: JACKETS[Math.floor(r() * JACKETS.length)], fem: r() < 0.5, gear: r() < 0.75 ? 'beanie' : 'helmet', swing: r() * 20 });
@@ -668,4 +727,6 @@ CUR_PAL = null;
    the slopes; skis planted in the snow below. People: lounging in the deckchairs, sitting at the tables, standing at
    the bar or the parapet, with a mulled wine, a beer, a glass of red or a cone of chips. */
 TERRACE_FOLK = [];
+CUR_FLOOR = null;
+TERRACES = Object.assign([], { cap: IS_TOUCH ? 10 : 20, why: {}, cand: 0 });
 }

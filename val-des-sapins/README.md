@@ -64,6 +64,7 @@ test (exécutions reproductibles au bit près).
 | `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre, ordinateur et tactile, par préréglage ; plafonds bloquants en Moyenne (1 700 / 400) depuis T4 |
 | `quality` | choix automatique du préréglage : table d'appareils (rendu logiciel, PC de jeu, portables, téléphones) |
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
+| `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
 **Tranche T5 bis — bâtiments d'après l'IGN** (rapport : `review/donnees_batiments_ign.md`, superposition :
@@ -242,6 +243,7 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 | Relief lointain (8 km) | Modèle TerraPrinter fourni (mêmes sources) | Recalé par moindres carrés sur le relief fin (écart médian 1,6 m) |
 | Horizon (30 km) | Tuiles Mapterhorn z11 (mêmes sources) | Grille à 150 m : vallée de l’Isère, Beaufortain, Vanoise (437 – 3 800 m) |
 | Bâtiments (depuis T5 bis) | IGN BD TOPO® V3, édition 2026-09-15 (Licence Ouverte Etalab 2.0) | 374 emprises ≥ 40 m² (constructions légères écartées), rectangle orienté, étages d'après le toit au-dessus du sol amont ; noms repris d'OSM (`tools/bdtopo_buildings.py`, rapport `review/donnees_batiments_ign.md`) |
+| Restaurants, bars, cafés (depuis T5 ter) | OpenStreetMap (ODbL) | 46 établissements (position, genre, terrasse déclarée ; écartés : « pas de terrasse » et « à l’étage »), sans les noms ; servent à placer les terrasses (`tools/osm_venues.py`, liste `review/terrasses_osm.md`) |
 | Pistes, remontées (et bâtiments jusqu'en T5) | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
 
 - **Contenu** : 48 pistes réelles (31 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
@@ -269,8 +271,10 @@ Les références sont huit photos de Wikimedia Commons (Plagne Centre, Aime 2000
 - **Soubassements** : plus de pierre sous ces bâtiments, la façade descend jusqu'au sol. Seuls les chalets traditionnels gardent leur pierre.
 - Les versions lointaine et rapprochée partagent les mêmes palettes. En station dense, seuls les 12 bâtiments les plus proches (8 sur mobile) sont détaillés.
 
-**Terrasses** : deux par station (une sur mobile), devant les résidences.
-- Plancher sur pilotis, garde-corps enneigé et marche vers la neige.
+**Terrasses** (placement revu en T5 ter) : devant les restaurants, bars et cafés situés par OpenStreetMap, sur la façade
+côté front de neige, 20 au plus (10 sur mobile ; 7 aujourd'hui, faute d'établissements bien placés ailleurs).
+- Plancher au niveau du rez-de-chaussée, neige damée à la même hauteur tout autour : ni pilotis ni marche ;
+  garde-corps enneigé.
 - Bar avec bouteilles, tables, chaises et parasols unis, et une rangée de transats face aux pistes.
 - Des skis plantés dans la neige au pied de la terrasse.
 - Les clients sont allongés dans les transats, assis à table ou debout au bar et au garde-corps. Ils tiennent un vin chaud, une bière, un verre de rouge ou un cornet de frites, et le portent régulièrement à la bouche. Ils portent un bonnet ou un casque et ont des chaussures de ski aux pieds.

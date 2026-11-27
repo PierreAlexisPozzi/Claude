@@ -19,6 +19,8 @@ Le téléchargement brut reste dans web/.cache/raw/ (jamais versionné) ; seuls 
 Usage : python3 tools/bdtopo_buildings.py [--refresh]
 """
 import json, math, os, sys, urllib.request, urllib.parse, datetime
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from plagne_meta import attribution
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'assets')
@@ -170,10 +172,7 @@ def main():
     import re
     mt = re.search(r'\d{4}-\d{2}-\d{2}', ed or ''); edate = mt.group(0) if mt else ''
     meta['buildings_source'] = {'source': 'IGN BD TOPO®', 'layer': LAYER, 'edition': ed, 'licence': 'Licence Ouverte Etalab 2.0'}
-    meta['attribution'] = ("Secteur Plagne Centre – Aime 2000, adaptation libre et non officielle, sans lien avec la station. "
-                           "Relief : IGN RGE ALTI (Licence Ouverte Etalab 2.0) et Copernicus DEM GLO-30, via Mapterhorn et TerraPrinter. "
-                           "Bâtiments : IGN BD TOPO®%s (Licence Ouverte Etalab 2.0). " % ((' édition ' + edate) if edate else '') +
-                           "Pistes, remontées et noms : © les contributeurs d’OpenStreetMap (ODbL). Snowpark et half-pipe ajoutés pour le jeu.")
+    meta['attribution'] = attribution(edate)
     json.dump(data, open(path, 'w'), ensure_ascii=False, separators=(',', ':'))
     prov = {'source': 'IGN — BD TOPO® V3, couche batiment', 'service': WFS, 'layer': LAYER, 'edition': ed,
             'licence': 'Licence Ouverte Etalab 2.0 (data.gouv.fr, jeu « BD TOPO® » de l’IGN : lov2)',

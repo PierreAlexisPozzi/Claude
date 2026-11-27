@@ -7,7 +7,7 @@ performances, `README.md` à jour, résumé court (changements, mesures, limites
 
 Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en français.
 
-**État** : T1 à T5 livrées (mesures : `mesures_T1.md` à `mesures_T5.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. T5 = typologie Plagne Centre ; T5 bis = bâtiments d'après la BD TOPO de l'IGN (`donnees_batiments_ign.md`). Prochaine : T6 (autres typologies, une validation après chacune), après ton retour sur T5.
+**État** : T1 à T5 livrées (mesures : `mesures_T1.md` à `mesures_T5.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. T5 = typologie Plagne Centre ; T5 bis = bâtiments d'après la BD TOPO de l'IGN (`donnees_batiments_ign.md`) ; T5 ter = terrasses côté front de neige, au niveau de la neige et du rez-de-chaussée, placées d'après les restaurants et bars d'OpenStreetMap (`terrasses_osm.md`). Prochaine : T6 (autres typologies, une validation après chacune), après ton retour sur T5 ter.
 
 ## Constats de départ (lecture du code)
 

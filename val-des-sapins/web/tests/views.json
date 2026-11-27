@@ -91,32 +91,32 @@
  },
  {
   "id": "terrasse-aime-2000",
-  "title": "Terrasse · Aime 2000",
+  "title": "Aime 2000 · front de neige du Paquebot (aucun restaurant dans OSM : pas de terrasse)",
   "kind": "terrasse",
   "from": [
-   -913.42,
-   363.14,
-   -687.14
+   -917.21,
+   364.52,
+   -680.23
   ],
   "at": [
-   -901.43,
-   357.59,
-   -692.99
+   -881.44,
+   362.46,
+   -709.15
   ]
  },
  {
   "id": "terrasse-plagne-centre",
-  "title": "Terrasse · Plagne Centre",
+  "title": "Terrasse · Plagne Centre (HO36, terrasse déclarée dans OSM)",
   "kind": "terrasse",
   "from": [
-   -287.66,
-   240.2,
-   -261.5
+   -286.24,
+   242.68,
+   -201.27
   ],
   "at": [
-   -290.38,
-   236.4,
-   -246.9
+   -282.55,
+   240.81,
+   -217.34
   ]
  },
  {
@@ -124,14 +124,14 @@
   "title": "Terrasse · Plagne 1800",
   "kind": "terrasse",
   "from": [
-   36.42,
-   95.83,
-   -966.74
+   56.58,
+   112.97,
+   -1117.65
   ],
   "at": [
-   27.22,
-   93.52,
-   -960.71
+   72.74,
+   111.37,
+   -1114.36
   ]
  },
  {
