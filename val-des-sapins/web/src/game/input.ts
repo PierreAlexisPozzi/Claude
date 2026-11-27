@@ -1,6 +1,7 @@
 // @ts-nocheck — généré par tools/split-game.mjs depuis game.html (module « input ») ; typage strict progressif à venir.
 /* eslint-disable */
 
+import { PHOTO, togglePhoto } from './photo';
 import { sfx } from './audio';
 import { __set_camMode, camMode } from './camera';
 import { $ } from './core';
@@ -45,7 +46,8 @@ window.addEventListener('keydown', e => {
     case 'c': __set_camMode((camMode + 1) % 3); break;
     case 'm': toggleMap(); break;
     case 'j': toggleJournal(); break;
-    case 'Escape': if (mapOpen) toggleMap(false); break;
+    case 'Escape': if (PHOTO.open) togglePhoto(false); else if (mapOpen) toggleMap(false); break;
+    case 'p': togglePhoto(); break;   // T7 : mode photo
     case 'h': helpTouched = true; toggleHelp(); break;
     case 'v': queued.add('sled'); break;
     case 'g': cycleQuality(); break;

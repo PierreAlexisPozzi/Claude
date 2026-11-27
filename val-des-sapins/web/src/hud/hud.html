@@ -77,10 +77,22 @@
   </div>
 </div>
 
+<!-- T7 : mode photo (hors du HUD, qui est masqué pendant la prise de vue) -->
+<div id="photo" hidden role="dialog" aria-label="Mode photo">
+  <div class="phbox">
+    <div class="phhead"><b>Mode photo</b><span>Glisser : tourner · molette ou pincer : distance</span></div>
+    <label>Distance<input id="phDist" type="range" min="1.2" max="12" step="0.1"></label>
+    <label>Hauteur<input id="phPitch" type="range" min="-0.15" max="1.2" step="0.01"></label>
+    <label>Flou d'arrière-plan<input id="phAperture" type="range" min="0" max="1" step="0.01"></label>
+    <label>Heure <output id="phHourV"></output><input id="phHour" type="range" min="8" max="18" step="0.25"></label>
+    <label>Champ<input id="phFov" type="range" min="20" max="75" step="1"></label>
+    <div class="phrow"><button id="phSave" type="button">Enregistrer l'image</button><button id="phClose" type="button">Quitter</button></div>
+  </div>
+</div>
 <div id="touch" hidden>
   <div id="util">
     <button class="pill" data-u="journal" type="button">Carnet</button><button class="pill" data-u="sled" type="button">Moto</button><button class="pill" id="moreBtn" type="button" aria-expanded="false" aria-controls="more">Plus</button>
-    <div id="more" hidden><button class="pill" data-u="cam" type="button">Caméra</button><button class="pill" data-u="mute" id="tMute" type="button">Son : oui</button><button class="pill" data-u="qual" type="button">Image</button><button class="pill" data-u="respawn" type="button">Remontée</button></div>
+    <div id="more" hidden><button class="pill" data-u="cam" type="button">Caméra</button><button class="pill" data-u="mute" id="tMute" type="button">Son : oui</button><button class="pill" data-u="qual" type="button">Image</button><button class="pill" data-u="respawn" type="button">Remontée</button><button class="pill" data-u="photo" type="button">Photo</button></div>
   </div>
   <div id="joyZone" aria-label="Joystick : diriger, schuss, frein"><div id="joy"><i class="h u">Schuss</i><i class="h d">Frein</i><div id="joyK"></div></div></div>
   <div id="acts">
@@ -116,6 +128,7 @@
         <div><span class="ks"><span class="key">⇧</span><span class="key">↑</span><span class="key">↓</span></span>Nose / tail press, butters</div>
         <div><span class="ks"><span class="key">X</span></span>Passer en switch</div>
         <div><span class="ks"><span class="key">E</span></span>Monter dans la remontée</div>
+        <div><span class="ks"><span class="key">P</span></span>Mode photo (Échap pour sortir)</div>
         <div><span class="ks"><span class="key">M</span></span>Plan, téléportation</div>
         <div><span class="ks"><span class="key">V</span></span>Motoneige</div>
         <div><span class="ks"><span class="key">G</span></span>Qualité d'image</div>

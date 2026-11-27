@@ -2,6 +2,7 @@
 /* eslint-disable */
 
 // Ordre d'évaluation de game.html : chaque section s'initialise dans l'ordre du fichier d'origine.
+import { initPhoto } from './photo';
 import * as m0 from './core';
 import * as m1 from './render';
 import * as m2 from './world-data';
@@ -78,4 +79,5 @@ export function runGame(): void {
   m32.__init_7213();
   m33.__init_7311();
   m34.__init_7403();
+  initPhoto();   // T7 : mode photo (après le HUD et les commandes)
 }

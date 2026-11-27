@@ -14,12 +14,15 @@ import { openGame, pump, start, REPO, HAS_LEGACY, TRANCHE, type Target } from '.
 type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number }; hour?: number; hold?: Record<string, number> };
 const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as View[];
 const OUT = path.join(REPO, 'review/vues', TRANCHE);
-const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur', 'jeu']);
+const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur', 'jeu', 'photo']);
 
 async function shoot(page: Page, v: View, file: string): Promise<void> {
   if (v.kind === 'jeu') {
     await page.evaluate(() => (window as any).__ski.photo(null));
     await pump(page, 30, 1 / 60);   // la caméra de poursuite se recale
+  } else if (v.kind === 'photo') {   // T7 : mode photo ouvert (panneau, profondeur de champ), puis refermé après la capture
+    await page.evaluate(() => { const s = (window as any).__ski; s.photo(null); s.photoMode(true); });
+    await pump(page, 4, 1 / 60);
   } else await page.evaluate((v) => {
     const s = (window as any).__ski, T = s.THREE, w = window as any;
     if (w.__vdsH0 === undefined) w.__vdsH0 = s.SKY.hour;
@@ -35,6 +38,7 @@ async function shoot(page: Page, v: View, file: string): Promise<void> {
   await pump(page, 2, 1 / 60);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await page.screenshot({ path: file, timeout: 300_000, type: 'jpeg', quality: 88 });
+  if (v.kind === 'photo') await page.evaluate(() => (window as any).__ski.photoMode(false));
 }
 
 async function capture(browser: Browser, target: Target, phone: boolean): Promise<string[]> {

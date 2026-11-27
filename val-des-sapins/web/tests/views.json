@@ -931,5 +931,10 @@
   "id": "jeu-depart",
   "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
   "kind": "jeu"
+ },
+ {
+  "id": "mode-photo",
+  "title": "Mode photo : caméra libre autour du skieur, profondeur de champ, panneau de réglages",
+  "kind": "photo"
  }
 ]

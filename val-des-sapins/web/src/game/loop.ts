@@ -1,6 +1,7 @@
 // @ts-nocheck — généré par tools/split-game.mjs depuis game.html (module « loop ») ; typage strict progressif à venir.
 /* eslint-disable */
 
+import { PHOTO, photoFrame } from './photo';
 import * as THREE from 'three';
 import { STORE } from '../storage/store';
 import { AX_Y, updateSkier } from './animation';
@@ -37,8 +38,8 @@ export function __set_clock(v) { return (clock = v); }
    // delta time; pauses cleanly when the tab is hidden
 export function frame(now) {
   requestAnimationFrame(frame);
-  timer.update(now); const dt = Math.min(0.1, timer.getDelta()); clock += dt;
-  if (running && !mapOpen && !dlgOpen && !jnlOpen) {
+  timer.update(now); const dt0 = Math.min(0.1, timer.getDelta()), dt = PHOTO.open ? 0 : dt0; clock += dt;   // T7 : le mode photo fige le monde
+  if (running && !mapOpen && !dlgOpen && !jnlOpen && !PHOTO.open) {
     acc += dt; let n = 0;
     if (IS_TOUCH) touchFrame();
     while (acc >= STEP && n < 12) { stepSim(STEP); acc -= STEP; n++; }
@@ -47,7 +48,7 @@ export function frame(now) {
   liftClock(dt); updateLiftAnim(clock); updateNPCs(dt, clock); if (PEOPLE[0].n) updatePeopleFx(clock); placeSledMesh(dt); updateNear(camera.position, dt); updateFauna(dt, clock, camera.position); updateTrails(dt, clock);
   updateSkier(dt, clock);
   updateSpray(dt); updatePlumes(dt, camera.position); updateTunnelFx(clock, musicBeat());
-  if (running) { updateCamera(dt, camSnap); __set_camSnap(false); cameraFeel(dt); }
+  if (running) { if (!PHOTO.open) { updateCamera(dt, camSnap); __set_camSnap(false); cameraFeel(dt); } }
   else {
     introT += dt;
     // start screen: a slow turntable around the skier, framed on the right of the panel
@@ -57,6 +58,7 @@ export function frame(now) {
     const fw = c.clone().sub(camera.position).normalize(), rt = fw.clone().cross(AX_Y).normalize();
     camera.lookAt(c.x - rt.x * (wide ? 1.15 : 0), c.y - 0.15, c.z - rt.z * (wide ? 1.15 : 0));
   }
+  photoFrame();   // T7 : mode photo (caméra en orbite, mise au point)
   if (photoCam && photoCam.at) { camera.position.copy(photoCam.from); camera.lookAt(photoCam.at); }
   else if (photoCam) {   // debug: close 3/4 view of the skier
     const c = skier.root.position, a = P.yaw + photoCam.a;

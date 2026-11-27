@@ -24,7 +24,7 @@ const measure = (page: Page) => page.evaluate(() => {
     const r = el.getBoundingClientRect();
     out.push({ id: el.id || (el.parentElement!.id === 'toasts' ? 'toast' : el.className), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) });
   }
-  const modal = ['dlg', 'jnl', 'mapOv', 'crOv'].map((id) => document.getElementById(id)!).filter((e) => !e.hidden).map((e) => { const b = (e.querySelector('.jbox, .box') || e).getBoundingClientRect(); return { id: e.id, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; });
+  const modal = ['dlg', 'jnl', 'mapOv', 'crOv', 'photo'].map((id) => document.getElementById(id)!).filter((e) => !e.hidden).map((e) => { const b = (e.querySelector('.jbox, .box') || e).getBoundingClientRect(); return { id: e.id, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; });
   return { boxes: out, modal, vw: innerWidth, vh: innerHeight };
 });
 
@@ -79,6 +79,11 @@ async function survey(page: Page, target: Target, size: (typeof SIZES)[number]) 
   for (const t of ['missions', 'defis', 'chronos', 'stats']) {
     await page.evaluate((t) => { if (document.getElementById('jnl')!.hidden) (window as any).__ski.journal(true); (document.querySelector(`[data-tab="${t}"]`) as HTMLElement | null)?.click(); }, t);
     await settle(); shots['carnet · ' + t] = await measure(page);
+  }
+  // T7 : mode photo (absent de game.html) : le panneau tient dans l'écran
+  if (target === 'web') {
+    await page.evaluate(() => (window as any).__ski.photoMode(true)); await settle(); shots['photo'] = await measure(page);
+    await page.evaluate(() => (window as any).__ski.photoMode(false)); await settle();
   }
   return shots;
 }
