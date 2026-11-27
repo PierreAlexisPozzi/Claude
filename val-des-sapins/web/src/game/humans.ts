@@ -7,7 +7,7 @@ import { Assembly, X1, Z1, _ay, axesAlong, limb, v3 } from './assembly';
 import { V3, clamp, colorCanvasTex, patchShader } from './core';
 import { C_, NZ } from './fauna';
 import { grainHook, tileNoise } from './materials';
-import { scene } from './render';
+import { SMALL_LAYER, scene } from './render';
 import { BLEND } from './world-data';
 
 export let skierShade, skierTint, skierFlutter, skierFTime, SKI_GEO, SKI_MAT, lathe, skier, H_CHILD, _hm1, _hm2, _hq1, _hq2, _hv, CLOTH_T, CLOTH_VERT_DECL, CLOTH_FRAG, faceHold, AXY, AXZ, AXNY, axisW, playerHuman, playerJ;
@@ -161,6 +161,7 @@ export function makeHuman(kind, o = {}) {
   const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1,
     face: face && md ? { m: face, idx: md, cur: { blink: 0, smile: 0, open: 0, brows: 0, squint: 0 }, blinkT: 9, next: 1 + Math.random() * 3, talk: 0 } : null };
   setGear(H, o.gear || 'helmet');
+  root.traverse(x => x.layers.set(SMALL_LAYER));   // T4 : comme les autres skieurs, hors de la carte d'ombre lointaine
   scene.add(root);
   return H;
 }

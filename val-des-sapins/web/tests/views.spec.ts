@@ -30,8 +30,10 @@ async function capture(browser: Browser, target: Target, phone: boolean): Promis
   await start(page);
   await pump(page, 2);
   const files: string[] = [];
+  const only = process.env.VDS_VIEWS ? new RegExp(process.env.VDS_VIEWS) : null;   // sous-ensemble (contrôle rapide)
   for (const v of VIEWS) {
     if (phone && !PHONE_KINDS.has(v.kind)) continue;
+    if (only && !only.test(v.id)) continue;
     const f = path.join(target === 'web' ? OUT : path.resolve('.cache/vues-legacy', TRANCHE), phone ? 'telephone' : 'ordinateur', v.id + '.jpg');
     await shoot(page, v, f);
     files.push(f);
@@ -57,7 +59,7 @@ for (const phone of [false, true]) {
     // tant que game.html existe, il est capturé en même temps pour mesurer l'écart ; ensuite, les vues servent aux
     // planches avant / après entre tranches
     const [web, legacy] = await Promise.all([capture(browser, 'web', phone), HAS_LEGACY ? capture(browser, 'legacy', phone) : Promise.resolve([])]);
-    expect(web.length).toBeGreaterThan(phone ? 4 : 20);
+    if (!process.env.VDS_VIEWS) expect(web.length).toBeGreaterThan(phone ? 4 : 20);
     if (!HAS_LEGACY) return;
     const res: Record<string, number> = {};
     for (let i = 0; i < web.length; i++) res[path.basename(web[i], '.jpg')] = Math.round((await diff(page, web[i], legacy[i])) * 100) / 100;

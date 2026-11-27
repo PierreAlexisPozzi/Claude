@@ -10,6 +10,7 @@ import { ZERO_M } from './npcs';
 import { CUR_BLD, PEOPLE, SHOP_ANCHORS, __set_CUR_BLD, bldToWorld, placePeople, spotClear } from './people';
 import { LIFTS, PISTES, pisteHeading, zoneAt } from './pistes';
 import { SMALL_LAYER, TREE_LAYER, scene } from './render';
+import { POOLS, setShellHidden } from './batch';
 import { H, HALF, gridH, minimapImg, mulberry32, obstacles, trees } from './terrain';
 import { BLEND } from './world-data';
 
@@ -52,7 +53,7 @@ export class Assembly {
     const g = new THREE.Group();
     for (const [k, l] of this.parts) {
       const [atom, mat] = k.split('|'), n = l.length / 2;
-      const geo = atomGeo(atom).clone(); geo.boundingSphere = new THREE.Sphere(new V3(0, 0, 0), radius);
+      const geo = atomGeo(atom).clone(); geo.boundingSphere = new THREE.Sphere(new V3(0, 0, 0), radius); geo.userData.atom = atom;
       const m = new THREE.InstancedMesh(geo, mmat(mat), n);
       for (let i = 0; i < n; i++) { _am.fromArray(l[i * 2]); m.setMatrixAt(i, _am); m.setColorAt(i, l[i * 2 + 1]); }
       m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true;
@@ -369,11 +370,12 @@ export function updateNearBuildings(cam, budgetMs) {
   for (let i = 0; i < BUILDINGS.length; i++) {
     const b = BUILDINGS[i], dd = d2[i] <= cut ? d2[i] : Math.max(d2[i], NEAR.buildR + 71);
     if (!b.detail && dd < NEAR.buildR && performance.now() - t0 < budgetMs) {
-      b.detail = assembleBuilding(b); scene.add(b.detail);
-      b.grp.children.forEach(c => { c.visible = false; });                     // the assembled version has its own masonry plinth
+      // T4 : les atomes du bâtiment vont dans la réserve partagée (batch.ts) au lieu d'un groupe par bâtiment
+      b.detail = assembleBuilding(b); b.dh = POOLS.detail.add(b.detail);
+      setShellHidden(b, true);                     // the assembled version has its own masonry plinth
     } else if (b.detail && dd > NEAR.buildR + 70) {
-      scene.remove(b.detail); b.detail.children.forEach(m => { m.dispose(); m.geometry.dispose(); }); b.detail = null;
-      b.grp.children.forEach(c => { c.visible = true; });
+      POOLS.detail.remove(b.dh); b.dh = null; b.detail = null;
+      setShellHidden(b, false);
     }
   }
 }
@@ -690,7 +692,10 @@ export function buildFurniture() {
   }
 }
 
-export function updateFurniture(cam) { for (const g of FURN) { if (!g.userData.small) { g.traverse(o => o.layers.set(SMALL_LAYER)); g.userData.small = true; } } for (const g of FURN) g.visible = Math.hypot(g.userData.c.x - cam.x, g.userData.c.z - cam.z) < 320; }
+export function updateFurniture(cam) {
+  for (const g of FURN) { if (!g.userData.small) { g.traverse(o => o.layers.set(SMALL_LAYER)); g.userData.small = true; } }
+  for (const g of FURN) { const on = Math.hypot(g.userData.c.x - cam.x, g.userData.c.z - cam.z) < 320; if (g.userData.h) POOLS.furniture.show(g.userData.h, on); else g.visible = on; }
+}
 
 
 /* ---- rounded limbs between two points (for people and animals) ---- */

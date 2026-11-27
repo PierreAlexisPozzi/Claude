@@ -4,3 +4,4 @@ test-results/
 playwright-report/
 dist-artifact/
 .cache/
+dist-exp/

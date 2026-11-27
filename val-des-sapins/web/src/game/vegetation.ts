@@ -75,10 +75,10 @@ export function placeTrees() {
     mesh.userData.inv = new THREE.Matrix4().makeTranslation(-cx, -cy, -cz); trees.farMeshes.push(mesh);
     mesh.layers.set(TREE_LAYER); scene.add(mesh);
   });
-  // shadow proxies for the far cascade: every tree as the 70-triangle silhouette, in 175 m chunks with tight bounds,
+  // shadow proxies for the far cascade: every tree as the 70-triangle silhouette, in 350 m chunks (T4 : 175 m auparavant) with tight bounds,
   // seen only by the far shadow camera (the real trees keep casting into the sharp near map)
   {
-    const C2 = 175, n2 = Math.ceil(WORLD / C2), b2 = Array.from({ length: n2 * n2 }, () => []), m4 = new THREE.Matrix4(), pm = lambertVC();
+    const C2 = 350, n2 = Math.ceil(WORLD / C2), b2 = Array.from({ length: n2 * n2 }, () => []), m4 = new THREE.Matrix4(), pm = lambertVC();
     for (let i = 0; i < trees.x.length; i++) b2[clamp(Math.floor((trees.x[i] + HALF) / C2), 0, n2 - 1) + clamp(Math.floor((trees.z[i] + HALF) / C2), 0, n2 - 1) * n2].push(i);
     b2.forEach((b, ci) => {
       if (!b.length) return;

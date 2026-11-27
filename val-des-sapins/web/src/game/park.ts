@@ -64,19 +64,19 @@ export function buildPark() {
     for (let j = 0; j < nw; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1; idx.push(a, b, c, b, d, c); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
     const nr = g.attributes.normal.array; let flip = 0; for (let i = 1; i < nr.length; i += 3) flip += nr[i]; if (flip < 0) { g.setIndex(idx.map((v, i) => idx[i - (i % 3) + (2 - (i % 3))])); g.computeVertexNormals(); }
-    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.castShadow = true; scene.add(m);
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.castShadow = true; m.userData.merge = true; scene.add(m);
   }
   for (const r of rails) {
     const grp = new THREE.Group();
     const top = r.type === 'box' ? new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, r.len3), pbr({ color: '#2c3440' }))
       : new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, r.len3, 8), metal({ color: '#c9d1db', roughness: 0.3 }));
     if (r.type !== 'box') top.rotation.x = Math.PI / 2;
-    const mid = r.a.clone().lerp(r.b, 0.5); grp.position.copy(mid); grp.lookAt(r.b); grp.add(top); top.position.y = -0.06; top.castShadow = true; scene.add(grp);
+    const mid = r.a.clone().lerp(r.b, 0.5); grp.position.copy(mid); grp.lookAt(r.b); grp.add(top); top.position.y = -0.06; top.castShadow = true; grp.userData.merge = true; scene.add(grp);
     const legMat = metal({ color: '#59616d', roughness: 0.55 });
     for (let t = 0.1; t <= 0.91; t += 0.4) {
       const p = r.a.clone().lerp(r.b, t), g = gridH(p.x, p.z), hgt = p.y - g;
       const leg = new THREE.Mesh(new THREE.BoxGeometry(r.type === 'box' ? 0.45 : 0.08, hgt + 0.3, 0.08), legMat);
-      leg.position.set(p.x, g + hgt / 2 - 0.15, p.z); leg.rotation.y = Math.atan2(r.dx, r.dz); scene.add(leg);
+      leg.position.set(p.x, g + hgt / 2 - 0.15, p.z); leg.rotation.y = Math.atan2(r.dx, r.dz); leg.userData.merge = true; scene.add(leg);
     }
   }
 }

@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openGame, expectNoErrors, pump, start, reference } from './helpers';
+import { openGame, expectNoErrors, pump, start, reference, trancheNum } from './helpers';
 
 const SRC = path.resolve('src/game');
 
@@ -51,5 +51,7 @@ test('parité : état initial identique à game.html', async ({ browser }) => {
   };
   const [w, l] = [await snap('web'), await reference('etat-initial', () => snap('legacy'))];
   console.log('web', JSON.stringify(w.ri), 'legacy', JSON.stringify(l.ri));
+  // à partir de T4 (regroupement des appels de dessin, nouveau rendu), seul le coût de rendu change : moins d'appels
+  if (trancheNum() >= 4) { expect(w.ri.calls).toBeLessThan(l.ri.calls); w.ri = l.ri; }
   expect(w).toEqual(l);
 });

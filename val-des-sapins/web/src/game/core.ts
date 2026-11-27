@@ -43,7 +43,8 @@ Q = IS_TOUCH
    underneath if frames get slow. */
 QUALITY = {   // farShadow: size of the second shadow map covering ~700 m (0 = near shadows only)
   low:    { label: 'Basse',   pr: 1,   shadow: 1024, farShadow: 0,    msaa: 0, bloom: false, ao: false, fxaa: true },
-  medium: { label: 'Moyenne', pr: 1.5, shadow: 2048, farShadow: 2048, msaa: 4, bloom: true,  ao: false, fxaa: false },
+  // T4 : sur écran tactile, Moyenne sans la carte d'ombre lointaine (≈ 130 appels de dessin) pour tenir le plafond de 400
+  medium: { label: 'Moyenne', pr: 1.5, shadow: 2048, farShadow: IS_TOUCH ? 0 : 2048, msaa: 4, bloom: true,  ao: false, fxaa: false },
   high:   { label: 'Haute',   pr: 2,   shadow: 2048, farShadow: 4096, msaa: 4, bloom: true,  ao: true,  fxaa: false },
 };
 qName = (() => { try { const v = STORE.getItem('valdessapins.quality'); if (QUALITY[v]) return v; } catch (e) { /* storage blocked */ } return IS_TOUCH ? 'low' : 'medium'; })();

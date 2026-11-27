@@ -3,13 +3,15 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openGame, pump, start, expectNoErrors, REPO } from './helpers';
+import { openGame, pump, start, expectNoErrors, REPO, trancheNum } from './helpers';
 
 const VIEWS = (JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number> }[])
   .filter((v) => /barre|villages-residence|terrasse-plagne-centre|terrasse-aime|gros-plan-|village-plagne-centre/.test(v.id));
 const ROOT = path.join(REPO, 'review/vues/T3-proto');
 
 for (const proto of [false, true]) test(`prototypes : ${proto ? 'après (?proto=all)' : 'avant (jeu par défaut)'}`, async ({ page }) => {
+  // livrable figé de la tranche T3 : ne pas écraser ses captures depuis une tranche ultérieure
+  test.skip(trancheNum() !== 3, 'captures des prototypes T3 (figées)');
   test.setTimeout(60 * 60_000);
   const OUT = path.join(ROOT, proto ? 'apres' : 'avant');
   await openGame(page, 'web', proto ? { query: 'proto=all' } : {});
