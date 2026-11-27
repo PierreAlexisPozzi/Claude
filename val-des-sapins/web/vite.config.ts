@@ -1,8 +1,12 @@
 import { defineConfig } from 'vite';
+import { assetVersion } from './tools/asset-version.mjs';
 
-// Chemins relatifs (base './') : dist/ se sert tel quel depuis un sous-dossier, un artefact ou GitHub Pages.
+/* T5 bis : version des assets = empreinte de leur contenu (public/assets). Ajoutée aux adresses (?v=…) et au nom du
+   cache du service worker : après une mise à jour des données (tuiles, enseignes…), un joueur qui revient ne reçoit
+   plus un mélange d'anciens et de nouveaux fichiers. */
 export default defineConfig({
   base: './',
+  define: { __ASSET_VERSION__: JSON.stringify(assetVersion()) },
   build: {
     target: 'es2022',
     outDir: 'dist',

@@ -1,3 +1,4 @@
+import { ASSET_VERSION } from './version';
 /* Lecture des tuiles binaires du domaine (format décrit dans tools/tiles.mjs) et reconstruction exacte :
    - l'objet « plagne.json » (méta, pistes, remontées, bâtiments, lieux, zones), identique à la source ;
    - les grilles de relief (proche, lointain, horizon) en Float32Array, identiques à celles de game.html.
@@ -46,7 +47,7 @@ function decodeVector(b: ArrayBuffer, into: Record<string, unknown[]>): void {
 /** Charge l'index puis toutes les tuiles ; `fetchBin` récupère un fichier binaire (avec repli base64). */
 export async function loadWorld(base: string, fetchBin: (name: string) => Promise<ArrayBuffer>): Promise<WorldData | null> {
   if (typeof DecompressionStream !== 'function') return null;   // comme game.html : sans décompression, monde procédural
-  const res = await fetch(new URL(base + 'world/index.json', document.baseURI));
+  const res = await fetch(new URL(base + 'world/index.json?v=' + ASSET_VERSION, document.baseURI));
   if (!res.ok) return null;
   const idx = (await res.json()) as WorldIndex;
   const grids: Record<string, Float32Array> = {};

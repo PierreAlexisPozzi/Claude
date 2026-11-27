@@ -3,7 +3,8 @@
    - code (static/, noms avec empreinte) : cache d'abord ;
    - données et textures (assets/, basis/) : cache d'abord puis mise à jour en arrière-plan.
    Les artefacts claude.ai n'autorisent pas les service workers : l'enregistrement y échoue sans conséquence. */
-const CACHE = 'vds-v2';
+// T5 bis : un cache par version des assets (sw.js?v=…, empreinte de leur contenu) ; les anciens sont effacés à l'activation
+const CACHE = 'vds-' + (new URL(self.location.href).searchParams.get('v') || 'v2');
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);

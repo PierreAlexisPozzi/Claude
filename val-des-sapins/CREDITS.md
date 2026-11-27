@@ -31,7 +31,8 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 
 | Données | Licence | Traitement |
 |---|---|---|
-| OpenStreetMap (pistes, remontées, bâtiments) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | `tools/plagne_data.py` |
+| IGN — BD TOPO® V3, couche « batiment » (édition 2026-09-15, service WFS de la Géoplateforme) | Licence Ouverte Etalab 2.0 (vérifiée sur data.gouv.fr, jeu « BD TOPO® » de l'IGN) | Emplacement, emprise, hauteur et étages des bâtiments depuis T5 bis (`tools/bdtopo_buildings.py`, provenance : `assets/plagne_buildings_source.json`) |
+| OpenStreetMap (pistes, remontées, noms des bâtiments) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | `tools/plagne_data.py` ; les bâtiments OSM d'avant T5 bis restent dans `assets/plagne_buildings_osm.json` pour les noms |
 | IGN RGE ALTI (via tuiles Mapterhorn) | Licence ouverte Etalab 2.0 | Relief du secteur |
 | Copernicus DEM GLO-30 (via tuiles Mapterhorn) | Licence Copernicus (libre, attribution) | Relief lointain et horizon |
 | MakeHuman — maillage de base, morphes, poids, textures de peau, unités d'expression | CC0 | Corps et visages des personnages (`blender/humans.py`) |

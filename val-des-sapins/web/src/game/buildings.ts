@@ -416,11 +416,16 @@ export function buildPlagneBuildings() {
     else if (/Club Med/i.test(nm) && !/ex /i.test(nm)) { pal = { ...PAL.red, floors: 11, tower: w < 30 }; spec = { b: bldPlSlab, w: clamp(w, 16, 70), d: clamp(d, 13, 18) }; }
     else if (/Salle|Parking|Garage|Funi|omnisport/i.test(nm)) { pal = { ...PAL.low, floors: 2 }; spec = { b: bldPlSlab, w: clamp(w, 12, 70), d: clamp(d, 10, 30) }; }
     else if (modern && area > 220) {
-      const tower = w < 30 && d < 30 && hsh < 0.45;
-      const floors = b.levels > 0 ? b.levels : tower ? 11 + Math.floor(hsh * 10) % 5 : 5 + Math.floor(hsh * 9) % 4 + (area > 900 ? 1 : 0);
+      // T5 bis : tours et étages d'après la BD TOPO de l'IGN (b.levels, comptés au-dessus du sol amont) ; l'ancien tirage
+      // au hasard ne sert plus que si la donnée manque
+      const tower = b.levels > 0 ? w < 32 && d < 32 && b.levels >= 9 : w < 30 && d < 30 && hsh < 0.45;
+      const floors = b.levels > 0 ? Math.max(2, b.levels) : tower ? 11 + Math.floor(hsh * 10) % 5 : 5 + Math.floor(hsh * 9) % 4 + (area > 900 ? 1 : 0);
       pal = { ...(/Aime/.test(town) ? PAL.aime : tower ? PAL.tower : PAL.centre), floors, tower, shops: /Centre/.test(town) && hsh > 0.5 };
       spec = tower ? { b: bldPlSlab, w: clamp(w, 14, 24), d: clamp(d, 13, 22) } : { b: bldPlSlab, w: clamp(w, 16, 90), d: clamp(d, 11, 17) };
     }
+    // T5 bis : les petits bâtiments de Plagne Centre et d'Aime 2000 (BD TOPO : locaux, galeries, annexes) restent en béton,
+    // bas, au lieu de chalets de pierre au milieu de la station
+    else if (modern && area > 90 && b.levels > 0) { pal = { ...(/Aime/.test(town) ? PAL.aime : PAL.centre), floors: Math.max(2, Math.min(b.levels, 4)), tower: false }; spec = { b: bldPlSlab, w: clamp(w, 10, 40), d: clamp(d, 8, 14) }; }
     else if (area > 160) { pal = PAL.village; spec = { b: bldWoodRes, w: clamp(w, 18, 46), d: clamp(d, 11, 15) }; }
     else spec = { b: (x, z, r, ww, dd) => bldStoneChalet(x, z, r, ww, dd, area < 110), w: clamp(w, 9, 16), d: clamp(d, 8, 11) };
     // the landmarks stand where they are, whatever runs past them; everything else keeps off runs and lift lines

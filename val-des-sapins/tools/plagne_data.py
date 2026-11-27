@@ -2,6 +2,7 @@
 
 Sources (all open data, attribution shown in the game):
   - OpenStreetMap (ODbL): runs (piste:type=downhill), lifts (aerialway=*), buildings.  OSM API map call, cached.
+    Since T5 bis the buildings are replaced by IGN BD TOPO footprints (tools/bdtopo_buildings.py, run after this script).
   - Mapterhorn terrain tiles (terrarium, z14 ~3.4 m): IGN RGE ALTI (Etalab 2.0), Copernicus DEM GLO-30.
   - TerraPrinter export (user-provided STL, 8 x 8 km, same open sources) for the distant relief around the sector.
   - Mapterhorn zoom 11 over 30 km for the horizon.

@@ -1,0 +1,22 @@
+{
+ "source": "IGN — BD TOPO® V3, couche batiment",
+ "service": "https://data.geopf.fr/wfs/ows",
+ "layer": "BDTOPO_V3:batiment",
+ "edition": "Bâtiments − BD TOPO® V3 2026-09-15",
+ "licence": "Licence Ouverte Etalab 2.0 (data.gouv.fr, jeu « BD TOPO® » de l’IGN : lov2)",
+ "bbox_wgs84": [
+  45.490224,
+  6.658214,
+  45.517356,
+  6.696666
+ ],
+ "features": 580,
+ "buildings": 374,
+ "skipped": {
+  "légère": 81,
+  "petite": 101,
+  "hors secteur": 24,
+  "état": 0
+ },
+ "converted": "2026-11-27"
+}

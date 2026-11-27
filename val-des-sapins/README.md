@@ -66,6 +66,19 @@ test (exécutions reproductibles au bit près).
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Tranche T5 bis — bâtiments d'après l'IGN** (rapport : `review/donnees_batiments_ign.md`, superposition :
+`review/batiments_osm_ign.jpg`, planche : `review/planche_T5bis_ign.jpg`) :
+- Emplacement, emprise, hauteur et étages de tous les bâtiments repris de la **BD TOPO® de l'IGN** (couche
+  « batiment », édition 2026-09-15, Licence Ouverte Etalab 2.0) au lieu d'OpenStreetMap ; noms (Paquebot, Club Med,
+  salles…) repris d'OSM, un nom par emprise. Décalage médian des centres OSM/IGN : 0,1 m.
+- Tours et étages d'après la donnée (plus de tirage au hasard) : Plagne Centre est plus bas qu'en T5, avec un immeuble
+  de 14 étages ; les petits bâtiments des stations modernes restent en béton.
+- Relief, pistes, remontées et lieux inchangés ; robot, slalom et HUD identiques aux références. Seule l'attribution
+  (texte des crédits) a été re-figée dans `web/tests/baselines/` (voir son README).
+- Cache : les adresses des assets portent une version (empreinte du contenu) et le service worker un cache par version :
+  après une mise à jour des données, plus de mélange d'anciens et de nouveaux fichiers.
+- Vues fixes réorientées vers les bâtiments réels (barre, immeuble le plus haut, biais, abords, terrasses).
+
 **Tranche T5 — Plagne Centre, première typologie** (mesures : `review/mesures_T5.md`, planche : `review/planche_T5_plagne_centre.jpg`) :
 - **Façades** des barres et tours en béton brun rouille (palettes `pc_rust`, `pc_tower`), version détaillée et coque
   lointaine construites avec les mêmes cotes : béton banché (texture CC0 projetée dans le plan de chaque façade, sans
@@ -228,7 +241,8 @@ Le domaine de jeu est désormais un carré de 2,8 × 2,8 km centré sur Plagne C
 | Relief du secteur | Tuiles Mapterhorn z14 (IGN RGE ALTI, Etalab 2.0 ; Copernicus DEM GLO-30) | Grille de 449 × 449 points à 6,25 m, 1 746 – 2 590 m |
 | Relief lointain (8 km) | Modèle TerraPrinter fourni (mêmes sources) | Recalé par moindres carrés sur le relief fin (écart médian 1,6 m) |
 | Horizon (30 km) | Tuiles Mapterhorn z11 (mêmes sources) | Grille à 150 m : vallée de l’Isère, Beaufortain, Vanoise (437 – 3 800 m) |
-| Pistes, remontées, bâtiments | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
+| Bâtiments (depuis T5 bis) | IGN BD TOPO® V3, édition 2026-09-15 (Licence Ouverte Etalab 2.0) | 374 emprises ≥ 40 m² (constructions légères écartées), rectangle orienté, étages d'après le toit au-dessus du sol amont ; noms repris d'OSM (`tools/bdtopo_buildings.py`, rapport `review/donnees_batiments_ign.md`) |
+| Pistes, remontées (et bâtiments jusqu'en T5) | OpenStreetMap (ODbL) | Tronçons d'une même piste fusionnés, mini-téléskis écartés, pistes coupées en bord de carte et gardées seulement si on peut les rejoindre depuis une remontée |
 
 - **Contenu** : 48 pistes réelles (31 km) et 17 remontées (Télécabine Télémétro, Télésièges Bécoin, Colorado, Bergerie, Golf…). Le jeu démarre au sommet du **Télésiège Bécoin**, et on descend de chaque remontée en tête de piste. Les villages Plagne Centre, Aime 2000, Plagne 1800, Plagne Villages et Plagne Soleil reprennent l'emprise des bâtiments relevés : tours, barres et « paquebot » pour les stations d'altitude, résidences bois et chalets ailleurs. Seuls les 150 plus grands sont construits (90 sur mobile).
 - **Pistes réelles** : le damage suit le profil du terrain et ne creuse jamais plus de 2,5 m. Les replats et les bosses sont donc conservés, et les chemins de liaison restent des chemins.

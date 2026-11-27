@@ -13,6 +13,7 @@ import './hud/hud.css';
 import hudHtml from './hud/hud.html?raw';
 import { initCredits } from './hud/credits';
 import { preloadAssets } from './assets/loader';
+import { ASSET_VERSION } from './assets/version';
 import { STORE } from './storage/store';
 import { runGame } from './game/index';
 import { requestedProtos } from './proto/proto';
@@ -43,5 +44,5 @@ if (protos.length) {
 
 // cache hors ligne (GitHub Pages, serveur statique) ; refusé sans conséquence dans un artefact ou en local file://
 if ('serviceWorker' in navigator && import.meta.env.PROD && !/[?&]nosw\b/.test(location.search)) {
-  navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).catch(() => { /* hébergeur sans service worker */ });
+  navigator.serviceWorker.register(new URL('sw.js?v=' + ASSET_VERSION, document.baseURI).href).catch(() => { /* hébergeur sans service worker */ });
 }

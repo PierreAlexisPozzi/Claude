@@ -6,12 +6,13 @@
    Un fichier manquant est simplement absent : le jeu retombe alors sur ses modèles procéduraux, comme avant. */
 import manifest from './manifest.json';
 import { loadWorld } from './world';
+import { ASSET_VERSION } from './version';
 
 export type AssetValue = ArrayBuffer | string | Record<string, unknown>;
 export const ASSETS: Record<string, AssetValue> & { __grids?: Record<string, Float32Array> } = {};
 
 /** URL d'un asset, relative au document (fonctionne en sous-dossier, dans l'artefact et sur GitHub Pages). */
-export const assetUrl = (name: string): string => new URL('assets/' + name, document.baseURI).href;
+export const assetUrl = (name: string): string => new URL('assets/' + name + '?v=' + ASSET_VERSION, document.baseURI).href;
 
 /** Binaire ; repli sur `<nom>.b64.json` (chaîne base64) pour les hébergeurs qui ne servent pas ces types,
  *  comme les artefacts claude.ai (voir tools/artifact-page.mjs). */
