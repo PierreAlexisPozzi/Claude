@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { STORE } from '../storage/store';
 import { srgbTex } from './render';
+import { deviceInfo, pickQuality } from './quality-detect';
 
 export let $, V3, colorCanvasTex, clamp, lerp, smoothstep, wrapPi, fmt, IS_TOUCH, Q, QUALITY, qName, REDUCED_MOTION;
 
@@ -42,12 +43,19 @@ Q = IS_TOUCH
 /* Image quality tiers (chosen on the start screen, key G, or the "Image" button). autoQuality() still steps down
    underneath if frames get slow. */
 QUALITY = {   // farShadow: size of the second shadow map covering ~700 m (0 = near shadows only)
+  // T4 : occlusion ambiante N8AO (ao, aoHalf = demi-résolution, aoSamples), préréglage Ultra (near = rayon des
+  // objets détaillés ×1,35, ombres 4096, MSAA ×8 si la carte le permet)
   low:    { label: 'Basse',   pr: 1,   shadow: 1024, farShadow: 0,    msaa: 0, bloom: false, ao: false, fxaa: true },
-  // T4 : sur écran tactile, Moyenne sans la carte d'ombre lointaine (≈ 130 appels de dessin) pour tenir le plafond de 400
-  medium: { label: 'Moyenne', pr: 1.5, shadow: 2048, farShadow: IS_TOUCH ? 0 : 2048, msaa: 4, bloom: true,  ao: false, fxaa: false },
-  high:   { label: 'Haute',   pr: 2,   shadow: 2048, farShadow: 4096, msaa: 4, bloom: true,  ao: true,  fxaa: false },
+  // sur écran tactile, Moyenne sans la carte d'ombre lointaine (≈ 130 appels de dessin) ni occlusion : plafond de 400
+  medium: { label: 'Moyenne', pr: 1.5, shadow: 2048, farShadow: IS_TOUCH ? 0 : 2048, msaa: 4, bloom: true,  ao: !IS_TOUCH, aoHalf: true, aoSamples: 8, aoDenoise: 4, fxaa: false },
+  high:   { label: 'Haute',   pr: 2,   shadow: 2048, farShadow: 4096, msaa: 4, bloom: true,  ao: true,  aoHalf: false, aoSamples: 16, aoDenoise: 8, fxaa: false },
+  ultra:  { label: 'Ultra',   pr: 2.5, shadow: 4096, farShadow: 4096, msaa: 8, bloom: true,  ao: true,  aoHalf: false, aoSamples: 32, aoDenoise: 8, fxaa: false, near: 1.35 },
 };
-qName = (() => { try { const v = STORE.getItem('valdessapins.quality'); if (QUALITY[v]) return v; } catch (e) { /* storage blocked */ } return IS_TOUCH ? 'low' : 'medium'; })();
+// premier lancement : préréglage choisi d'après l'appareil (quality-detect.ts) ; ensuite, le choix enregistré
+qName = (() => {
+  try { const v = STORE.getItem('valdessapins.quality'); if (QUALITY[v]) return v; } catch (e) { /* storage blocked */ }
+  try { const c = document.createElement('canvas'), gl = c.getContext('webgl2'), q = pickQuality(deviceInfo(gl, IS_TOUCH)); gl?.getExtension('WEBGL_lose_context')?.loseContext(); return q; } catch (e) { return IS_TOUCH ? 'low' : 'medium'; }
+})();
 Q.shadow = QUALITY[qName].shadow;
  Q.pr = Math.min(window.devicePixelRatio || 1, QUALITY[qName].pr);
 REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);

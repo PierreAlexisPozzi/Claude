@@ -1,4 +1,6 @@
-/* Prototypes de la tranche T3 — DÉSACTIVÉS par défaut, activés par l'adresse : ?proto=rendu,facade,visage (ou all).
+/* Prototypes de la tranche T3 — DÉSACTIVÉS par défaut, activés par l'adresse : ?proto=facade,visage (ou all).
+   T4 : le prototype « rendu » (AgX, N8AO) est devenu le rendu par défaut et a été retiré ; le prototype façade
+   agit sur les réserves d'instances des bâtiments détaillés (batch.ts), toutes typologies confondues.
    Ils servent à juger sur pièce les outils retenus par l'étude (review/etude_outils.md) avant les tranches T4 à T7,
    sur les mêmes vues de référence que le jeu normal (captures avant / après).
 
@@ -10,12 +12,12 @@
    Rien n'est modifié dans le jeu quand aucun prototype n'est demandé. */
 import * as THREE from 'three';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { N8AOPass } from 'n8ao';
+import { POOLS } from '../game/batch';
 import { fetchBinary } from '../assets/loader';
 
 type Any = any; // eslint-disable-line @typescript-eslint/no-explicit-any
-export type ProtoName = 'rendu' | 'facade' | 'visage';
-export const PROTOS: ProtoName[] = ['rendu', 'facade', 'visage'];
+export type ProtoName = 'facade' | 'visage';
+export const PROTOS: ProtoName[] = ['facade', 'visage'];
 
 interface Game { ski: Any; render: Any; materials: Any; world: Any; assembly: Any }
 
@@ -25,25 +27,6 @@ export function requestedProtos(search = location.search): ProtoName[] {
   if (!m) return [];
   const list = m[1].split(',');
   return list.includes('all') ? [...PROTOS] : PROTOS.filter((p) => list.includes(p));
-}
-
-// ---------------------------------------------------------------- rendu
-function protoRendu(g: Game): void {
-  const { renderer, post, scene, camera } = g.render;
-  renderer.toneMapping = THREE.AgXToneMapping;   // OutputPass lit le tone mapping du renderer
-  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  const n8 = new N8AOPass(scene, camera, size.x, size.y);
-  n8.configuration.aoRadius = 2.5;
-  n8.configuration.distanceFalloff = 1.0;
-  n8.configuration.intensity = 2.2;
-  n8.configuration.halfRes = size.x * size.y > 1.5e6;
-  n8.configuration.gammaCorrection = false;      // la sortie sRGB est faite par OutputPass, plus loin
-  const passes: Any[] = post.composer.passes, i = passes.indexOf(post.render);
-  passes.splice(i, 1, n8);                        // N8AOPass rend la scène puis applique l'occlusion
-  post.ao.enabled = false;
-  const resize = () => { const s = renderer.getDrawingBufferSize(new THREE.Vector2()); n8.setSize(s.x, s.y); };
-  window.addEventListener('resize', resize);
-  (window as Any).__vds.n8ao = n8;
 }
 
 // ---------------------------------------------------------------- façades et terrasses
@@ -66,13 +49,10 @@ async function protoFacade(g: Game): Promise<() => void> {
   const siding = detailMat('siding', { color: '#ffffff', roughness: 0.78 }, 1 / 1.35, 2.0, 1.0, false, [0.2, 0.4, 2.2]);
   const deck = detailMat('deck', { color: '#ffffff', roughness: 0.8, vertexColors: true }, 0.5, 1.8, 0.9, false, [0.2, 0.4, 2.2]);
   void lambertVC;
-  const swap = (root: THREE.Object3D, from: Any, to: Any) => root.traverse((o: Any) => { if (o.isMesh && from && o.material === from) o.material = to; });
   const refresh = () => {
-    for (const b of g.ski.BUILDINGS) {
-      if (!b.detail || b.detail.userData.proto) continue;
-      if (['block', 'tower', 'paquebot'].includes(b.type)) swap(b.detail, matCache.stone, concrete);
-      else { swap(b.detail, matCache.plank, siding); swap(b.detail, matCache.log, siding); }
-      b.detail.userData.proto = true;
+    for (const sl of (POOLS.detail as Any).slabs.values()) {
+      const to = sl.src === matCache.stone ? concrete : sl.src === matCache.plank || sl.src === matCache.log ? siding : null;
+      if (to && sl.mesh.material !== to) { sl.mat = to; sl.mesh.material = to; }
     }
     for (const o of g.render.scene.children) if (o.userData?.kind === 'terrace' && !o.userData.proto) {
       o.traverse((m: Any) => { if (m.isMesh && m.material?.vertexColors) m.material = deck; });
@@ -146,7 +126,6 @@ function protoVisage(g: Game): () => void {
 /** Active les prototypes demandés, une fois le jeu prêt. Renvoie la fonction de rafraîchissement (nouveaux objets). */
 export async function startProtos(list: ProtoName[], g: Game): Promise<() => void> {
   const refreshers: (() => void)[] = [];
-  if (list.includes('rendu')) protoRendu(g);
   if (list.includes('facade')) refreshers.push(await protoFacade(g));
   if (list.includes('visage')) refreshers.push(protoVisage(g));
   const refresh = () => refreshers.forEach((f) => f());

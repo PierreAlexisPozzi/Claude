@@ -4,16 +4,26 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAPass } from 'three/addons/postprocessing/FXAAPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { N8AOPass } from 'n8ao';
+import { SKY, calibrateSky, horizonColor, makeSky, solarPosition, sunLight, sunVector, updateSky } from './sky';
 import { _av } from './assembly';
 import { $, Q, QUALITY, V3, qName } from './core';
 
-export let srgbTex, canvas, renderer, MAX_ANISO, scene, FOG, camera, SUN_DIR, hemi, sun, SC, SUN_R, SUN_U, TERRAIN_LAYER, TREE_LAYER, PROXY_LAYER, SMALL_LAYER, sunFar, SCF, _fwd, SKY_MAT, sky, FilmShader, post;
+export let srgbTex, canvas, renderer, MAX_ANISO, scene, FOG, camera, SUN_DIR, hemi, sun, SC, SUN_R, SUN_U, TERRAIN_LAYER, TREE_LAYER, PROXY_LAYER, SMALL_LAYER, sunFar, SCF, _fwd, SKY_MAT, sky, FilmShader, post, GradeShader, ENV_RT;
 
+
+/** T4 : réglages de N8AO selon le préréglage (demi-résolution et échantillons). */
+export function configureAO(n8, T) {
+  const c = n8.configuration;
+  if (c.halfRes !== !!T.aoHalf) c.halfRes = !!T.aoHalf;
+  if (c.aoSamples !== (T.aoSamples || 16)) c.aoSamples = T.aoSamples || 16;
+  if (c.denoiseSamples !== (T.aoDenoise || 8)) c.denoiseSamples = T.aoDenoise || 8;
+  if (n8.beautyRenderTarget.samples !== T.msaa) { n8.beautyRenderTarget.samples = T.msaa; n8.beautyRenderTarget.dispose(); }
+}
 
 export function updateSunFar(cam) {
   if (!sunFar.visible) return;
@@ -35,11 +45,19 @@ export function updateSun(c) {
 /* image-based lighting: the same procedural sky (without the sun disc, which the directional light already gives),
    prefiltered by PMREM. Snow in the shade turns blue from the sky, as it does outdoors. */
 export function buildEnvironment() {
-  const envScene = new THREE.Scene(), envMat = SKY_MAT.clone(); envMat.uniforms.uDisc.value = 0;
-  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), envMat));
-  const pmrem = new THREE.PMREMGenerator(renderer), rt = pmrem.fromScene(envScene, 0.02, 0.1, 400);
-  scene.environment = rt.texture; scene.environmentIntensity = 0.85;
-  pmrem.dispose(); envMat.dispose();
+  // T4 : le ciel physique (sans disque solaire), refait quand l'heure change
+  const envScene = new THREE.Scene(), s = makeSky(SUN_DIR, 0); s.scale.setScalar(300); envScene.add(s);
+  const pmrem = new THREE.PMREMGenerator(renderer), rt = pmrem.fromScene(envScene, 0.02, 0.1, 1000);
+  if (ENV_RT) ENV_RT.dispose();
+  ENV_RT = rt; scene.environment = rt.texture; scene.environmentIntensity = 0.85;
+  pmrem.dispose(); s.material.dispose(); s.geometry.dispose();
+}
+
+/** T4 : couleur du brouillard et de la brume = horizon du ciel physique (valeur d'affichage, décodée par les chunks). */
+export function applyFog() {
+  const h = horizonColor(SUN_DIR);
+  FOG.setRGB(Math.pow(h[0], 1 / 2.2), Math.pow(h[1], 1 / 2.2), Math.pow(h[2], 1 / 2.2));
+  scene.fog.color.copy(FOG); scene.background = new THREE.Color().setRGB(h[0], h[1], h[2]);
 }
 
 export function __init_553() {
@@ -61,7 +79,12 @@ THREE.ColorManagement.enabled = false;
   need('fog_fragment', 'mix( gl_FragColor.rgb, fogColor, fogFactor )');
     // aerial perspective: on top of the exponential-squared fog, a long-range haze (≈ 30 % at 4 km) lightens and blues
   // the distant ridges the way the alpine air does; the same term on every fogged material, so no seams
-  SCk.fog_fragment = SCk.fog_fragment.replace('mix( gl_FragColor.rgb, fogColor, fogFactor )', 'mix( gl_FragColor.rgb, ' + dec('fogColor') + ', max( fogFactor, ( 1.0 - exp( - vFogDepth / 7000.0 ) ) * 0.6 ) )');
+  // T4 : la brume est plus dense dans les fonds de vallée (sous ≈ 1 450 m) qu'en altitude (au-dessus de ≈ 2 150 m)
+  need('fog_vertex', 'vFogDepth = - mvPosition.z;');
+  SCk.fog_pars_vertex = SCk.fog_pars_vertex + '\n#ifdef USE_FOG\n\tvarying float vFogWY;\n#endif\n';
+  SCk.fog_vertex = SCk.fog_vertex.replace('vFogDepth = - mvPosition.z;', 'vFogDepth = - mvPosition.z;\n\tvFogWY = ( inverse( viewMatrix ) * mvPosition ).y;');
+  SCk.fog_pars_fragment = SCk.fog_pars_fragment + '\n#ifdef USE_FOG\n\tvarying float vFogWY;\n#endif\n';
+  SCk.fog_fragment = SCk.fog_fragment.replace('mix( gl_FragColor.rgb, fogColor, fogFactor )', 'mix( gl_FragColor.rgb, ' + dec('fogColor') + ', max( fogFactor, ( 1.0 - exp( - vFogDepth / 7000.0 ) ) * 0.6 * mix( 1.45, 0.8, smoothstep( -300.0, 400.0, vFogWY ) ) ) )');
 }
 srgbTex = t => { t.colorSpace = THREE.SRGBColorSpace; return t; };
 }
@@ -76,8 +99,8 @@ canvas = $('c');
 renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
 renderer.setPixelRatio(Q.pr);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.8;
+renderer.toneMapping = THREE.AgXToneMapping;   // T4 : AgX (teintes plus naturelles qu'ACES dans les hautes lumières : neige, ciel)
+renderer.toneMappingExposure = 1.05;
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -88,8 +111,11 @@ FOG = new THREE.Color('#c5d6ea');
 scene.fog = new THREE.FogExp2(FOG, 0.000095);
 scene.background = FOG.clone().convertSRGBToLinear();
 camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.3, 26000);
-// low winter sun (31°) from the south-east: long shadows that show the relief
-SUN_DIR = new V3(0.45, 0.52, 0.72).normalize();
+// T4 : soleil calculé pour La Plagne à une date et une heure solaires (sky.ts) ; par défaut le 1er mars à 10 h,
+// soleil bas (30°) au sud-est comme avant : de longues ombres qui montrent le relief
+{ const p = solarPosition(SKY.day, SKY.hour, SKY.lat); SKY.el = p.el; SKY.az = p.az; SUN_DIR = sunVector(p.el, p.az); }
+calibrateSky(SUN_DIR);
+applyFog();
 /* ---------------- LIGHTS ----------------
    Physical light units (r155+): intensities are about π times the old values. The procedural sky also lights the
    scene as an image-based environment (see buildEnvironment), so the hemisphere light only adds a little fill. */
@@ -98,7 +124,7 @@ hemi = new THREE.HemisphereLight(0xd3e2ff, 0x8c95a8, 0.32);
  hemi.groundColor.convertSRGBToLinear();
  scene.add(hemi);
 sun = new THREE.DirectionalLight(0xfff0dc, 2.6);
- sun.color.convertSRGBToLinear();
+ sun.intensity = sunLight(SUN_DIR, sun.color);   // teinte et intensité après traversée de l'atmosphère
 sun.castShadow = true;
  sun.shadow.mapSize.set(Q.shadow, Q.shadow);
 SC = sun.shadow.camera;
@@ -186,15 +212,9 @@ _fwd = new V3();
 	#endif`);
 }
 
-// sky dome with a hazy horizon and a sun glow
-SKY_MAT = new THREE.ShaderMaterial({
-  side: THREE.BackSide, depthWrite: false, fog: false,
-  uniforms: { sunDir: { value: SUN_DIR }, uDisc: { value: 1 } },
-  vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader: 'uniform vec3 sunDir; uniform float uDisc; varying vec3 vD; void main(){ vec3 d = normalize(vD); float h = max(d.y,0.0); vec3 hor = vec3(0.78,0.85,0.93); vec3 mid = vec3(0.42,0.6,0.86); vec3 zen = vec3(0.13,0.3,0.66); vec3 c = mix(hor, mid, smoothstep(0.0,0.25,h)); c = mix(c, zen, smoothstep(0.2,0.9,h)); float s = max(dot(d,sunDir),0.0); c += vec3(1.0,0.86,0.62)*pow(s,24.0)*0.22 + vec3(1.0,0.9,0.75)*pow(s,4.0)*0.06; if(d.y<0.0) c = hor; c = pow(c, vec3(2.2)); c += vec3(1.0,0.93,0.78)*pow(s,1400.0)*40.0*uDisc; gl_FragColor = vec4(c,1.0); }'
-});
-sky = new THREE.Mesh(new THREE.SphereGeometry(20000, 32, 16), SKY_MAT);
-sky.renderOrder = -1;
+// T4 : ciel physique (Preetham, Sky de three.js) au lieu du dégradé peint
+sky = makeSky(SUN_DIR);
+SKY_MAT = sky.material;
  scene.add(sky);
 buildEnvironment();
 
@@ -217,13 +237,32 @@ FilmShader = {
       gl_FragColor = vec4(c, 1.0);
     }`
 };
+/* T4 : étalonnage, en lumière linéaire avant le tone mapping : contraste en espace logarithmique autour du gris
+   moyen, ombres légèrement froides et hautes lumières légèrement chaudes, saturation */
+GradeShader = {
+  uniforms: { tDiffuse: { value: null }, uContrast: { value: 1.08 }, uSat: { value: 1.16 }, uShadow: { value: new V3(0.95, 0.985, 1.07) }, uHigh: { value: new V3(1.03, 1.0, 0.965) } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uContrast; uniform float uSat; uniform vec3 uShadow; uniform vec3 uHigh; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv); vec3 x = c.rgb; const vec3 Y = vec3(0.2126, 0.7152, 0.0722);
+      float L = max(dot(x, Y), 1e-5), lg = log2(L / 0.18);
+      x *= 0.18 * exp2(lg * uContrast) / L;
+      x *= mix(uShadow, uHigh, smoothstep(-3.0, 1.5, lg));
+      x = mix(vec3(dot(x, Y)), x, uSat);
+      gl_FragColor = vec4(max(x, vec3(0.0)), c.a);
+    }`
+};
 post = (() => {
   const T = QUALITY[qName], w = window.innerWidth, h = window.innerHeight;
   const rt = new THREE.WebGLRenderTarget(w * Q.pr, h * Q.pr, { type: THREE.HalfFloatType, samples: T.msaa });
   const composer = new EffectComposer(renderer, rt);
   const render = new RenderPass(scene, camera);
-  const ao = new GTAOPass(scene, camera, w * Q.pr, h * Q.pr);
-  ao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.6, thickness: 1.5, scale: 1.0, samples: 12, distanceFallOff: 1.0 }); ao.blendIntensity = 0.8;
+  // T4 : occlusion ambiante N8AO (CC0 / ISC) à la place de GTAO. N8AOPass rend la scène lui-même : il remplace la
+  // passe de rendu quand l'occlusion est active, avec le même anticrénelage MSAA
+  const n8 = new N8AOPass(scene, camera, w * Q.pr, h * Q.pr);
+  Object.assign(n8.configuration, { aoRadius: 2.5, distanceFalloff: 1.0, intensity: 2.0, gammaCorrection: false });
+  n8.beautyRenderTarget.samples = T.msaa;
+  const ao = { pass: n8, get enabled() { return n8.enabled; }, set enabled(v) { n8.enabled = v; render.enabled = !v; } };
   const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.2, 0.5, 2.4);
   // a single NaN / Inf pixel (any shader, any GPU) would be smeared by the bloom's blur chain into large black
   // rectangles that come and go with the camera angle: clean the frame before the bloom and the AO blur see it
@@ -234,10 +273,10 @@ post = (() => {
       void main() { vec4 c = texture2D(tDiffuse, vUv);
         if (bad(c.r) || bad(c.g) || bad(c.b) || bad(c.a)) c = vec4(0.0, 0.0, 0.0, 1.0);
         gl_FragColor = clamp(c, vec4(0.0), vec4(512.0)); }` });
-  const out = new OutputPass(), fxaa = new FXAAPass(), film = new ShaderPass(FilmShader);
-  for (const p of [render, ao, clean, bloom, out, fxaa, film]) composer.addPass(p);
+  const out = new OutputPass(), fxaa = new FXAAPass(), film = new ShaderPass(FilmShader), grade = new ShaderPass(GradeShader);
+  for (const p of [render, n8, clean, bloom, grade, out, fxaa, film]) composer.addPass(p);
   composer.setPixelRatio(Q.pr); composer.setSize(w, h);
-  ao.enabled = T.ao; bloom.enabled = T.bloom; fxaa.enabled = T.fxaa;
-  return { composer, render, ao, clean, bloom, out, fxaa, film };
+  ao.enabled = !!T.ao; bloom.enabled = T.bloom; fxaa.enabled = T.fxaa; configureAO(n8, T);
+  return { composer, render, ao, n8, clean, bloom, grade, out, fxaa, film };
 })();
 }

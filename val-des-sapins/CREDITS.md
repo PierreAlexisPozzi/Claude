@@ -7,10 +7,10 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 
 | Composant | Version | Licence | Source | Usage |
 |---|---|---|---|---|
-| Three.js | 0.187.0 (figée) | MIT | <https://github.com/mrdoob/three.js> | Rendu 3D, chargeur glTF, post-traitement (GTAO, bloom, FXAA) |
+| Three.js | 0.187.0 (figée) | MIT | <https://github.com/mrdoob/three.js> | Rendu 3D, chargeur glTF, post-traitement (bloom, FXAA, AgX), ciel de Preetham (addon `Sky`, d'après A. J. Preetham, P. Shirley, B. Smits, *A Practical Analytic Model for Daylight*, 1999) |
 | meshoptimizer — décodeur (fourni avec three.js) | 1.1 | MIT | <https://github.com/zeux/meshoptimizer> | Décompression des modèles EXT_meshopt_compression |
 | Basis Universal — transcodeur (fourni avec three.js) | — | Apache 2.0 | <https://github.com/BinomialLLC/basis_universal> | Transcodage des textures KTX2 vers les formats GPU (ASTC, BC7, ETC2) |
-| N8AO (prototype `?proto=rendu`) | 2.1.0 | CC0 1.0 (dépôt) ; ISC (paquet npm) | <https://github.com/N8python/n8ao> | Occlusion ambiante |
+| N8AO | 2.1.0 | CC0 1.0 (dépôt) ; ISC (paquet npm) | <https://github.com/N8python/n8ao> | Occlusion ambiante (rendu par défaut depuis T4 : Moyenne sur ordinateur, Haute, Ultra) |
 | Fontsource — Barlow, Barlow Condensed | 5.3.0 | SIL Open Font License 1.1 (polices et paquets) | <https://fontsource.org/fonts/barlow-condensed> · <https://github.com/jpt/barlow> | Polices du HUD, servies avec le jeu |
 
 ## Outils de production (non intégrés au jeu)

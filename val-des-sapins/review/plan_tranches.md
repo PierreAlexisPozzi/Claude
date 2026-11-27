@@ -7,7 +7,7 @@ performances, `README.md` à jour, résumé court (changements, mesures, limites
 
 Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en français.
 
-**État** : T1, T2 et T3 livrées (mesures : `mesures_T1.md`, `mesures_T2.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. Prochaine : T4.
+**État** : T1 à T4 livrées (mesures : `mesures_T1.md` à `mesures_T4.md` ; étude : `etude_outils.md`) ; `game.html` retiré après la parité. Prochaine : T5 (après ton retour sur T4 ; une validation après chaque typologie en T5 et T6).
 
 ## Constats de départ (lecture du code)
 
@@ -27,7 +27,7 @@ Branche : `claude/quirky-lamport-iqfb8a` (celle de la PR existante), commits en 
 | **T1** | Migration web à parité (axe 0, partie 1) | `web/` Vite + TS ; three@0.187.0 figé ; 20+ modules générés par `web/tools/split-game.mjs` ; HUD en `src/hud/hud.html` + `hud.css` ; assets en fichiers dans `public/assets/` chargés par `fetch` ; couche `storage` (IndexedDB → localStorage) + migration ; `npm run dev/build/test` ; workflow GitHub Pages **désactivé** | Ordre d'évaluation et liaisons réassignées entre modules ; chemins relatifs dans l'artefact ; IndexedDB bloqué | démarrage, robot pistes + remontées, sauvegarde/migration, mobile, chevauchement HUD (3 tailles), perfs, slalom, vues de référence ; **parité** : mêmes résultats que `game.html` |
 | **T2** | Assets compressés et tuiles (axe 0, partie 2) | `.glb` en meshopt (glTF-Transform), textures KTX2/Basis (avec repli), relief et pistes en binaire par tuiles, cache service worker | Attributs personnalisés (`_flutter`, skinning quantifié) perdus à la compression ; flipY des KTX2 | parité visuelle (écart d'image par vue), temps jusqu'à l'état jouable |
 | **T3** | Étude des outils + prototypes (axe 0 bis) | `review/etude_outils.md` (licences vérifiées à la source), prototypes façade + terrasse et visage en gros plan, `CREDITS.md` + écran de crédits ; retrait de `game.html` (commit séparé) une fois la parité confirmée | Licences mal lues ; outil abandonné | captures avant/après des prototypes |
-| **T4** | Rendu général (1A) | ciel physique + soleil horaire, IBL, CSM, SSAO/GTAO, AgX, étalonnage, neige scintillante, accumulations, brume ; préréglages Basse/Moyenne/Haute/**Ultra** + détection | Coût GPU mobile ; budget d'appels de dessin | perfs par préréglage, vues de référence |
+| **T4** | Rendu général (1A) | ciel physique + soleil horaire, IBL, cascades d'ombres, occlusion N8AO, AgX, étalonnage, neige scintillante, accumulations, brume ; préréglages Basse/Moyenne/Haute/**Ultra** + détection ; regroupement des appels de dessin (plafonds tenus) | Coût GPU mobile ; budget d'appels de dessin | perfs par préréglage, plafonds bloquants, table de détection, vues de référence |
 | **T5** | Bâtiments Plagne Centre + terrasses (1B) | façades en relief réel, interior mapping varié, PBR usé, terrasses complètes, abords ; enseignes génériques (retrait des marques) | Appels de dessin (instanciation obligatoire) | 2 vues façade + terrasse, plafond 1 700 / 400 appels |
 | **T6** | Autres typologies + LOD (1B) | paquebot d'Aime 2000, Bellecôte, Belle Plagne, 1800, Villages ; LOD proche/moyen/imposteur sans saut | Transitions visibles | 6 vues de référence, test de « pop » |
 | **T7** | Visages, peau, yeux, cheveux + mode photo (1C) | LOD de tête dédié, peau PBR + SSS approché, yeux à cornée, cheveux en cartes, équipement détaillé, mode photo avec profondeur de champ | Données MakeHuman non versionnées ; coût des cartes de cheveux | 6 visages × 3 angles × 2 lumières |

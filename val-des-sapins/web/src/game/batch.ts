@@ -20,12 +20,28 @@ const _m = new THREE.Matrix4(), _v = new THREE.Vector3(), _s = new THREE.Vector3
 export const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const cellOf = (x, z, c = CELL) => Math.floor(x / c) + ':' + Math.floor(z / c);
 
+/* ---------------- neige accumulée (T4) ----------------
+   Les objets fixes du domaine (bâtiments, gares, pylônes, mobilier) reçoivent une variante de leur matière avec
+   USE_SNOWACC : la neige se pose sur leurs faces tournées vers le ciel (nuanceur commun, materials.ts). Les
+   personnages, qui partagent certaines matières, gardent l'originale. Pas de neige sur le verre ni les lumières. */
+// clone sans copier userData par JSON (textures non sérialisables) : on garde les mêmes objets
+const cloneMat = src => { const ud = src.userData; src.userData = {}; const m = src.clone(); src.userData = ud; m.userData = ud; return m; };
+const ACC_OK = m => m.isMeshStandardMaterial && !m.transparent && m.roughness > 0.2 && !(m.emissive && m.emissive.getHex() !== 0) && !!m.userData.grainU;
+const accMats = new Map();
+export function snowAcc(src) {
+  if (!ACC_OK(src)) return src;
+  let m = accMats.get(src); if (m) return m;
+  m = cloneMat(src); m.onBeforeCompile = src.onBeforeCompile;
+  m.defines = Object.assign({}, src.defines, { USE_SNOWACC: '' });
+  accMats.set(src, m); return m;
+}
+
 /* ---------------- réserves d'instances ---------------- */
 class Slab {
   constructor(src, name) {
     this.name = name; this.geo = src.geometry.clone(); this.geo.computeBoundingSphere();
     this.r0 = this.geo.boundingSphere.radius + this.geo.boundingSphere.center.length();
-    this.mat = src.material; this.color = !!src.instanceColor;
+    this.src = src.material; this.mat = snowAcc(src.material); this.color = !!src.instanceColor;
     this.cast = src.castShadow; this.recv = src.receiveShadow; this.mask = src.layers.mask; this.order = src.renderOrder;
     this.cap = 0; this.top = 0; this.free = []; this.mesh = null;
     this.box = new THREE.Box3(); this.pad = 0;
@@ -150,7 +166,7 @@ function patchHide(sh) {
 const hideMats = new Map();
 function hideMat(src) {
   let m = hideMats.get(src); if (m) return m;
-  m = src.clone(); m.userData = src.userData;
+  m = cloneMat(src); m.defines = Object.assign({}, src.defines, ACC_OK(src) ? { USE_SNOWACC: '' } : {});
   const prev = src.onBeforeCompile, base = THREE.Material.prototype.onBeforeCompile;
   m.onBeforeCompile = function (sh, r) { if (prev && prev !== base) prev.call(this, sh, r); patchHide(sh); };
   const key = src.customProgramCacheKey ? src.customProgramCacheKey.bind(src) : null;

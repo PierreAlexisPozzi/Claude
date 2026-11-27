@@ -29,7 +29,7 @@ await Promise.all([preloadAssets((p) => { if (loadmsg) loadmsg.textContent = `Ch
 (window as unknown as { __vds: Record<string, unknown> }).__vds = { STORE, assetsMs: performance.now() - t0, build: 'web' };
 runGame();
 
-// prototypes de la tranche T3 (?proto=rendu,facade,visage), chargés seulement s'ils sont demandés
+// prototypes de la tranche T3 (?proto=facade,visage), chargés seulement s'ils sont demandés
 const protos = requestedProtos();
 if (protos.length) {
   const w = window as unknown as { __ski?: { ready: boolean }; __vds: Record<string, unknown> };

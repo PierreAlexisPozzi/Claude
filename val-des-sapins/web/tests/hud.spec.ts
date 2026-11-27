@@ -40,6 +40,9 @@ const overlaps = (b: Box[]) => {
 /** Parcourt les états et renvoie les relevés. */
 async function survey(page: Page, target: Target, size: (typeof SIZES)[number]) {
   await openGame(page, target);
+  // T4 : le préréglage est choisi d'après l'appareil (Basse en rendu logiciel) ; les boîtes sont comparées à celles
+  // de game.html, dont le défaut était Moyenne sur ordinateur et Basse sur tactile : on remet ce défaut
+  if (target === 'web') await page.evaluate(() => (window as any).__ski.quality(document.body.classList.contains('touch') ? 'low' : 'medium'));
   const shots: Record<string, Awaited<ReturnType<typeof measure>>> = {};
   // T3 : écran des crédits, ouvert depuis l'accueil (absent de game.html)
   if (target === 'web') {

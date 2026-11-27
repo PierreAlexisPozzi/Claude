@@ -22,7 +22,7 @@ import { updateNPCs } from './npcs';
 import { updateSpray } from './particles';
 import { PEOPLE } from './people';
 import { P, STEP, stepSim } from './player';
-import { camera, canvas, post, renderer, sky, sun, sunFar, updateSun, updateSunFar } from './render';
+import { camera, canvas, configureAO, post, renderer, sky, sun, sunFar, updateSun, updateSunFar } from './render';
 import { ALT0, H } from './terrain';
 import { placeUtil, touchFrame } from './touch';
 import { updateTrails } from './trails';
@@ -98,7 +98,11 @@ export function applyQuality(name) {
   const sh = perf.stage >= 3 ? Math.min(1024, T.shadow) : T.shadow;
   if (sun.shadow.mapSize.x !== sh) { sun.shadow.mapSize.set(sh, sh); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   for (const r of [post.composer.renderTarget1, post.composer.renderTarget2]) if (r.samples !== T.msaa) { r.samples = T.msaa; r.dispose(); }
-  post.ao.enabled = T.ao && !perf.noAO; post.bloom.enabled = T.bloom; post.fxaa.enabled = T.fxaa;
+  post.ao.enabled = !!T.ao && !perf.noAO; post.bloom.enabled = T.bloom; post.fxaa.enabled = T.fxaa;
+  configureAO(post.n8, T);
+  // T4 : Ultra assemble les arbres et les bâtiments détaillés plus loin (rayons × T.near)
+  if (!NEAR.base) NEAR.base = { tree: NEAR.treeR, build: NEAR.buildR };
+  NEAR.treeR = NEAR.base.tree * (T.near || 1) * (perf.stage >= 1 ? 0.5 : 1); NEAR.buildR = NEAR.base.build * (T.near || 1) * (perf.stage >= 1 ? 0.6 : 1);
   resize(); qualityUI();
 }
 

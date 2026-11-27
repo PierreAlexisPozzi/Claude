@@ -31,10 +31,10 @@ Tranche T3 (axe 0 bis). Objectif : choisir, **licence vérifiée à la source**,
 | **AgX** (tone mapping de Three.js) | MIT (Three.js) | oui | gratuit | — | intégré à Three.js | blancs de neige moins « brûlés » qu'ACES, teintes plus justes | ✅ intégré (prototype `rendu`) |
 | **N8AO** | CC0 ([LICENSE](https://github.com/N8python/n8ao/blob/master/LICENSE)) ; npm : ISC | oui | gratuit | push 15/11/2026 | passe EffectComposer ; demi-résolution possible sur mobile | occlusion ambiante de bien meilleure qualité que GTAO à coût égal | ✅ intégré (prototype `rendu`) |
 | **pmndrs/postprocessing** | Zlib ([npm](https://www.npmjs.com/package/postprocessing)) | oui | gratuit | npm 01/11/2026 | composeur propre (fusionne les effets en une passe) | SMAA, étalonnage LUT, bloom plus efficaces | 🟡 en T4 si le composeur de Three.js devient limitant |
-| **CSM** (ombres en cascade, addon de Three.js) | MIT (Three.js) | oui | gratuit | maintenu avec Three.js | addon officiel | ombres nettes près du joueur, plus loin aussi | ✅ intégré en T4 (remplace les deux cartes faites main) |
+| **CSM** (ombres en cascade, addon de Three.js) | MIT (Three.js) | oui | gratuit | maintenu avec Three.js | addon officiel | ombres nettes près du joueur, plus loin aussi | 🟡 **non retenu en T4** : le jeu a déjà deux cascades faites main (84 m nettes, 700 m au loin, raccord dans le nuanceur) ; l'addon ajouterait une passe d'ombre par cascade (3–4), incompatible avec le plafond de 400 appels sur tactile |
 | three-csm (vtHawk) | MIT (npm) | oui | gratuit | dernier npm 12/2023 | — | doublon de l'addon officiel | ❌ inactif, doublon |
 | **three-mesh-bvh** | MIT (API GitHub) | oui | gratuit | push 25/11/2026 | oui | lancer de rayons rapide : collisions, placement de décor, ombres de contact | ✅ intégré dès T5 (placement d'objets) et T10 (lignes de vue des pisteurs) |
-| **@takram/three-atmosphere** (+ three-clouds) | MIT ([npm](https://www.npmjs.com/package/@takram/three-atmosphere)) | oui | gratuit | npm 05/2026 | Three.js + postprocessing ; WebGL2 | ciel physique (diffusion de Rayleigh/Mie), soleil cohérent avec l'heure, perspective aérienne | ✅ intégré en T4 (ciel) ; nuages en T14 (météo) |
+| **@takram/three-atmosphere** (+ three-clouds) | MIT ([npm](https://www.npmjs.com/package/@takram/three-atmosphere)) | oui | gratuit | npm 05/2026 | Three.js + postprocessing ; WebGL2 | ciel physique (diffusion de Rayleigh/Mie), soleil cohérent avec l'heure, perspective aérienne | 🟡 **non retenu en T4** : demande la pile « postprocessing » en plus de celle du jeu et déclare React en dépendances ; paquet de 37 Mo (vérifié avec `npm view`, v0.19.1). Remplacé par le `Sky` de three.js (Preetham, MIT) ; à réévaluer pour Ultra |
 | three-good-godrays | licence de type zlib ([LICENSE](https://github.com/Ameobea/three-good-godrays/blob/main/LICENSE)) | oui | gratuit | push 05/11/2026 | dépend de postprocessing | rayons de soleil volumétriques | 🟡 option Ultra |
 | **LYGIA** (bibliothèque de shaders) | Prosperity 3.0 + Patron ([LICENSE.md](https://github.com/patriciogonzalezvivo/lygia/blob/main/LICENSE.md)) : gratuit **pour un usage non commercial**, commercial payant | source disponible, **non permissive** | gratuit en non commercial | push 24/10/2026 | GLSL/WGSL à copier | bruits, éclairage, effets prêts | ❌ pour le code intégré : la règle impose une licence permissive. Consultable comme référence d'algorithme, sans copier de code. |
 
@@ -156,7 +156,7 @@ Aucun serveur ne sera déployé sans ton accord. L'interface est prête : `src/s
 
 | Domaine | Recommandés |
 |---|---|
-| Rendu | **AgX + N8AO** (prototypés) ; **CSM** et **@takram/three-atmosphere** en T4 |
+| Rendu | **AgX + N8AO** (adoptés en T4) ; ciel de **Preetham** (`Sky` de three.js) et deux cascades d'ombres maison en T4 (voir les décisions ci-dessous) |
 | Bâtiments | **Blender** (modules en relief) + **InstancedMesh2** (instanciation, LOD) |
 | Matières | **ambientCG** (prototypé) + **Poly Haven** (HDRI) |
 | Visages | **assets MakeHuman CC0 / MPFB 2** + **notre shader de peau** (prototypé) |
@@ -200,3 +200,15 @@ Captures avant / après dans `review/vues/T3-proto/` ; planche : `review/planche
   - la procédure de compilation d'ArmorPaint ;
   - le poids exact du WASM de Rapier ;
   - l'existence de textures de peau photo CC0 de qualité hors MakeHuman (recherche non exhaustive).
+
+## Décisions de la tranche T4 (rendu)
+
+- **AgX** et **N8AO** : adoptés (prototypes T3 concluants). N8AO remplace GTAO ; il rend la scène lui-même, avec le
+  même MSAA que le rendu normal.
+- **Ciel** : le modèle de Preetham fourni par three.js (`three/addons/objects/Sky.js`, MIT, déjà dans la dépendance
+  `three`) plutôt que `@takram/three-atmosphere` : aucune dépendance de plus, aucune seconde pile de post-traitement.
+  La même formule, réécrite en JavaScript (`src/game/sky.ts`), donne la couleur de l'horizon (brume), la teinte du
+  soleil et la calibration. Limite : Preetham est moins juste au lever et au coucher du soleil (T15).
+- **Ombres** : les deux cascades existantes sont gardées (voir la ligne CSM) ; sur tactile en qualité Moyenne, seule
+  la cascade proche reste, pour tenir 400 appels de dessin.
+

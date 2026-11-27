@@ -56,18 +56,28 @@ test (exécutions reproductibles au bit près).
 
 | Test | Contenu |
 |---|---|
-| `boot` | état jouable sans erreur, contrat d'identifiants du HUD, crédits visibles ; état initial identique à `game.html` (position, pistes, remontées, PNJ, missions, appels de dessin) |
+| `boot` | état jouable sans erreur, contrat d'identifiants du HUD, crédits visibles ; état initial identique à `game.html` (position, pistes, remontées, PNJ, missions ; depuis T4, moins d'appels de dessin) |
 | `robot` | descente de chaque piste au pilote automatique et montée de chaque remontée ; résultats identiques à `game.html` |
 | `save` | migration localStorage → IndexedDB sans perte (niveau 7 + fantôme), persistance, reprise d'une écriture de l'ancienne version, stockage bloqué sans erreur |
 | `mobile` | joystick fixe en bas à gauche, schuss au joystick, bouton doré contextuel, mini-carte ronde, aucun flou d'arrière-plan |
 | `hud` | chevauchements à 1000×560, 390×844 et 844×390 dans 13 états (repos, vitesse, chrono, remontée, aide, dialogue, plan × 3, carnet × 4) ; boîtes identiques à `game.html` |
-| `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre (Moyenne), ordinateur et tactile |
+| `perf` | appels de dessin, triangles, temps de frame, temps jusqu'à l'état jouable à Plagne Centre, ordinateur et tactile, par préréglage ; plafonds bloquants en Moyenne (1 700 / 400) depuis T4 |
+| `quality` | choix automatique du préréglage : table d'appareils (rendu logiciel, PC de jeu, portables, téléphones) |
 | `slalom` | 38 portes, descente propre, descente droit dans la pente (pénalités) ; identique à `game.html` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
+**Tranche T4 — rendu général** (mesures : `review/mesures_T4.md`, planche : `review/planche_T4_rendu.jpg`) :
+- **Appels de dessin** à Plagne Centre (Moyenne) : 1 726 → 664 sur ordinateur, 1 282 → 380 sur tactile ; les
+  plafonds (1 700 / 400) sont désormais bloquants dans `tests/perf.spec.ts`. Sur tactile, la qualité Moyenne n'a plus
+  la carte d'ombre lointaine (elle reste en Haute et Ultra).
+- **Nouveau rendu** : soleil horaire, ciel physique, IBL, AgX, étalonnage, N8AO, neige scintillante, neige accumulée,
+  brume de vallée ; préréglage **Ultra** (ombres 4096 px, MSAA ×8, occlusion à 32 échantillons, objets détaillés plus
+  loin) et choix automatique du préréglage (table de cas dans `tests/quality.spec.ts`).
+- Le prototype `?proto=rendu` de T3 est devenu le rendu par défaut et a été retiré ; `?proto=facade,visage` restent.
+
 **Tranche T3 — étude des outils et prototypes** : `review/etude_outils.md` (licences vérifiées à la source,
 recommandations par domaine, outils écartés), `review/references/README.md` (photos de La Plagne : liens, auteurs,
-licences, observations par typologie). Prototypes activables avec `?proto=rendu,facade,visage` (ou `?proto=all`),
+licences, observations par typologie). Prototypes activables avec `?proto=facade,visage` (ou `?proto=all` ; `rendu` jusqu'en T3),
 sans effet sur le jeu par défaut : AgX + N8AO ; béton banché, bardage et plancher CC0 d'ambientCG ; peau avec pores,
 rugosité variable et diffusion sous la surface approchée. Planche : `review/planche_T3_prototypes.jpg`. L'écran
 d'accueil a un bouton « Crédits et licences » (contenu de `CREDITS.md`). 12 vues de gros plan de visages ajoutées
@@ -105,14 +115,16 @@ et la liste des fichiers ; comme les artefacts ne servent ni `.glb` ni `.bin`, c
 - Traces de ski dynamiques : le joueur et les autres skieurs laissent leurs traces derrière eux (lignes de carving, dérapage, sillon en poudreuse, chenille de motoneige), qui s'estompent en 4 min environ ; le damage reste intact ailleurs.
 - Accès « Accès … » : chaque piste rejoint une remontée par une liaison verte en pente douce, avec une arrivée commune à plat au départ.
 
-## Rendu (Three.js r187, modules ES via importmap)
-- Flux linéaire : couleurs décodées en lumière linéaire dans les shaders, rendu HDR (HalfFloat), tone mapping ACES Filmic + sRGB en sortie.
-- Éclairage : soleil directionnel (ombres PCF 1024–2048 px, cadre recalé au texel), ciel procédural utilisé comme environnement IBL (PMREM), hémisphère légère, brouillard exponentiel accordé au ciel.
+## Rendu (Three.js 0.187.0, projet Vite)
+- Flux linéaire : couleurs décodées en lumière linéaire dans les shaders, rendu HDR (HalfFloat), tone mapping **AgX** + sRGB en sortie (ACES avant T4), étalonnage en lumière linéaire (contraste logarithmique, ombres froides, hautes lumières chaudes, saturation).
+- Éclairage (T4) : **soleil calculé** pour La Plagne à une date et une heure solaires (`src/game/sky.ts`, par défaut le 1er mars à 10 h : 30° au sud-est) ; teinte et intensité après traversée de l'atmosphère ; **ciel physique** (modèle de Preetham, `Sky` de three.js) avec quelques nuages hauts, aussi utilisé comme environnement IBL (PMREM, refait quand l'heure change) ; deux cascades d'ombres (84 m nets autour du skieur, 700 m au loin) ; brume et perspective atmosphérique accordées à l'horizon du ciel, plus denses en fond de vallée. `__ski.setHour(h, jour)` change l'heure (cycle continu en T15).
 - Matériaux PBR (Standard / Physical) : rugosité par type de neige (glace brillante, poudreuse mate), vernis à clearcoat (casque, skis), tissu avec sheen (veste), métal (pylônes, rails), vitrages réfléchissants ; micro-surface procédurale (rugosité + normale) sur toutes les surfaces sans texture.
-- Post-traitement : MSAA x4 (FXAA en qualité basse) → GTAO (haute) → bloom HDR à seuil élevé → OutputPass → vignette, grain fin, aberration chromatique légère.
+- Neige (T4) : paillettes qui renvoient le soleil vers l'œil (facettes de givre de 2,5 cm, effacées quand elles deviennent plus petites qu'un pixel) ; neige accumulée sur les faces tournées vers le ciel des bâtiments, gares, pylônes et mobilier.
+- Post-traitement : MSAA ×4 (×8 en Ultra ; FXAA en qualité basse) → occlusion ambiante **N8AO** (Moyenne en demi-résolution sur ordinateur, Haute, Ultra) → bloom HDR à seuil élevé → étalonnage → OutputPass → vignette, grain fin, aberration chromatique légère.
 - Sensations : champ de vision qui s'ouvre avec la vitesse, secousses de caméra (réceptions, chutes, bosses), poussière de diamant scintillant à contre-jour ; réduits avec « prefers-reduced-motion ».
-- Qualité Basse / Moyenne / Haute (écran d'accueil, bouton « Image », touche G), mémorisée ; la qualité s'abaisse d'elle-même si les images ralentissent.
-- Aucune ressource externe hormis Three.js (polices système).
+- Qualité Basse / Moyenne / Haute / **Ultra** (écran d'accueil, bouton « Image », touche G), mémorisée ; au premier lancement, choisie d'après l'appareil (`src/game/quality-detect.ts`) ; elle s'abaisse d'elle-même si les images ralentissent.
+- Appels de dessin regroupés (T4, `src/game/batch.ts`) : réserves d'instances partagées, coques de bâtiments fusionnées et masquables, une flotte de véhicules par type de remontée.
+- Aucune ressource externe : Three.js, N8AO et les polices sont servis avec le jeu.
 
 ## Modèles et matières Blender (bpy 5.3, module Python)
 - Scripts dans `blender/` (voir `blender/README.md`), exécutés avec Blender comme module Python ; les sorties brutes (`assets/`) sont allégées par `tools/slim_assets.py`, puis compressées pour le jeu par `npm run assets` dans `web/` (meshopt, KTX2, tuiles).

@@ -223,6 +223,7 @@ export function makeTerrainMaterial() {
     // tube, so its triangles would ramp across the opening; they are discarded inside the tube for 14 m from each portal
     const { PM, PS } = terrainCutouts();
     sh.uniforms.uPortal = { value: PM }; sh.uniforms.uPortalSize = { value: PS };
+    sh.uniforms.uSunW = { value: SUN_DIR };
     Object.assign(sh.uniforms, { tNG: { value: TEX.groom }, tNP: { value: TEX.powder }, tNC: { value: TEX.crud }, tNR: { value: BLEND.tex.rock_normal || TEX.rockN }, tRA: { value: BLEND.tex.rock_albedo || TEX.rockA } });
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aSnow; attribute float aDir; attribute float aSun; attribute float aIce;\nvarying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;')
@@ -230,7 +231,7 @@ export function makeTerrainMaterial() {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform sampler2D tNG; uniform sampler2D tNP; uniform sampler2D tNC; uniform sampler2D tNR; uniform sampler2D tRA; uniform mat4 uPortal[6]; uniform vec4 uPortalSize[6];
-varying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm;
+varying vec4 vSnow; varying float vDir; varying float vSun; varying float vIce; varying vec3 vWPos; varying vec3 vWNorm; uniform vec3 uSunW;
 vec3 tsN(sampler2D t, vec2 uv) { return texture2D(t, uv).xyz * 2.0 - 1.0; }`)
       .replace('#include <map_fragment>', `
   #ifndef NO_CUTOUT
@@ -268,7 +269,14 @@ vec3 tsN(sampler2D t, vec2 uv) { return texture2D(t, uv).xyz * 2.0 - 1.0; }`)
     vec3 vd = normalize(cameraPosition - vWPos);
     float tw = fract(hs * 57.31 + dot(vd, vec3(5.3, 7.1, 3.7)) * 2.0);
     float glint = smoothstep(0.986, 1.0, tw) * step(0.55, hs);
-    outgoingLight += vec3(glint) * vSun * (1.0 - W.w) * smoothstep(40.0, 4.0, length(cameraPosition - vWPos)) * 3.0; }
+    outgoingLight += vec3(glint) * vSun * (1.0 - W.w) * smoothstep(40.0, 4.0, length(cameraPosition - vWPos)) * 3.0;
+    // T4 : paillettes de neige qui renvoient le soleil vers l'œil (facettes de givre orientées au hasard, 2,5 cm) ;
+    // effacées quand une facette devient plus petite qu'un pixel (pas de fourmillement au loin)
+    vec3 fc = floor(vWPos * 40.0); float h1 = fract(sin(dot(fc, vec3(41.3, 289.1, 97.7))) * 43758.5453);
+    vec3 fn = normalize(nW + (vec3(h1, fract(h1 * 13.7), fract(h1 * 71.3)) - 0.5) * 0.9);
+    float sp = pow(max(dot(reflect(-vd, fn), uSunW), 0.0), 600.0) * step(0.7, fract(h1 * 5.3));
+    float px = length(fwidth(vWPos * 40.0));
+    outgoingLight += vec3(1.0, 0.97, 0.92) * sp * 14.0 * vSun * (1.0 - W.w) * (1.0 - smoothstep(0.35, 0.9, px)); }
 #include <opaque_fragment>`);
   };
   return m;
@@ -338,6 +346,13 @@ export function buildTerrainMesh() {
   scene.add(mesh);
 }
 
+/** T4 : recalcule l'ensoleillement cuit par sommet après un changement d'heure (≈ 1 à 2 s, pas pendant le jeu). */
+export function rebakeSun() {
+  SUN_H = Math.hypot(SUN_DIR.x, SUN_DIR.z) || 1e-4; SUN_HX = SUN_DIR.x / SUN_H; SUN_HZ = SUN_DIR.z / SUN_H; SUN_TAN = SUN_DIR.y / SUN_H;
+  for (let iz = 0; iz < VN; iz++) for (let ix = 0; ix < VN; ix++) { const i = iz * VN + ix; sunArr[i] = sunVis(-HALF + ix * CELL, -HALF + iz * CELL, heights[i]); }
+  if (terrainMesh) terrainMesh.geometry.attributes.aSun.needsUpdate = true;
+}
+
 export function sunAt(x, z) {
   let gx = clamp((x + HALF) / CELL, 0, N - 1e-4), gz = clamp((z + HALF) / CELL, 0, N - 1e-4);
   const ix = gx | 0, iz = gz | 0, fx = gx - ix, fz = gz - iz, i = iz * VN + ix;
@@ -382,6 +397,13 @@ grainHook = function (sh) {
     vec2 dUv = ( gTop ? vGPos.xz : ( gSide ? vGPos.zy : vGPos.xy ) ) * uDet.x;
     if ( uDet.w > 0.5 ) dUv = dUv.yx;
     diffuseColor.rgb *= mix( vec3( 1.0 ), texture2D( uDetA, dUv ).rgb / 0.214, uDet.z );
+  #endif
+  #ifdef USE_SNOWACC
+    // T4 : neige accumulée sur les faces tournées vers le ciel (rebords, appuis, poutres, toits plats) ; bord irrégulier
+    { float up = normalize( vGNrm ).y, nz = texture2D( uGrain, vGPos.xz * 0.37 ).b;
+      float acc = smoothstep( 0.8, 0.97, up ) * smoothstep( 0.42, 0.62, nz + up * 0.2 );
+      diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.86, 0.89, 0.93 ), acc * 0.6 );
+      roughnessFactor = mix( roughnessFactor, 0.8, acc ); }
   #endif`, 'grain');
   sh.fragmentShader = patchShader(sh.fragmentShader, '#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   { vec3 t1 = gTop ? vec3( 1.0, 0.0, 0.0 ) : ( gSide ? vec3( 0.0, 0.0, 1.0 ) : vec3( 1.0, 0.0, 0.0 ) );
