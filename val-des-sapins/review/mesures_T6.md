@@ -32,8 +32,12 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 ## 2. Plagne Centre : Le France
 - BD TOPO : « Immeuble Le France », 101 × 37 m, 9 niveaux. Il n'avait jamais été construit : la règle qui écarte les
   bâtiments posés sur une piste l'éliminait, puisque la piste bleue **Boulevard** passe dessous.
-- Construit en trois parties : deux ailes au sol (9 niveaux) et une section en pont de 39 m au-dessus de la piste,
-  jusqu'au même toit ; sous-face à **7,2 m** au-dessus de la neige. Le passage et sa hauteur sont **déduits** de
+- Construit en trois parties : deux ailes au sol (10 niveaux, 28,8 m) et une section en pont de 39 m au-dessus de la
+  piste, jusqu'au même toit ; sous-face à **7,2 m** au-dessus de la neige.
+- D'après tes trois photos : bardage bois orangé, sous-faces de balcons et corniche blanches ; niveau bleu clair à
+  petites fenêtres au-dessus du passage ; piliers de béton avec matelas orange (dans la marge, hors de la piste) ;
+  socle blanc vitré d'un niveau côté pistes ; cage d'escalier en bois au bout ouest, **sans le lettrage** (l'enseigne
+  des photos porte une marque). Le passage et sa hauteur sont **déduits** de
   l'emprise de la piste (OSM), pas relevés. Profondeur ramenée à 20 m (parties d'OSM).
 - Seules les ailes font obstacle : aucun obstacle sur la piste sous le pont, ailes hors de toute piste
   (`tests/lefrance.spec.ts`). Robot (dont la descente de Boulevard) identique.
@@ -81,11 +85,34 @@ Rendu logiciel (SwiftShader) : temps **indicatifs**.
 
 ## Appels de dessin (Moyenne, cœur de Plagne Centre ; post-traitement en plus)
 
-(Mesure en cours sur la version finale : complétée au commit suivant, avec les captures et les planches.)
+| Préréglage | Ordinateur | Tactile |
+|---|---|---|
+| Fin de T5 ter, Moyenne | 540 | 334 |
+| Aime 2000 et Le France seuls (avant les commerces et le recul de caméra) | 547 | 336 |
+| **Fin de T6 (1re livraison), Moyenne** (plafonds 1 700 / 400) | **619 · 8,05 M triangles** | **363 · 3,86 M triangles** |
+| Basse | 475 | 363 |
+| Haute | 619 | 505 |
+| Ultra | 659 | 521 |
+
+- La hausse vient surtout des immeubles commerçants désormais construits au cœur de Plagne Centre (Les Écrins et
+  leurs voisins, gardés au bord des fronts de neige) et des vitrines, qui ajoutent des combinaisons de matières ;
+  Le France et ses piliers sont fusionnés.
+- **Tactile : marge réduite** : 363 appels, environ 380 avec le post-traitement, pour un plafond de 400. Les prochaines
+  typologies devront regagner de la marge (regroupements) avant d'ajouter du contenu.
+- Temps indicatifs (rendu logiciel, plusieurs navigateurs en parallèle) : image en Moyenne 28 ms (ordinateur) et
+  13 ms (tactile).
 
 ## Non-régression
 
-(Suite complète en cours : complétée au commit suivant.)
+- `npm test` : 31 tests verts, 2 ignorés (prototypes T3), 2 échecs d'environnement, refaits à part sur la version
+  finale :
+  - mesure de performance arrêtée au bout de 30 min (quatre navigateurs en rendu logiciel en même temps, comme en
+    T4) : refaite seule, verte (plafonds tenus, chiffres ci-dessus) ;
+  - vues téléphone : le serveur de test s'était arrêté (connexion refusée) ; capturées ensuite sur la version finale.
+- Nouveaux tests verts : `aime`, `lefrance`, `shops`, terrasses sur téléphone.
+- Robot 113/115 pistes, 17 chutes, 17/17 remontées et slalom 38/38 : identiques à la référence, Le France et immeubles
+  commerçants compris. HUD 14 états × 3 tailles sans chevauchement ; sauvegarde, migration, mobile, hors ligne : verts.
+- État initial : `buildings` (158) et `credits` re-figés, expliqués dans `web/tests/baselines/README.md`.
 
 ## Limites et questions
 - **Le Pelvoux et Immeuble G1G2** (cœur de Plagne Centre, 18 commerces) : la piste bleue Boulevard II traverse leur

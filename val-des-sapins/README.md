@@ -76,7 +76,8 @@ test (exécutions reproductibles au bit près).
   (les commerces suivent la pente par paliers, neige à ± 27 cm), deux terrasses posées sur la neige ; replat de neige
   au pied des autres immeubles d'Aime 2000 qui donnent sur une piste (dont Club Med 2100).
 - **Le France** (Plagne Centre) : construit, avec la piste Boulevard qui passe sous une section en pont (7,2 m de
-  hauteur libre) entre deux ailes ; il manquait parce qu'une piste traverse son emprise.
+  hauteur libre) entre deux ailes ; il manquait parce qu'une piste traverse son emprise. Aspect d'après tes photos :
+  bois orangé et blanc, piliers à matelas orange, socle vitré, cage d'escalier en bois (sans lettrage de marque).
 - **Commerces** : 132 commerces d'OpenStreetMap référencés, 83 placés en vitrine sur la façade la plus proche
   (16 types d'enseignes génériques) ; **logements** aux autres rez-de-chaussée. Les 8 commerçants du jeu tiennent un
   commerce réel de leur type dans leur village.
@@ -84,6 +85,8 @@ test (exécutions reproductibles au bit près).
   paysage verrouillé au départ quand le navigateur le permet.
 - Vues de référence : visages qui suivent la personne, téléphone en paysage, vues du front de neige et aérienne
   d'Aime 2000 (cadrées comme tes photos), passage de Le France, vue de jeu.
+- Tactile 363 / ordinateur 619 appels à Plagne Centre (Moyenne, plafonds 400 / 1 700 : marge tactile réduite) ;
+  robot, slalom et HUD identiques.
 
 **Tranche T5 ter — terrasses au front de neige** (mesures : `review/mesures_T5ter.md`, liste OSM :
 `review/terrasses_osm.md`, planches : `review/planche_T5ter_terrasses.jpg`, `review/planche_T5ter_telephone.jpg`,
