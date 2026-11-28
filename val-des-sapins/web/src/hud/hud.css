@@ -400,7 +400,8 @@ body.touch .tbtn[data-k]::before{display:none}
 
 /* T7 : mode photo : panneau compact en bas à gauche, lisible au téléphone (paysage et portrait) */
 #photo{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:30;max-width:min(340px,calc(100vw - 24px))}
-#photo .phbox{background:rgba(11,19,32,.82);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 12px;display:grid;gap:6px;font:600 13px var(--body);color:var(--ink);backdrop-filter:blur(6px)}
+#photo .phbox{background:rgba(11,19,32,.86);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 12px;display:grid;gap:6px;font:600 13px var(--body);color:var(--ink)}
+@media (hover:hover) and (pointer:fine){#photo .phbox{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}}   /* T7 : pas de flou sur tactile (règle mobile) */
 #photo .phhead{display:flex;flex-direction:column;gap:2px}#photo .phhead b{font:800 15px var(--display);letter-spacing:.04em;text-transform:uppercase}#photo .phhead span{color:var(--ink-faint);font-weight:500;font-size:12px}
 #photo label{display:grid;grid-template-columns:1fr;gap:2px}#photo input[type=range]{width:100%;accent-color:#f2c65a}#photo output{color:var(--ink-dim);font-weight:500}
 #photo .phrow{display:flex;gap:8px;margin-top:4px}#photo .phrow button{flex:1;min-height:36px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--ink);font:700 13px var(--body);cursor:pointer}

@@ -2,7 +2,7 @@
    - Par défaut (npm test) : huit vues sensibles (dos vu d'en haut en schuss, télésiège, col, poignet, ourlet et bas de
      pantalon du joueur, col et nuque d'une habitante en bonnet) ; au plus 400 pixels par vue (0,1 % de l'image) : il
      reste de fins liserés en vue rasante là où une doublure rejoint son vêtement, plus aucune ouverture (avant : jusqu'à
-     1 785 px au col, ~100 000 px dans le bas du pantalon vu d'en dessous).
+     4 012 px au col, ~100 000 px dans le bas du pantalon vu d'en dessous).
    - VDS_PERSOS=1 : planche complète (toutes les poses et tous les angles), relevé sans seuil sauf VDS_PERSOS_MAX.
 
    - Joueur dans les poses du jeu (arrêt, schuss, virage, chasse-neige, télésiège), figées par le mode photo, vu sous six

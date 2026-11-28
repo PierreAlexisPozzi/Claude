@@ -122,8 +122,8 @@ test (exécutions reproductibles au bit près).
   huit vues sensibles dans les poses du jeu ; au plus 400 pixels par vue (0,1 % de l'image) : de fins liserés en vue
   rasante là où une doublure rejoint son vêtement, plus aucune ouverture. Pour les gros plans, la planche rapproche le plan de
   coupe de la caméra à 2 cm : à 30 cm, il tranchait la paroi d'un vêtement tout proche et faisait voir l'intérieur, un
-  faux jour. En jeu, la caméra reste à plus de 1,2 m. Témoin : la version d'avant y montre jusqu'à 1 785
-  pixels de jour au col. La planche complète se lance avec `VDS_PERSOS=1`.
+  faux jour. En jeu, la caméra reste à plus de 1,2 m. Témoin : la version d'avant y montre jusqu'à 4 012
+  pixels de jour au col et 104 718 dans le bas du pantalon. La planche complète se lance avec `VDS_PERSOS=1`.
 - **Mode photo** (touche P, Échap pour sortir ; « Photo » dans le menu « Plus » sur tactile) :
   - le jeu est figé ;
   - caméra libre autour du skieur ;
