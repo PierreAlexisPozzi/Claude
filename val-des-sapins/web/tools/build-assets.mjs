@@ -80,6 +80,13 @@ for (const file of fs.readdirSync(SRC).sort()) {
   console.log(`${file.padEnd(22)} → ${out.padEnd(22)} ${(before / 1024).toFixed(0).padStart(6)} Ko → ${(fs.statSync(path.join(OUT, out)).size / 1024).toFixed(0).padStart(6)} Ko`);
 }
 if (!only.length) {
+  // sorties déjà construites dont la source brute n'est pas versionnée (ex. béton CC0 d'ambientCG, T5) : gardées telles quelles
+  const bases = new Set(fs.readdirSync(SRC).map((f) => f.replace(/\.\w+$/, '')));
+  for (const f of fs.readdirSync(OUT).sort()) {
+    if (!/\.(ktx2|glb)$/.test(f) || manifest.includes(f) || bases.has(f.replace(/\.\w+$/, ''))) continue;
+    console.log(`${f.padEnd(22)}   gardé (source absente de ../assets, sortie versionnée)`); manifest.push(f);
+  }
+  manifest.sort();
   const tiles = buildTiles(SRC, OUT);
   manifest.push(...tiles.files);
   console.log(`tuiles : ${tiles.files.length} fichiers, ${(tiles.bytes / 1024).toFixed(0)} Ko`);

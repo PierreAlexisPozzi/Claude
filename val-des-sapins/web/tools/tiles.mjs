@@ -119,7 +119,7 @@ export function buildTiles(SRC, OUT) {
   const W = M.world, nt = Math.ceil(M.n / TILE), size = W / nt;
   const tileOf = (x, z) => [Math.min(nt - 1, Math.max(0, Math.floor((x + W / 2) / size))), Math.min(nt - 1, Math.max(0, Math.floor((z + W / 2) / size)))];
   const buckets = new Map(), counts = {};
-  for (const c of ['runs', 'lifts', 'buildings', 'places', 'areas', 'venues', 'shops']) {   // venues : restaurants, bars, cafés d'OSM (T5 ter) ; shops : commerces d'OSM (T6)
+  for (const c of ['runs', 'lifts', 'buildings', 'places', 'areas', 'venues', 'shops', 'landcover']) {   // venues : restaurants, bars, cafés d'OSM (T5 ter) ; shops : commerces d'OSM (T6) ; landcover : bois, roche, éboulis d'OSM (T8)
     if (!plagne[c]) continue;
     counts[c] = plagne[c].length;
     plagne[c].forEach((f, i) => {
