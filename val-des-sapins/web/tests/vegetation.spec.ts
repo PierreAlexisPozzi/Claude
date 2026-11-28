@@ -1,5 +1,5 @@
 /* T8 : paysage. Forêts aux emplacements OSM (bois et forêts), mélèzes et épicéas en peuplements, rochers dans la roche
-   nue et les éboulis, barres rocheuses ; aucun arbre ni rocher sur les pistes, les remontées, les bâtiments, les
+   nue et les éboulis, barres rocheuses, horizon (bois d'OSM au-delà du secteur, mélèzes lointains) ; aucun arbre ni rocher sur les pistes, les remontées, les bâtiments, les
    terrasses, les personnes, le snowpark ou le départ. Le générateur partagé `rnd` garde la même suite qu'en T7 / T8a
    (PNJ et horizon identiques : tests/baselines/rnd-pnj.json). */
 import { test, expect } from '@playwright/test';
@@ -35,15 +35,19 @@ test('végétation : forêts OSM, essences, rochers, exclusions, suite de rnd in
     for (let i = 0; i < n; i++) { const k = Math.floor((T.x[i] + 1400) / C) + Math.floor((T.z[i] + 1400) / C) * 1000; if (!chunks.has(k)) chunks.set(k, new Set()); chunks.get(k)!.add(T.sp[i]); }
     let mixed = 0; for (const v of chunks.values()) if (v.size > 1) mixed++;
     const npc = s.npcs.slice(0, 12).map((q: any) => [+q.skill.toFixed(6), +q.h.toFixed(6), +(q.gth || 0).toFixed(6)]);   // tirages purs (la phase avance avec le temps)
-    let horizon = 0; s.scene.traverse((o: any) => { if (o.isInstancedMesh && o.frustumCulled === false && o.count >= 6000 && o.geometry.attributes.position.count < 60) horizon = Math.max(horizon, o.count); });
+    let horizon = 0, extra = 0, hLarch = 0; s.scene.traverse((o: any) => { if (o.userData.horizonStands) { horizon = o.userData.legacyN; extra = o.count - horizon; const a = o.geometry.getAttribute('iSp').array; for (const v of a) hLarch += v; hLarch /= a.length; } });
     const terraces = s.BUILDINGS.filter((B: any) => B.terrace).length;
-    return { terraces, n, wood, larch, clear, badTrees, badRocks: bad, rocks: Rk.x.length, onRock, rClear, bands: Rk.bands, farSpecies: T.farSpecies, farMeshes: T.farMeshes.length, chunks: chunks.size, mixed, protos: s.NEAR.protos ? s.NEAR.protos.length : 0, npc, npcN: s.npcs.length, horizon, cover: s.cover.wood };
+    return { terraces, n, wood, larch, clear, badTrees, badRocks: bad, rocks: Rk.x.length, onRock, rClear, bands: Rk.bands, farSpecies: T.farSpecies, farMeshes: T.farMeshes.length, chunks: chunks.size, mixed, protos: s.NEAR.protos ? s.NEAR.protos.length : 0, npc, npcN: s.npcs.length, horizon, extra, hLarch, cover: s.cover.wood };
   });
   console.log(JSON.stringify({ ...r, npc: undefined }));
   // suite du générateur partagé : PNJ et forêts lointaines de l'horizon identiques à T8a
   expect(r.npc).toEqual(RND.pnj);
   expect(r.npcN).toBe(RND.pnjN);
-  expect(r.horizon).toBe(RND.horizon);
+  expect(r.horizon).toBe(RND.horizon);                    // bouquets lointains d'avant T8, mêmes tirages
+  // horizon : bois d'OSM débordant du secteur, et des mélèzes parmi les bouquets lointains
+  expect(r.extra).toBeGreaterThan(500);
+  expect(r.hLarch).toBeGreaterThan(0.05);
+  expect(r.hLarch).toBeLessThan(0.6);
   // forêts d'après OSM
   expect(r.cover).toBeGreaterThan(10000);                 // mailles de 4 m classées « bois »
   expect(r.wood / r.n).toBeGreaterThan(0.8);

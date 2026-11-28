@@ -8,7 +8,8 @@ import { makeLabel } from './furniture';
 import { TEX, lambertVC, mergeParts, pbr } from './materials';
 import { pisteHeading, tunnels } from './pistes';
 import { scene } from './render';
-import { ALT0, HALF, baseHeight, fbm, gridH, perlin, ridged, rnd } from './terrain';
+import { ALT0, HALF, baseHeight, fbm, gridH, mulberry32, perlin, ridged, rnd } from './terrain';
+import { COVER, coverWideAt, larchScore, speciesMaterials, treeSpecies } from './vegetation';
 import { BLEND, PLAGNE } from './world-data';
 
 export let tunnelFx, tunnelUniforms, TUN_LIGHT;
@@ -147,11 +148,11 @@ export function backdropMaterial() {
   if (!MA) return lambertVC();
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { tMA: { value: MA }, tMN: { value: MN }, tRA: { value: RA }, tRN: { value: RN }, tSN: { value: SN_ } });
-    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nattribute float aForest;\nvarying float vForest;\nvarying vec3 vBW;\nvarying vec3 vBN;', 'backdrop');
-    sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vForest = aForest; vBW = (modelMatrix * vec4(position, 1.0)).xyz; vBN = normalize(mat3(modelMatrix) * normal);', 'backdrop');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nattribute float aForest;\nattribute float aLarch;\nvarying float vForest;\nvarying float vLarch;\nvarying vec3 vBW;\nvarying vec3 vBN;', 'backdrop');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vForest = aForest; vLarch = aLarch; vBW = (modelMatrix * vec4(position, 1.0)).xyz; vBN = normalize(mat3(modelMatrix) * normal);', 'backdrop');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', `#include <common>
 uniform sampler2D tMA; uniform sampler2D tMN; uniform sampler2D tRA; uniform sampler2D tRN; uniform sampler2D tSN;
-varying float vForest; varying vec3 vBW; varying vec3 vBN;
+varying float vForest; varying float vLarch; varying vec3 vBW; varying vec3 vBN;
 float bdRock, bdSnowFace;`, 'backdrop');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <map_fragment>', `
   vec3 nB = normalize(vBN); bool bX = abs(nB.x) > abs(nB.z);
@@ -170,6 +171,8 @@ float bdRock, bdSnowFace;`, 'backdrop');
   vec3 snowCol = vec3(0.93, 0.95, 0.99) * (0.96 + 0.06 * texture2D(tRA, vBW.xz / 160.0).g);
   float speck = texture2D(tRA, vBW.xz / 18.0).r;
   vec3 forestCol = mix(vec3(0.16, 0.24, 0.2), vec3(0.85, 0.88, 0.93), smoothstep(0.62, 0.8, speck) * 0.55);   // fir stands with snowy clearings
+  // T8 : peuplements de mélèzes sans aiguilles, gris-brun, la neige se voit entre les rameaux
+  forestCol = mix(forestCol, mix(vec3(0.44, 0.4, 0.36), vec3(0.85, 0.88, 0.93), 0.38 + 0.3 * smoothstep(0.5, 0.8, speck)), vLarch);
   vec3 base = mix(snowCol, rockCol, bdRock);
   base = mix(base, forestCol, vForest * (1.0 - bdRock));
   diffuseColor.rgb = base;`, 'backdrop');
@@ -215,14 +218,21 @@ export function buildBackdrop() {
     col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
   }
   // per-vertex forest mask; rock, snow and their detail are decided per pixel in the shader below
-  const forest = new Float32Array(vn * vn);
-  for (let i = 0; i < vn * vn; i++) forest[i] = isForest(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2], nor[i * 3 + 1]) ? 1 : 0;
-  geo.setAttribute('aForest', new THREE.BufferAttribute(forest, 1));
+  // T8 : les bois d'OSM qui débordent du secteur restent boisés au-delà de sa limite ; part de mélèzes comme dans le domaine
+  const forest = new Float32Array(vn * vn), larch = new Float32Array(vn * vn), outside = (x, z) => Math.abs(x) > HALF - 1 || Math.abs(z) > HALF - 1;
+  for (let i = 0; i < vn * vn; i++) {
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    forest[i] = isForest(x, y, z, nor[i * 3 + 1]) || (outside(x, z) && nor[i * 3 + 1] > 0.7 && coverWideAt(x, z) === 1) ? 1 : 0;
+    larch[i] = smoothstep(0.32, 0.68, larchScore(x, z, y + ALT0));
+  }
+  geo.setAttribute('aForest', new THREE.BufferAttribute(forest, 1)); geo.setAttribute('aLarch', new THREE.BufferAttribute(larch, 1));
   scene.add(new THREE.Mesh(geo, backdropMaterial()));
-  // distant fir stands so forests read as trees, not as flat green paint
-  const cone = mergeParts([
-    { g: (() => { const g = new THREE.ConeGeometry(2.2, 7, 6, 1, true); g.translate(0, 4.2, 0); return g; })(), c: '#1f4832' },
-    { g: (() => { const g = new THREE.ConeGeometry(1.3, 3.2, 6, 1, true); g.translate(0, 6.3, 0); return g; })(), c: '#dfe8f2' }]);
+  // distant fir stands so forests read as trees, not as flat green paint ; T8 : épicéa ou mélèze par instance
+  const coneOf = (r0, h0, y0, r1, h1, y1, c0, c1) => mergeParts([
+    { g: (() => { const g = new THREE.ConeGeometry(r0, h0, 6, 1, true); g.translate(0, y0, 0); return g; })(), c: c0 },
+    { g: (() => { const g = new THREE.ConeGeometry(r1, h1, 6, 1, true); g.translate(0, y1, 0); return g; })(), c: c1 }]);
+  const cone = coneOf(2.2, 7, 4.2, 1.3, 3.2, 6.3, '#1f4832', '#dfe8f2'), cone2 = coneOf(1.5, 8.2, 4.8, 0.8, 3.4, 7.6, '#6e6154', '#b9b3ab');
+  cone.setAttribute('aPos2', cone2.getAttribute('position')); cone.setAttribute('aNrm2', cone2.getAttribute('normal')); cone.setAttribute('aCol2', cone2.getAttribute('color'));
   const list = [], nrm = new V3(), e = 6;
   for (let i = 0; i < 90000 && list.length < (IS_TOUCH ? 6000 : 16000); i++) {
     const ang = rnd() * Math.PI * 2, r = HALF * 1.02 + Math.pow(rnd(), 2) * 2600;
@@ -232,8 +242,21 @@ export function buildBackdrop() {
     if (!isForest(x, y, z, nrm.y)) continue;
     list.push([x, y, z, 1 + rnd() * 1.2]);
   }
-  const tm = new THREE.InstancedMesh(cone, lambertVC(), list.length), d = new THREE.Object3D();
+  // T8 : bouquets de plus dans les bois d'OSM hors du secteur, tirés d'un générateur propre (la suite de rnd ne change pas)
+  const R = mulberry32(31337), extra = [], want = IS_TOUCH ? 1500 : 4000, legacyN = list.length;
+  for (let i = 0; i < 60000 && extra.length < want && COVER.wide; i++) {
+    const x = (R() * 2 - 1) * COVER.wide.half, z = (R() * 2 - 1) * COVER.wide.half;
+    if (Math.abs(x) < HALF + 10 && Math.abs(z) < HALF + 10) continue;
+    if (coverWideAt(x, z) !== 1) continue;
+    const y = farHeight(x, z); extra.push([x, y, z, 1 + R() * 1.2]);
+  }
+  const all = list.concat(extra), sp = new Float32Array(all.length);
+  const tm = new THREE.InstancedMesh(cone, null, all.length), d = new THREE.Object3D();
   list.forEach(([x, y, z, sc], i) => { d.position.set(x, y - 1, z); d.rotation.set(0, rnd() * 6, 0); d.scale.set(sc, sc * (0.9 + rnd() * 0.4), sc); d.updateMatrix(); tm.setMatrixAt(i, d.matrix); });
+  extra.forEach(([x, y, z, sc], k) => { d.position.set(x, y - 1, z); d.rotation.set(0, R() * 6, 0); d.scale.set(sc, sc * (0.9 + R() * 0.4), sc); d.updateMatrix(); tm.setMatrixAt(legacyN + k, d.matrix); });
+  all.forEach(([x, y, z], i) => { sp[i] = treeSpecies(x, z, y + ALT0, false, false, R); });
+  cone.setAttribute('iSp', new THREE.InstancedBufferAttribute(sp, 1));
+  tm.material = speciesMaterials(lambertVC()).mat; tm.userData.legacyN = legacyN; tm.userData.horizonStands = true;
   tm.frustumCulled = false; scene.add(tm);
 }
 
