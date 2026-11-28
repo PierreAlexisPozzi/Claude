@@ -6,6 +6,7 @@ Meshes and textures for the game are modelled, baked and exported with **Blender
 ```bash
 python3.13 -m venv .bpyenv && .bpyenv/bin/pip install -r blender/requirements.txt
 .bpyenv/bin/python blender/trees.py        # spruces: needle atlas, 3 near variants, far silhouette
+.bpyenv/bin/python blender/larch.py        # winter larches: twig atlas, 2 near variants, far silhouette shared with the spruce (T8)
 .bpyenv/bin/python blender/people.py       # skier parts and posed skiers for the other characters
 .bpyenv/bin/python blender/materials.py    # tileable PBR detail maps for timber, planks and masonry
 .bpyenv/bin/python blender/vehicles.py     # snowmobile (own design)

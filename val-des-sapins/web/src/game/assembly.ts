@@ -130,6 +130,22 @@ export function initNearTrees() {
     NEAR.protos = [0, 1, 2].map(i => { const geo = BLEND.geo['spruce_' + i]; geo.boundingSphere = new THREE.Sphere(new V3(0, 4, 0), 70); return { geo, tris: geo.index.count / 3 }; });
     NEAR.mat = pbr({ vertexColors: true, side: THREE.DoubleSide, map: BLEND.tex.spruce_needles, alphaTest: 0.42, roughness: 0.82 }, [0.15, 0.3, 2.5]);
     NEAR.mat.alphaToCoverage = true;   // soft needle fringes with the MSAA target (plain alpha test without it)
+    if (BLEND.geo.larch_0 && BLEND.tex.larch_twigs) {
+      // T8 : mélèzes d'hiver (blender/larch.py), rameaux nus en cartes : prototypes 3 et 4, leur propre texture
+      const lm = pbr({ vertexColors: true, side: THREE.DoubleSide, map: BLEND.tex.larch_twigs, alphaTest: 0.42, roughness: 0.9 }, [0.15, 0.3, 2.5]);
+      lm.alphaToCoverage = true;
+      // rameaux fins : les niveaux de mipmap moyennent l'alpha sous le seuil et le mélèze s'efface au loin ; l'alpha est
+      // renforcé avec le niveau de détail estimé (dérivées des coordonnées de texture)
+      const base = lm.onBeforeCompile;
+      lm.onBeforeCompile = function (sh, r) {
+        base.call(this, sh, r);
+        sh.fragmentShader = patchShader(sh.fragmentShader, '#include <alphatest_fragment>', `{ vec2 tdx = dFdx( vMapUv * 512.0 ), tdy = dFdy( vMapUv * 512.0 );
+    float tlod = max( 0.0, 0.5 * log2( max( dot( tdx, tdx ), dot( tdy, tdy ) ) ) ); diffuseColor.a *= 1.0 + tlod * 0.2; }
+  #include <alphatest_fragment>`, 'larch');
+      };
+      lm.customProgramCacheKey = () => 'vds-larch-twigs';
+      [0, 1].forEach(i => { const geo = BLEND.geo['larch_' + i]; geo.boundingSphere = new THREE.Sphere(new V3(0, 5, 0), 70); NEAR.protos.push({ geo, tris: geo.index.count / 3, mat: lm }); });
+    }
   } else {
     NEAR.protos = [hashSeed(1, 2), hashSeed(3, 4), hashSeed(5, 6)].map(firPrototype);
     NEAR.mat = lambertVC({ side: THREE.DoubleSide });
@@ -153,10 +169,11 @@ export function updateNearTrees(cam, maxBuild) {
     if (NEAR.chunks.has(k) || built >= maxBuild) continue;
     const list = NEAR.grid.get(k), ox = -HALF + (k % 1000 + 0.5) * C, oz = -HALF + (Math.floor(k / 1000) + 0.5) * C, oy = gridH(ox, oz);
     const g = new THREE.Group(); g.position.set(ox, oy, oz);
-    const byV = [[], [], []]; list.forEach(i => byV[i % 3].push(i));
+    const byV = NEAR.protos.map(() => []), larch = NEAR.protos.length > 3 && trees.sp;
+    list.forEach(i => byV[larch && trees.sp[i] ? 3 + i % 2 : i % 3].push(i));   // T8 : essence de l'arbre (épicéa 0-2, mélèze 3-4)
     byV.forEach((ids, v) => {
       if (!ids.length) return;
-      const m = new THREE.InstancedMesh(NEAR.protos[v].geo, NEAR.mat, ids.length), tint = new THREE.Color();
+      const m = new THREE.InstancedMesh(NEAR.protos[v].geo, NEAR.protos[v].mat || NEAR.mat, ids.length), tint = new THREE.Color();
       ids.forEach((i, j) => { _am.fromArray(trees.mat, i * 16); _am.elements[12] -= ox; _am.elements[13] -= oy; _am.elements[14] -= oz; m.setMatrixAt(j, _am); m.setColorAt(j, tint.setScalar(trees.tint[i])); setFar(i, false); });
       m.castShadow = true; m.receiveShadow = true; m.layers.set(TREE_LAYER); g.add(m);
     });

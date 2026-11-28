@@ -407,6 +407,133 @@
   ]
  },
  {
+  "id": "foret-lisiere",
+  "title": "Lisière de forêt au sud de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -60,
+   348.5,
+   260
+  ],
+  "at": [
+   90,
+   333,
+   300
+  ],
+  "phone": true
+ },
+ {
+  "id": "foret-melezes",
+  "title": "Mélèzes d'hiver et épicéas, à l'ouest de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -330,
+   294.6,
+   80
+  ],
+  "at": [
+   -372,
+   311,
+   118
+  ],
+  "phone": true
+ },
+ {
+  "id": "foret-vue-large",
+  "title": "Forêts vers Plagne 1800, vues d'au-dessus de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -100,
+   465,
+   150
+  ],
+  "at": [
+   -150,
+   115,
+   -900
+  ],
+  "phone": true
+ },
+ {
+  "id": "rochers-grande-rochette",
+  "title": "Rochers de la Grande Rochette (T8)",
+  "kind": "paysage",
+  "from": [
+   250,
+   470,
+   820
+  ],
+  "at": [
+   450,
+   675,
+   1150
+  ]
+ },
+ {
+  "id": "barres-rocheuses-ouest",
+  "title": "Pentes raides à l'ouest, vers le Roc du Bécoin (T8)",
+  "kind": "paysage",
+  "from": [
+   -850,
+   543,
+   880
+  ],
+  "at": [
+   -1100,
+   763,
+   1100
+  ]
+ },
+ {
+  "id": "horizon-matin",
+  "title": "Horizon vers l'est-nord-est, 8 h 30 (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 8.5
+ },
+ {
+  "id": "horizon-midi",
+  "title": "Horizon vers l'est-nord-est, 12 h 30 (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 12.5,
+  "phone": true
+ },
+ {
+  "id": "horizon-soir",
+  "title": "Horizon vers l'est-nord-est, 17 h (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 17
+ },
+ {
   "id": "gros-plan-lucie-face",
   "title": "Lucie · gros plan face",
   "kind": "visage",

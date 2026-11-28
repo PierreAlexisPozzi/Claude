@@ -76,6 +76,9 @@ export async function loadBlenderAssets() {
 export function blendGeometry(mesh) {
   const g = mesh.geometry.clone(); g.applyMatrix4(mesh.matrixWorld);
   const fl = g.getAttribute('_flutter'); if (fl) { g.setAttribute('aFlutter', fl); g.deleteAttribute('_flutter'); }   // Blender '_flutter' weights
+  // T8 : décalages des formes (shape keys) dans le même repère que les positions (échelle de quantification comprise)
+  const mp = g.morphAttributes.position;
+  if (mp) { const m3 = new THREE.Matrix3().setFromMatrix4(mesh.matrixWorld), v = new THREE.Vector3(); g.morphAttributes.position = mp.map(a => { const o = new Float32Array(a.count * 3); for (let i = 0; i < a.count; i++) { v.set(a.getX(i), a.getY(i), a.getZ(i)).applyMatrix3(m3); o[i * 3] = v.x; o[i * 3 + 1] = v.y; o[i * 3 + 2] = v.z; } return new THREE.BufferAttribute(o, 3); }); }
   const c = g.getAttribute('color');
   if (c) {
     const out = new Float32Array(c.count * 3);

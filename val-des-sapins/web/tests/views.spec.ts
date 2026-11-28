@@ -11,7 +11,7 @@ import { openGame, pump, start, REPO, HAS_LEGACY, TRANCHE, type Target } from '.
 // affiché (pour juger le recul de la caméra)
 // T7 : hour (heure du soleil, sinon celle du départ) ; hold (expression figée ; par défaut, visage neutre et yeux ouverts
 // sur les vues de visage, pour qu'aucun clignement ne tombe sur une capture)
-type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number }; hour?: number; hold?: Record<string, number> };
+type View = { id: string; kind: string; from?: number[]; at?: number[]; rel?: Record<string, number>; person?: { id: string; a: number; d: number; dy: number; ly: number }; hour?: number; hold?: Record<string, number>; phone?: boolean };
 const VIEWS = JSON.parse(fs.readFileSync(path.resolve('tests/views.json'), 'utf8')) as View[];
 const OUT = path.join(REPO, 'review/vues', TRANCHE);
 const PHONE_KINDS = new Set(['terrasse', 'village', 'joueur', 'jeu', 'photo']);
@@ -52,7 +52,7 @@ async function capture(browser: Browser, target: Target, phone: boolean): Promis
   const files: string[] = [];
   const only = process.env.VDS_VIEWS ? new RegExp(process.env.VDS_VIEWS) : null;   // sous-ensemble (contrôle rapide)
   for (const v of VIEWS) {
-    if (phone && !PHONE_KINDS.has(v.kind)) continue;
+    if (phone && !PHONE_KINDS.has(v.kind) && !v.phone) continue;   // T8 : quelques vues de paysage aussi sur téléphone
     if (only && !only.test(v.id)) continue;
     const f = path.join(target === 'web' ? OUT : path.resolve('.cache/vues-legacy', TRANCHE), phone ? 'telephone' : 'ordinateur', v.id + '.jpg');
     await shoot(page, v, f);

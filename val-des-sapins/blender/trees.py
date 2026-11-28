@@ -285,4 +285,5 @@ def main():
     export_glb([far], 'spruce_far.glb')
 
 
-main()
+if __name__ == '__main__':   # importable by blender/larch.py (far silhouette shared with the larch)
+    main()
