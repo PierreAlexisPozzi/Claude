@@ -70,8 +70,23 @@ test (exécutions reproductibles au bit près).
 | `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
 | `heads` | têtes proches (T7) : visage subdivisé (Loop) à moins de 8 m avec ses cinq expressions et des poids de peau valides ; cheveux sous le bonnet seulement, tour de cou avec le casque seulement |
 | `photo` | mode photo (T7) : jeu figé, profondeur de champ, image PNG téléchargée, retour à l'heure et au champ du jeu, contrat d'identifiants du HUD |
+| `micro` | micro-mouvements et regard sur plusieurs images (T8) : regard dans ±20° / ±12° et changeant (saccades), respiration présente et bornée, balancement du pompon non nul, ≤ 3 cm et 1 cm en vertical |
 | `persos` | vêtements sans jour (T7) : masque des faces arrière dans les poses du jeu (dos en schuss, télésiège, col, poignet, ourlet, bas de pantalon, col et nuque d'une habitante tête tournée) ; au plus 400 px par vue (liserés rasants) ; planche complète avec `VDS_PERSOS=1`, attribution par pièce avec `VDS_PERSOS_PARTS=1` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+
+**Tranche T8a — expressions, regard, micro-mouvements** (mesures : `review/mesures_T8.md`, planche :
+`review/planche_T8a_expressions.jpg`) :
+- **Sept expressions de plus** (unités MakeHuman, CC0), liées au jeu :
+  - surprise : grand saut, habitant frôlé à grande vitesse ;
+  - déception : 4 s après une mission échouée ;
+  - effort : montée en escalier, schuss rapide, skieurs rapides ;
+  - grimace : chute ;
+  - trois visèmes (ou, i, m) enchaînés pendant la parole.
+- **Regard** : les yeux tournent (±20° / ±12°). Les habitants regardent la caméra quand elle est proche, avec des
+  saccades tirées d'un générateur propre à chacun.
+- **Micro-mouvements** : respiration (poitrine et épaules, plus ample à l'effort), léger balancement de la nuque.
+- Test `micro` sur plusieurs images : regard borné et changeant, respiration présente et bornée, balancement du pompon
+  mesuré (≤ 3 cm, 1 cm en vertical).
 
 **Tranche T7 — personnages en réalisme stylisé, vêtements de ski sans jour, mode photo** (mesures :
 `review/mesures_T7.md`, planches : `review/planche_T7_*.jpg`) :

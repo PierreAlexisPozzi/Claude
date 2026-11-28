@@ -1,6 +1,7 @@
 // @ts-nocheck — généré par tools/split-game.mjs depuis game.html (module « missions ») ; typage strict progressif à venir.
 /* eslint-disable */
 
+import { FACE_EVT } from './humans';
 import * as THREE from 'three';
 import { sfx } from './audio';
 import { villageLabels } from './buildings';
@@ -58,7 +59,7 @@ export function failMission(why) {
   const a = RIDER.active; if (!a) return; const m = missionById(a.id);
   if (missionStep() && missionStep().do === 'collect') clearItems();
   for (const s of m.steps) if (s.follow) person(s.follow).n.follow = false;
-  RIDER.missions[m.id] = 'failed'; RIDER.active = null; saveRider(); updateMarkers(); refreshTracker();
+  RIDER.missions[m.id] = 'failed'; RIDER.active = null; saveRider(); updateMarkers(); refreshTracker(); FACE_EVT.sad = 4;   // T8 : le skieur est déçu
   toast('Mission échouée · ' + m.title, why + ' · retourne voir ' + person(m.giver).name + ' pour réessayer', 'off');
 }
 

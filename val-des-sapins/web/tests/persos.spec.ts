@@ -23,11 +23,12 @@ const OUT = path.resolve(process.env.VDS_PERSOS_OUT || '.cache/persos');
 const FULL = !!process.env.VDS_PERSOS;
 const MAX = process.env.VDS_PERSOS_MAX ? Number(process.env.VDS_PERSOS_MAX) : FULL ? null : 400;   // ≤ 0,1 % de l'image : liserés rasants, pas d'ouverture
 const ONLY = process.env.VDS_PERSOS_ONLY ? new RegExp(process.env.VDS_PERSOS_ONLY)   // sous-ensemble « pose-angle »
-  : FULL ? null : /^(schuss-dessus-dos|telesiege-trois-quarts|arret-(col|poignet|ourlet|cheville)|lucie-(col|nuque-gauche))$/;
+  : FULL ? null : /^(schuss-dessus-dos|telesiege-trois-quarts|arret-(col|poignet|ourlet|cheville)|lucie-(col|nuque-gauche)|elodie-col)$/;
 // angle autour du personnage (0 = de face), distance, inclinaison de la caméra, hauteur visée au-dessus des hanches
 const ANGLES: [string, number, number, number, number][] = [['face', 0, 3, 0.1, -0.05], ['trois-quarts', 0.8, 3, 0.1, -0.05], ['profil', 1.57, 3, 0.1, -0.05], ['dos', 3.14, 3, 0.1, -0.05], ['dessus-dos', 2.8, 2.2, 0.75, 0.1], ['col', 0.6, 0.85, 0.3, 0.5]];
 const POSES: [string, Record<string, boolean>, number, Record<string, boolean>?, number?][] = [['arret', {}, 0], ['schuss', { up: true }, 240], ['virage', { up: true }, 120, { left: true, up: false }, 100], ['chasse-neige', { up: true }, 160, { down: true, up: false }, 70], ['telesiege', {}, 0]];
-const FOLK = ['lucie', 'henri'];
+// habitants : [id, expression figée] ; Élodie (pisteuse casquée, tour de cou) en pleine phrase : mâchoire ouverte (T8)
+const FOLK: [string, Record<string, number> | null][] = [['lucie', null], ['henri', null], ['elodie', { blink: 0, smile: 0.2, open: 0.5, oo: 0.4 }]];
 // gros plans du joueur, caméra posée près d'un os : [nom, os visé, décalage du point visé (m), caméra (droite, haut, avant)]
 const CLOSE: [string, string, number, number[]][] = [['poignet', 'hand_r', 0, [0.42, 0.1, 0.2]], ['ourlet', 'pelvis', -0.12, [0.6, -0.3, 0.25]], ['cheville', 'foot_r', 0.1, [0.6, 0.05, 0.35]]];
 
@@ -159,17 +160,17 @@ test('vêtements sans jour (masque des faces arrière) et planche personnages', 
     }
     await page.evaluate(() => { const s = (window as any).__ski; s.PHOTO.fixed = null; s.photoMode(false); s.clear(); s.camera.near = 0.3; s.camera.updateProjectionMatrix(); });
   }
-  for (const id of FOLK) {
+  for (const [id, hold] of FOLK) {
     // le joueur à 3 m sur le côté : l'habitant tourne la tête vers lui (comme en jeu à moins de 10 m)
     await page.evaluate((id) => { const s = (window as any).__ski, q = s.PEOPLE.find((x: any) => x.id === id); s.teleport(q.x + Math.cos(q.yaw) * 3, q.z - Math.sin(q.yaw) * 3, q.yaw); s.advance(1); }, id);
     for (const [angle, a, d0, pitch, dy] of [...ANGLES.filter((x) => x[0] !== 'dessus-dos'), ['nuque-gauche', 2.3, 0.85, 0.3, 0.5], ['nuque-droite', -2.3, 0.85, 0.3, 0.5]] as [string, number, number, number, number][]) {
       const d = d0 > 2 ? 1.9 : d0;   // habitants : buste
       if (ONLY && !ONLY.test(`${id}-${angle}`)) continue;
-      await page.evaluate(({ id, a, d, pitch }) => {
+      await page.evaluate(({ id, a, d, pitch, hold }) => {
         const s = (window as any).__ski, T = s.THREE, q = s.PEOPLE.find((x: any) => x.id === id), y = q.n.y + 1.6 * (q.n.h || 1) - (d > 1.5 ? 0.45 : 0.1), A = q.yaw + a;
-        s.faceHold = { blink: 0, smile: 0.15, open: 0, brows: 0, squint: 0 };
+        s.faceHold = hold || { blink: 0, smile: 0.15, open: 0, brows: 0, squint: 0 };
         s.photo({ from: new T.Vector3(q.x + Math.sin(A) * d, y + Math.sin(pitch) * d * 0.6, q.z + Math.cos(A) * d), at: new T.Vector3(q.x, y, q.z) });
-      }, { id, a, d, pitch });
+      }, { id, a, d, pitch, hold });
       shots.push(await shoot(page, id, angle));
     }
   }

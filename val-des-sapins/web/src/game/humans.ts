@@ -20,6 +20,9 @@ export function __set_faceHold(v) { return (faceHold = v); }
    position au repos (rouge = hauteur / 2 m, bleu = 0,5 + 2,5 × avant) pour situer un défaut. Une face arrière visible, c'est l'intérieur
    d'un vêtement ou d'une pièce vu par une ouverture. Hors contrôle : 0, pièces en simple face comme avant. */
 export const HUMAN_DBG = { value: 0 };
+let HUMAN_N = 0;   // T8 : rang de création des personnages (graine déterministe)
+/** T8 : événements qui marquent le visage du joueur (secondes restantes) : mission échouée → tristesse. */
+export const FACE_EVT = { sad: 0 };
 export function setHumanDebug(mode) {
   HUMAN_DBG.value = mode;
   scene.traverse(o => { const m = o.material; if (m && m.userData && m.userData.U && !m.userData.noDbg) { const side = mode ? THREE.DoubleSide : THREE.FrontSide; if (m.side !== side) { m.side = side; m.needsUpdate = true; } } });
@@ -94,7 +97,7 @@ export function humanBasis(m, d, r) {   // rotation whose columns are (d, r orth
 export function humanUniforms(skinTone, jacket, shade) {
   const v = () => ({ value: new V3() });
   return { uJacket: { value: new THREE.Color(jacket) }, uJacket2: { value: new THREE.Color('#20262e') }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 },
-    uFlutter: { value: 0 }, uClothT: CLOTH_T, uEyeL: { value: new V3() }, uEyeR: { value: new V3() }, uIris: { value: new THREE.Color('#5a7a8c') }, uKnitC: { value: new V3() }, uKnitY0: { value: 0 }, uHair: { value: new THREE.Color('#4a2f1d') }, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 }, uSway: v() };
+    uFlutter: { value: 0 }, uClothT: CLOTH_T, uEyeL: { value: new V3() }, uEyeR: { value: new V3() }, uIris: { value: new THREE.Color('#5a7a8c') }, uKnitC: { value: new V3() }, uKnitY0: { value: 0 }, uHair: { value: new THREE.Color('#4a2f1d') }, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 }, uSway: v(), uGaze: { value: new THREE.Vector2() } };
 }
 
 export function clothHook(sh) {
@@ -154,8 +157,17 @@ float hairH(vec3 p) {
    pupille, iris à fibres radiales et anneau limbique sombre (couleur par personne), blanc de l'œil légèrement rosé vers
    les coins ; surface très lisse (reflet humide). */
 function eyeHook(sh) {
-  sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nvarying vec3 vEyeP;', 'eye');
-  sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vEyeP = position;', 'eye');
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', `#include <common>
+varying vec3 vEyeP; uniform vec3 uEyeL; uniform vec3 uEyeR; uniform vec2 uGaze;
+vec3 eyeTurn(vec3 q) {   // T8 : regard : tangage (x) puis lacet (y) autour du centre du globe
+  float cy = cos(uGaze.x), sy = sin(uGaze.x), cp = cos(uGaze.y), sp = sin(uGaze.y);
+  q = vec3(q.x, q.y * cp + q.z * sp, -q.y * sp + q.z * cp);
+  return vec3(q.x * cy + q.z * sy, q.y, -q.x * sy + q.z * cy);
+}`, 'eye');
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n  objectNormal = eyeTurn(objectNormal);', 'eye');
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', `#include <begin_vertex>
+  vEyeP = position;
+  { vec3 c = position.x < 0.5 * (uEyeL.x + uEyeR.x) ? uEyeL : uEyeR; transformed = c + eyeTurn(transformed - c); }`, 'eye');
   sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nvarying vec3 vEyeP;\nuniform vec3 uEyeL;\nuniform vec3 uEyeR;\nuniform vec3 uIris;', 'eye');
   sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
   { vec3 c = vEyeP.x < 0.5 * (uEyeL.x + uEyeR.x) ? uEyeL : uEyeR, d = normalize(vEyeP - c);
@@ -277,8 +289,8 @@ export function makeHuman(kind, o = {}) {
   if (parts.beanie) { const bb = new THREE.Box3().setFromBufferAttribute(parts.beanie.geometry.attributes.position); bb.getCenter(U.uKnitC.value); U.uKnitY0.value = bb.min.y; }
   const face = parts.face, md = face && face.morphTargetDictionary;
   for (const b of Object.values(bones)) b.userData.rest = { q: b.quaternion.clone(), p: b.position.clone() };
-  const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1,
-    face: face && md ? { m: face, idx: md, cur: { blink: 0, smile: 0, open: 0, brows: 0, squint: 0 }, blinkT: 9, next: 1 + Math.random() * 3, talk: 0 } : null };
+  const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1, seed: (HUMAN_N = HUMAN_N + 1) * 7919,   // T8 : graine propre (saccades, respiration)
+    face: face && md ? { m: face, idx: md, cur: Object.fromEntries(Object.keys(md).map(n => [n, 0])), blinkT: 9, next: 1 + Math.random() * 3, talk: 0 } : null };
   setGear(H, o.gear || 'helmet');
   root.traverse(x => x.layers.set(SMALL_LAYER));   // T4 : comme les autres skieurs, hors de la carte d'ombre lointaine
   scene.add(root);
@@ -326,20 +338,72 @@ function swayStep(H, dt) {
   o.multiplyScalar(1 / (H.scale || 1));   // repère du maillage : axes du monde (racine sans rotation), à l'échelle du personnage
 }
 
+/* T8 : micro-mouvements. Respiration (buste et épaules, ~15 cycles par minute, plus ample à l'effort) et léger
+   balancement de la nuque ; appliqués après la pose, en rotations locales, sans toucher à la simulation. La phase est
+   propre à chaque personne ; figés si dt = 0 (mode photo). */
+let _mq = null, _mx = null, _my = null, _mz = null;
+function microMotion(H, dt, effort) {
+  if (!_mq) { _mq = new THREE.Quaternion(); _mx = new V3(1, 0, 0); _my = new V3(0, 1, 0); _mz = new V3(0, 0, 1); }
+  const b = H.bones, R = H.rest; if (!b.spine_03) return;
+  H.mt = (H.mt || 0) + dt; H.ph = H.ph ?? (H.seed % 1000) * 0.0063;
+  const br = Math.sin(H.mt * (1.55 + 0.9 * effort) + H.ph), amp = 0.012 * (1 + effort);
+  H.breath = br * amp;
+  _mq.setFromAxisAngle(_mx, -br * amp); b.spine_03.quaternion.multiply(_mq);   // la poitrine se soulève
+  for (const [n, sd] of [['clavicle_l', 1], ['clavicle_r', -1]]) if (b[n] && b[n].userData.rest) {   // les épaules suivent (depuis la pose de repos : jamais cumulé)
+    _mq.setFromAxisAngle(_mz, sd * br * amp * 0.6); b[n].quaternion.copy(b[n].userData.rest.q).multiply(_mq);
+  }
+  if (b.neck_01) { _mq.setFromAxisAngle(_my, Math.sin(H.mt * 0.53 + H.ph * 3) * 0.012 + Math.sin(H.mt * 1.31 + H.ph) * 0.005); b.neck_01.quaternion.multiply(_mq); }
+}
+
+/* T8 : regard. Les globes tournent dans le nuanceur (uGaze : lacet, tangage) autour de leur centre ; cible = mood.look
+   (position dans le monde : la caméra pour un habitant proche), ramenée dans le repère de la tête au repos ; saccades
+   (petits sauts toutes les 0,4 à 2,6 s, générateur propre à la personne) ; bornes ±20° / ±12° (les paupières ne
+   suivent pas). */
+let _gm = null, _gv = null, _gc = null;
+function gazeStep(H, dt, look) {
+  const U = H.U, G = H.gz || (H.gz = { y: 0, p: 0, oy: 0, op: 0, t: 0, r: (H.seed * 2654435761) >>> 0 });
+  if (!_gm) { _gm = new THREE.Matrix4(); _gv = new V3(); _gc = new V3(); }
+  const rand = () => { G.r = (G.r + 0x6d2b79f5) >>> 0; let t = G.r; t = Math.imul(t ^ (t >>> 15), 1 | t); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  G.t -= dt; if (G.t <= 0) { G.oy = (rand() - 0.5) * 0.14; G.op = (rand() - 0.5) * 0.07; G.t = 0.4 + rand() * 2.2; }
+  let ty = 0, tp = 0;
+  const E = H.parts.eyes;
+  if (look && E && E.visible && E.skeleton) {
+    const hb = H.bones.head, i = E.skeleton.bones.indexOf(hb);
+    if (i >= 0) {
+      _gm.multiplyMatrices(hb.matrixWorld, E.skeleton.boneInverses[i]).invert();   // monde → repère du maillage au repos
+      _gc.copy(U.uEyeL.value).add(U.uEyeR.value).multiplyScalar(0.5);
+      _gv.copy(look).applyMatrix4(_gm).sub(_gc);
+      if (_gv.z > 0.05) { ty = Math.atan2(_gv.x, _gv.z); tp = Math.atan2(_gv.y, Math.hypot(_gv.x, _gv.z)); }
+    }
+  }
+  ty = clamp(ty + G.oy, -0.35, 0.35); tp = clamp(tp + G.op, -0.21, 0.21);
+  if (dt > 0) { const r = 1 - Math.exp(-dt * 25); G.y += (ty - G.y) * r; G.p += (tp - G.p) * r; }
+  U.uGaze.value.set(G.y, G.p);
+}
+
+// faces: random blinks (sometimes doubled), expressions eased towards a mood, a moving jaw when talking.
+// Morphs come from MakeHuman's expression units (blender/humans.py). T8 : surprise, tristesse, effort, grimace ; en
+// parlant, la mâchoire s'ouvre et des visèmes (ou, i, m) se succèdent ; regard et micro-mouvements.
+const MOODS = ['smile', 'brows', 'squint', 'surprise', 'sad', 'effort', 'wince'];
+const VISEMES = [['oo', 0.7], ['ee', 0.6], ['mm', 0.8], [null, 0], ['ee', 0.4], ['oo', 0.5]];
 export function animateFace(H, dt, mood) {
   swayStep(H, dt);
+  if (dt > 0) microMotion(H, dt, Math.max(mood.effort || 0, (mood.wince || 0) * 0.5));
   const F = H.face; if (!F) return;
+  gazeStep(H, dt, mood.look);
   F.blinkT += dt;
   if (F.blinkT > F.next) { F.blinkT = 0; F.next = (Math.random() < 0.15 ? 0.25 : 2.2 + Math.random() * 4); }
   const t = F.blinkT, blink = t < 0.07 ? t / 0.07 : t < 0.19 ? 1 - (t - 0.07) / 0.12 : 0;
-  const k = 1 - Math.exp(-dt * 5);
-  for (const n of ['smile', 'brows', 'squint']) F.cur[n] += ((mood[n] || 0) - F.cur[n]) * k;
+  const k = 1 - Math.exp(-dt * 5), kf = 1 - Math.exp(-dt * 12);
+  for (const n of MOODS) if (n in F.cur) F.cur[n] += ((mood[n] || 0) - F.cur[n]) * (n === 'surprise' || n === 'wince' ? kf : k);
   F.talk = mood.talk ? F.talk + dt : 0;
   const jaw = mood.talk ? 0.18 + 0.32 * Math.abs(Math.sin(F.talk * 9.5) * Math.sin(F.talk * 3.1 + 1)) : 0;
-  F.cur.open += (jaw - F.cur.open) * (1 - Math.exp(-dt * 18));
-  F.cur.blink = Math.max(blink, F.cur.squint * 0.25);
+  F.cur.open += (Math.max(jaw, (mood.open || 0)) - F.cur.open) * (1 - Math.exp(-dt * 18));
+  const vis = mood.talk ? VISEMES[Math.floor(F.talk * 6.5 + H.seed) % VISEMES.length] : [null, 0], kv = 1 - Math.exp(-dt * 16);
+  for (const n of ['oo', 'ee', 'mm']) if (n in F.cur) F.cur[n] += ((vis[0] === n ? vis[1] : 0) - F.cur[n]) * kv;
+  F.cur.blink = Math.max(blink, F.cur.squint * 0.25, (F.cur.wince || 0) * 0.35);
   const inf = F.m.morphTargetInfluences;
-  for (const [n, i] of Object.entries(F.idx)) inf[i] = Math.min(1, (faceHold && n in faceHold ? faceHold[n] : F.cur[n]) || 0);
+  for (const [n, i] of Object.entries(F.idx)) inf[i] = Math.min(1, (faceHold && n in faceHold ? faceHold[n] : faceHold ? 0 : F.cur[n]) || 0);
 }
 
    // test hook (window.__ski.faceHold): pins expressions for stills

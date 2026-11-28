@@ -966,6 +966,125 @@
   }
  },
  {
+  "id": "visage-lucie-surprise",
+  "title": "Lucie · surprise (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "surprise": 0.8
+  }
+ },
+ {
+  "id": "visage-henri-triste",
+  "title": "Henri · déçu (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "sad": 0.8
+  }
+ },
+ {
+  "id": "visage-marco-effort",
+  "title": "Marco · effort (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "effort": 0.8
+  }
+ },
+ {
+  "id": "visage-jeanne-grimace",
+  "title": "Jeanne · grimace (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0.15,
+   "brows": 0,
+   "squint": 0,
+   "wince": 0.9
+  }
+ },
+ {
+  "id": "visage-yanis-parle",
+  "title": "Yanis · en parlant, visème « ou » (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.3,
+   "open": 0.3,
+   "brows": 0,
+   "squint": 0,
+   "oo": 0.7
+  }
+ },
+ {
+  "id": "visage-mireille-regard",
+  "title": "Mireille · regard vers la caméra (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.4,
+   "open": 0,
+   "brows": 0,
+   "squint": 0
+  }
+ },
+ {
   "id": "jeu-depart",
   "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
   "kind": "jeu"

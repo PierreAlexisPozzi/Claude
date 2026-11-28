@@ -68,6 +68,18 @@ FILES = [   # chemin sous src/mpfb/data, SHA-256
     ('targets/nose/nose-point-width-decr.target.gz', '920cd53d57b8797414af73b59e54d34547ef2e1c79fa0a19ca55dbddc0aa7365'),
     ('targets/nose/nose-scale-horiz-decr.target.gz', '95d8dc4a3589bbb6105191abc6e3cae47c3c424ce189b5f0a611dc098806060d'),
     ('targets/nose/nose-volume-decr.target.gz', '7ef86294767b4813388c409541475684d6dec94711dde063154b49c9520a57bd'),
+    ('targets/expression/units/caucasian/eye-left-opened-up.target.gz', '842d95f9f0af1807ecf45c79a1def61152a253f0696afce41aa76156be697117'),
+    ('targets/expression/units/caucasian/eye-right-opened-up.target.gz', '56f07d192a9321437cf6bdadc7800331316e3430ae29e9ce24f957639ccc0224'),
+    ('targets/expression/units/caucasian/eyebrows-left-inner-up.target.gz', 'bcbc99d31303df7855734d74dde0c1625e3a301dcdd9392d6b407616fd7679a8'),
+    ('targets/expression/units/caucasian/eyebrows-right-inner-up.target.gz', 'b5da946cba48308969c3f63a5d590e1ad5c0c47975b92f485b63526d42c2df92'),
+    ('targets/expression/units/caucasian/mouth-depression.target.gz', 'add8cc38bb25d257811476bf253052659ea7a52d6e03715a7a3da4ae5cc1316c'),
+    ('targets/expression/units/caucasian/mouth-compression.target.gz', 'c1dad4335810949a4591794023de4cf502a677c0aa59d40f7e70b99d4aac20c1'),
+    ('targets/expression/units/caucasian/mouth-parling.target.gz', '22dd7d92dc83f792bf7e8c1b9beb829b6d976896831df5c18e057973f37c8e5c'),
+    ('targets/expression/units/caucasian/mouth-pursing.target.gz', '9a5968be7a322d01db28490667746e711ca05d679aeaf7273b25f71c89d1bd49'),
+    ('targets/expression/units/caucasian/mouth-retraction.target.gz', '082173954f0ee4e40a878ebbd1a69d8037112bc50fc52e624ec677484c821ea7'),
+    ('targets/expression/units/caucasian/mouth-protusion.target.gz', '3fd4cbdec84ece3c41125974523f7130934e7fc69de09840a9b713f2e513798b'),
+    ('targets/expression/units/caucasian/nose-left-elevation.target.gz', '6a6665e8f5ddb3e61e977fee12d45607fb0186ae6081e71b09d0798c460fc7d9'),
+    ('targets/expression/units/caucasian/nose-right-elevation.target.gz', 'adebf11df33084107199f5ab159f807342fe731dc354c5e2a0041ef5f3d6a9e8'),
 ]
 
 

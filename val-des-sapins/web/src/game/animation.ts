@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { camSnap } from './camera';
 import { V3, clamp, lerp, smoothstep, wrapPi } from './core';
 import { trickTimer } from './hud';
-import { CLOTH_T, animateFace, playerHuman, playerHumanSync, skier, skierFTime, skierFlutter, skierShade, skierTint } from './humans';
+import { CLOTH_T, FACE_EVT, animateFace, playerHuman, playerHumanSync, skier, skierFTime, skierFlutter, skierShade, skierTint } from './humans';
 import { chairSeats } from './npcs';
 import { tunnelLocal } from './pistes';
 import { P, _f, _l, _n, _t, groundBasis, input, steerIn } from './player';
@@ -202,7 +202,11 @@ export function updateSkier(dt, time) {
   S.spine.rotation.set(pose.spPitch, pose.spYaw, pose.spRoll); S.head.rotation.x = pose.headP;
   S.arms.forEach(A => { const q = A.sd > 0 ? pose.aL : pose.aR; A.sh.rotation.set(q.p, 0, A.sd * q.o); A.el.rotation.x = q.e; A.pole.rotation.x = q.pole - q.p - q.e - pose.spPitch - pose.pelPitch; A.pole.rotation.z = -A.sd * q.o * 0.6; });
   S.legs.forEach(solveLeg);
-  if (playerHuman) { playerHuman.U.uFlutter.value = skierFlutter.value; CLOTH_T.value = time; playerHumanSync(dt); const sp = P.vel.length(); animateFace(playerHuman, dt, { smile: trickTimer > 0.4 ? 0.9 : 0.22, squint: P.state === 'ski' && sp > 16 ? 0.35 : 0, brows: P.state === 'air' ? 0.5 : 0 }); }
+  if (playerHuman) { playerHuman.U.uFlutter.value = skierFlutter.value; CLOTH_T.value = time; playerHumanSync(dt); const sp = P.vel.length(); FACE_EVT.sad = Math.max(0, FACE_EVT.sad - dt);
+    const crash = P.state === 'crash', air = P.state === 'air', big = air && P.air && (P.air.t || 0) > 0.6;   // T8 : expressions liées au jeu
+    animateFace(playerHuman, dt, { smile: trickTimer > 0.4 && !crash ? 0.9 : FACE_EVT.sad > 0 ? 0 : 0.22, squint: P.state === 'ski' && sp > 16 ? 0.35 : 0, brows: air && !big ? 0.5 : 0,
+      surprise: big ? 0.7 : 0, wince: crash ? 0.9 : 0, open: crash ? 0.2 : 0, sad: FACE_EVT.sad > 0 && !crash ? 0.8 : 0,
+      effort: P.climb ? 0.8 : P.state === 'ski' && P.tuck > 0.5 && sp > 14 ? 0.55 : 0 }); }
   // tunnel light on the skier
   tunnelBlend += ((P.tunnel ? 1 : 0) - tunnelBlend) * ease(4, dt);
   skierShade.value = lerp(1, 0.3, tunnelBlend);

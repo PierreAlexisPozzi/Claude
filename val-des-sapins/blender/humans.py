@@ -1109,6 +1109,14 @@ EXPRESSIONS = {             # morph name: [(expression unit, weight)]
     'open': [('mouth-open', 1.0)],
     'brows': [('eyebrows-left-up', 1.0), ('eyebrows-right-up', 1.0)],
     'squint': [('eye-left-slit', 0.6), ('eye-right-slit', 0.6), ('eyebrows-left-down', 0.25), ('eyebrows-right-down', 0.25)],
+    # T8 : composites liés au jeu (unités MakeHuman, CC0)
+    'surprise': [('eye-left-opened-up', 0.7), ('eye-right-opened-up', 0.7), ('eyebrows-left-up', 0.8), ('eyebrows-right-up', 0.8), ('mouth-open', 0.22)],   # saut, habitant frôlé
+    'sad': [('eyebrows-left-inner-up', 0.9), ('eyebrows-right-inner-up', 0.9), ('mouth-depression', 0.7)],   # mission échouée
+    'effort': [('eyebrows-left-down', 0.7), ('eyebrows-right-down', 0.7), ('mouth-compression', 0.8), ('eye-left-slit', 0.35), ('eye-right-slit', 0.35), ('nose-left-elevation', 0.25), ('nose-right-elevation', 0.25)],   # schuss, montée en escalier
+    'wince': [('eye-left-closure', 0.55), ('eye-right-closure', 0.55), ('nose-left-elevation', 0.8), ('nose-right-elevation', 0.8), ('mouth-retraction', 0.7), ('eyebrows-left-down', 0.6), ('eyebrows-right-down', 0.6)],   # chute
+    'oo': [('mouth-pursing', 0.6), ('mouth-protusion', 0.5)],    # visèmes de parole
+    'ee': [('mouth-retraction', 0.5), ('mouth-parling', 0.4)],
+    'mm': [('mouth-compression', 0.6)],
 }
 
 

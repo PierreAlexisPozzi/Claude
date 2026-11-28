@@ -35,7 +35,7 @@ test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveu
   for (const h of r) {
     expect(h.tri).toBe(h.tri0 * 4);
     expect(h.morphs).toBe(h.morphs0);
-    expect(h.morphs).toBeGreaterThanOrEqual(5);
+    expect(h.morphs).toBeGreaterThanOrEqual(12);   // T8 : 5 + surprise, tristesse, effort, grimace, visèmes ou, i, m
     expect(h.bad).toBe(0);
     expect(h.nan).toBe(0);
     expect(h.hair).toBe(true);   // mèches sous le bonnet comme sous le casque (freeride)

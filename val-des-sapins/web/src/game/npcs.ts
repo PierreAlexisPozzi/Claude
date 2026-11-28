@@ -280,9 +280,11 @@ export function updateRig(time) {
       HB.U.uFlutter.value = skiing ? clamp(((n.v || 0) - 4) / 14, 0, 1) : 0; CLOTH_T.value = time;   // the fabric ripples with speed
       {
         const pr = n.person, near = Math.hypot(P.pos.x - n.x, P.pos.z - n.z) < 7, talking = dlgOpen && pr && dlgWho === pr;
-        const mood = pr ? { smile: talking ? 0.7 : near ? 0.85 : 0.3, brows: n.wave > 0 ? 0.7 : talking ? 0.25 : 0, talk: talking }
-          : ter ? { smile: 0.4 + 0.35 * Math.max(0, Math.sin(t * 0.4)), squint: lounge ? 0.35 : 0.1, talk: pose === 'chair' && Math.sin(t * 0.7) > 0.4 }
-          : { smile: (k * 13) % 5 === 0 ? 0.45 : 0.12, squint: n.mode === 'ski' && n.v > 9 ? 0.3 : 0 };
+        // T8 : un habitant proche regarde la caméra ; frôlé à grande vitesse, il sursaute ; les skieurs rapides serrent les dents
+        const dP = Math.hypot(P.pos.x - n.x, P.pos.z - n.z), look = dP < 10 || Math.hypot(camera.position.x - n.x, camera.position.z - n.z) < 8 ? camera.position : null, startle = dP < 6 && P.vel.length() > 12 ? 0.8 : 0;
+        const mood = pr ? { smile: startle ? 0 : talking ? 0.7 : near ? 0.85 : 0.3, brows: n.wave > 0 ? 0.7 : talking ? 0.25 : 0, talk: talking, look, surprise: startle }
+          : ter ? { smile: 0.4 + 0.35 * Math.max(0, Math.sin(t * 0.4)), squint: lounge ? 0.35 : 0.1, talk: pose === 'chair' && Math.sin(t * 0.7) > 0.4, look, surprise: startle }
+          : { smile: (k * 13) % 5 === 0 ? 0.45 : 0.12, squint: n.mode === 'ski' && n.v > 9 ? 0.3 : 0, effort: n.mode === 'ski' && n.v > 12 ? 0.5 : 0, look: n.mode === 'ski' ? null : look };
         animateFace(HB, hdt, mood);
       }
       rig.pelvis.setMatrixAt(k, ZERO_M); rig['torso_' + B].setMatrixAt(k >> 1, ZERO_M); rig['head_' + B].setMatrixAt(k >> 1, ZERO_M);
