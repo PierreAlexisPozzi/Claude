@@ -1,10 +1,10 @@
 /* Têtes proches (T7) : à moins de 8 m de la caméra, le visage, les yeux et le bonnet prennent leur version subdivisée
    (passe de Loop : 4 fois plus de triangles par passe), avec les cinq expressions et des poids de peau valides. Depuis
-   la reprise du style (T7) : cheveux sculptés sous le bonnet seulement, tour de cou avec le casque seulement. */
+   la reprise du style (T7) : cheveux sculptés et mèches avec les deux équipements, tour de cou avec le casque seulement. */
 import { test, expect } from '@playwright/test';
 import { openGame, start, pump } from './helpers';
 
-test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveux et tour de cou selon l’équipement', async ({ page }) => {
+test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveux toujours visibles, tour de cou avec le casque', async ({ page }) => {
   test.setTimeout(10 * 60_000);
   await openGame(page, 'web');
   await page.evaluate(() => (window as any).__ski.quality('medium'));
@@ -38,7 +38,7 @@ test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveu
     expect(h.morphs).toBeGreaterThanOrEqual(5);
     expect(h.bad).toBe(0);
     expect(h.nan).toBe(0);
-    expect(h.hair).toBe(h.gear !== 'helmet');
+    expect(h.hair).toBe(true);   // mèches sous le bonnet comme sous le casque (freeride)
     expect(h.gaiter).toBe(h.gear === 'helmet');
   }
 });

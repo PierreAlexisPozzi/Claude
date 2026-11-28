@@ -27,7 +27,7 @@ const ANGLES: [string, number, number, number, number][] = [['face', 0, 3, 0.1, 
 const POSES: [string, Record<string, boolean>, number, Record<string, boolean>?, number?][] = [['arret', {}, 0], ['schuss', { up: true }, 240], ['virage', { up: true }, 120, { left: true, up: false }, 100], ['chasse-neige', { up: true }, 160, { down: true, up: false }, 70], ['telesiege', {}, 0]];
 const FOLK = ['lucie', 'henri'];
 // gros plans du joueur, caméra posée près d'un os : [nom, os visé, décalage du point visé (m), caméra (droite, haut, avant)]
-const CLOSE: [string, string, number, number[]][] = [['poignet', 'hand_r', 0, [0.38, 0.1, 0.18]], ['ourlet', 'pelvis', -0.12, [0.25, -0.38, 0.62]], ['cheville', 'foot_r', 0.12, [0.5, 0.05, 0.3]]];
+const CLOSE: [string, string, number, number[]][] = [['poignet', 'hand_r', 0, [0.42, 0.1, 0.2]], ['ourlet', 'pelvis', -0.12, [0.6, -0.3, 0.25]], ['cheville', 'foot_r', 0.1, [0.6, 0.05, 0.35]]];
 
 type Shot = { pose: string; angle: string; file: string; mask: string; magenta: number; raw: number; black: number };
 
@@ -56,12 +56,11 @@ async function magenta(page: Page, png: Buffer, normal: Buffer): Promise<Gap> {
 }
 
 async function shoot(page: Page, pose: string, angle: string): Promise<Shot> {
-  const file = path.join(OUT, `${pose}-${angle}.jpg`), mask = path.join(OUT, `${pose}-${angle}-masque.png`);
+  const file = path.join(OUT, `${pose}-${angle}.png`), mask = path.join(OUT, `${pose}-${angle}-masque.png`);
   await pump(page, 1, 1 / 60);
   await page.evaluate(() => (window as any).__ski.nearNow());
   await pump(page, 1, 1 / 60);
-  const normal = await page.screenshot();
-  fs.writeFileSync(file.replace(/\.jpg$/, '.png'), normal);
+  const normal = await page.screenshot({ path: file });
   await page.evaluate(() => (window as any).__ski.humanDebug(2));
   await pump(page, 1, 1 / 60);
   const png = await page.screenshot({ path: mask });
@@ -119,8 +118,17 @@ test('vêtements sans jour (masque des faces arrière) et planche personnages', 
       await page.evaluate(({ bone, lift, off }) => {
         const s = (window as any).__ski, T = s.THREE, y0 = (window as any).__vdsYaw0, at = s.playerHuman.bones[bone].getWorldPosition(new T.Vector3());
         at.y += lift;
-        const f = new T.Vector3(Math.sin(y0), 0, Math.cos(y0)), r = new T.Vector3(Math.cos(y0), 0, -Math.sin(y0));
+        const f = new T.Vector3(Math.sin(y0), 0, Math.cos(y0)), r = new T.Vector3(-Math.cos(y0), 0, Math.sin(y0));   // droite du personnage (sa gauche est en +x au repos)
         const from = at.clone().addScaledVector(r, off[0]).addScaledVector(f, off[2]); from.y += off[1];
+        // jamais dans un membre (en schuss, mains et genoux passent devant) : la caméra recule tant qu'elle est à moins de
+        // 20 cm d'un segment de membre (cuisse, tibia, pied, bras, avant-bras, main)
+        const B = s.playerHuman.bones, P = (n: string) => B[n].getWorldPosition(new T.Vector3());
+        const segs: any[] = [];
+        for (const sd of ['l', 'r']) for (const [a, b] of [['thigh', 'calf'], ['calf', 'foot'], ['upperarm', 'lowerarm'], ['lowerarm', 'hand']]) segs.push([P(a + '_' + sd), P(b + '_' + sd)]);
+        for (const sd of ['l', 'r']) { const h = P('hand_' + sd), ft = P('foot_' + sd); segs.push([h, h], [ft, ft]); }
+        const near = () => segs.some(([a, b]) => new T.Line3(a, b).closestPointToPoint(from, true, new T.Vector3()).distanceTo(from) < 0.2);
+        const dir = from.clone().sub(at).normalize();
+        for (let k = 0; k < 16 && near(); k++) from.addScaledVector(dir, 0.06);
         Object.assign(s.PHOTO, { fixed: { from, at }, aperture: 0, fov: 40 });
       }, { bone, lift, off });
       shots.push(await shoot(page, pose, angle));

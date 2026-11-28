@@ -15,7 +15,8 @@ export let skierShade, skierTint, skierFlutter, skierFTime, SKI_GEO, SKI_MAT, la
 
 export function __set_faceHold(v) { return (faceHold = v); }
 /* T7 : contrôle des jours entre le corps et les vêtements (planche personnages, persos.spec) : 1 = faces arrière des
-   pièces du personnage en magenta ; 2 = idem sur faces avant noires (masque). Une face arrière visible, c'est l'intérieur
+   pièces du personnage en magenta ; 2 = idem sur faces avant noires (masque) ; 3 = diagnostic : faces arrière de la
+   veste en magenta, des autres pièces (pantalon, gants, doublures, sac) en jaune. Une face arrière visible, c'est l'intérieur
    d'un vêtement ou d'une pièce vu par une ouverture. Hors contrôle : 0, pièces en simple face comme avant. */
 export const HUMAN_DBG = { value: 0 };
 export function setHumanDebug(mode) {
@@ -91,7 +92,7 @@ export function humanBasis(m, d, r) {   // rotation whose columns are (d, r orth
    // shared clock of the cloth (wind ripples)
 export function humanUniforms(skinTone, jacket, shade) {
   const v = () => ({ value: new V3() });
-  return { uJacket: { value: new THREE.Color(jacket) }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 },
+  return { uJacket: { value: new THREE.Color(jacket) }, uJacket2: { value: new THREE.Color('#20262e') }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 },
     uFlutter: { value: 0 }, uClothT: CLOTH_T, uEyeL: { value: new V3() }, uEyeR: { value: new V3() }, uIris: { value: new THREE.Color('#5a7a8c') }, uKnitC: { value: new V3() }, uKnitY0: { value: 0 }, uHair: { value: new THREE.Color('#4a2f1d') }, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 }, uSway: v() };
 }
 
@@ -201,12 +202,12 @@ export function humanMaterial(U, o = {}) {
     grainHook.call(m, sh);
     Object.assign(sh.uniforms, U); sh.uniforms.uDbgBack = HUMAN_DBG;
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform float uDbgBack;', 'human-dbg');
-    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <dithering_fragment>', '#include <dithering_fragment>\n  if (uDbgBack > 0.5) { if (!gl_FrontFacing) gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); else if (uDbgBack > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }', 'human-dbg');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <dithering_fragment>', '#include <dithering_fragment>\n  if (uDbgBack > 0.5) { if (!gl_FrontFacing) gl_FragColor = uDbgBack > 2.5 && (vTint < 0.5 || vTint > 1.5) ? vec4(1.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 1.0, 1.0); else if (uDbgBack > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }', 'human-dbg');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\n' + (cloth ? CLOTH_VERT_DECL : 'attribute float aTint;\nvarying float vTint;'), 'human');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vTint = aTint;', 'human');
-    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform vec3 uHair;\nuniform float uShade;\nvarying float vTint;', 'human');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform vec3 uHair;\nuniform vec3 uJacket2;\nuniform float uShade;\nvarying float vTint;', 'human');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
-  if ( vTint > 0.5 && vTint < 1.5 ) diffuseColor.rgb *= pow( uJacket, vec3( 2.2 ) );     // jacket panels take the skier's colour (display -> linear)
+  if ( vTint > 0.5 && vTint < 1.5 ) diffuseColor.rgb *= pow( mix( uJacket, uJacket2, smoothstep( 1.15, 1.25, vTint ) ), vec3( 2.2 ) );   // jacket panels take the skier's colours (T7 : 1,4 = seconde couleur)
   else if ( vTint > 1.5 && vTint < 2.5 ) diffuseColor.rgb *= pow( uSkinTone, vec3( 2.2 ) ); // skin tone
   else if ( vTint > 2.5 && vTint < 3.5 ) diffuseColor.rgb *= pow( uHelmet, vec3( 2.2 ) );   // helmet shell
   else if ( vTint > 3.5 && vTint < 4.5 ) diffuseColor.rgb *= pow( uBeanie, vec3( 2.2 ) );  // knitted beanie
@@ -344,7 +345,8 @@ export function setGear(H, g) {
   if (H.gear === g) return; H.gear = g;
   const P = H.parts, hel = g === 'helmet';
   for (const k of ['helmet', 'goggles', 'gaiter']) if (P[k]) P[k].visible = hel;   // T7 : tour de cou avec le casque
-  for (const k of ['beanie', 'pompom', 'eyes', 'hair']) if (P[k]) P[k].visible = !hel;   // T7 : cheveux sculptés sous le bonnet
+  for (const k of ['beanie', 'pompom', 'eyes']) if (P[k]) P[k].visible = !hel;
+  if (P.hair) P.hair.visible = true;   // T7 (freeride) : mèches sous le bonnet comme sous le casque
 }
 
 // aim one bone: world rotation mapping its rest (direction, reference) frame onto the target (direction, reference)
@@ -410,7 +412,7 @@ export function playerHumanSync(dt = 1 / 60) {
 // swap the player's rigid body for the realistic one; skis, boots and poles stay
 export function initPlayerHuman() {
   const H = makeHuman('hm_male', { jacket: '#c7302a', skin: '#e9c3a6', shade: skierShade, gear: 'helmet' }); if (!H) return;   // T7 : peau peinte neutre, teinte réelle
-  H.U.uHelmet.value.set('#f2f3f5');
+  H.U.uHelmet.value.set('#f2f3f5'); H.U.uJacket2.value.set('#20262e');   // T7 : veste bicolore (épaules, avant-bras, capuche)
   const R = H.rest, S = skier;
   H.scale = 0.87 / (R.thigh_l.len + R.calf_l.len);
   // the rigid rig adopts the body's arm and shoulder proportions, so hands and poles meet the gloves

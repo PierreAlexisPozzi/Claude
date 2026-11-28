@@ -80,13 +80,24 @@ test (exécutions reproductibles au bit près).
   jeunes, yeux un peu plus grands, nez plus fin, joues plus pleines, coins de la bouche relevés), **peau peinte** sur
   fond neutre et teintée par personne (joues, nez et oreilles rosés, lèvres, ligne de cils, sourcils nets, ombre de
   barbe légère), iris plus grands, peau mate sans pores ni ridules.
-- **Cheveux sculptés** sous le bonnet, avec une queue de cheval pour les femmes, à la place des cartes de mèches. La
-  couleur des cheveux par personne est enfin appliquée : la ligne qui la réglait était restée en commentaire.
+- **Tenues freeride amples** (ta seconde demande, d'après tes captures de SSX, dont on garde l'esprit sans copier
+  personnages ni tenues) :
+  - veste longue sur le haut des cuisses, qui tombe droit depuis la poitrine ;
+  - manches larges, resserrées aux poignets ;
+  - deux couleurs par veste (empiècement des épaules, avant-bras, capuche), teintées par personne ;
+  - grande capuche et sac de freeride plus volumineux ;
+  - pantalon large en cylindre autour de chaque jambe, qui s'évase et s'empile sur la chaussure.
+- **Cheveux** :
+  - coque sculptée sous le bonnet ou le casque ;
+  - mèches effilées qui dépassent aux tempes et à la nuque (plus longues chez les femmes, avec une queue de cheval), à
+    la place des cartes de mèches.
+
+  La couleur des cheveux par personne est enfin appliquée : la ligne qui la réglait était restée en commentaire.
 - **Vêtements sans jour** : chaque ouverture est refermée par une doublure qui revient sur la surface d'en dessous :
   - col en polaire, posé sur la peau du cou, qui continue sous le col ;
-  - poignets, posés sur l'avant-bras sous le gant ;
+  - poignets, fermés par un fond que traverse le gant ;
   - ourlet de la veste, posé sur le pantalon ;
-  - bas de pantalon, revenant vers la chaussure ;
+  - bas de pantalon, fermés par un fond que traverse la chaussure ;
   - bords du bonnet, du casque et des cheveux ;
   - bouts de capuche et de sangles fermés.
 

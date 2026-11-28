@@ -17,8 +17,8 @@ Source used in T7: github.com/makehumancommunity/mpfb2, src/mpfb/data (files fet
 The skeleton is this script's own (bones between the base mesh's joint markers), named like the weight file so the
 weights apply; finger, thumb and toe weights are folded into the hand and the foot.
 
-Each character is one skinned mesh: a quilted ski jacket with a snug high collar and a hem that hangs over the hips,
-straight ski trousers that fall to the boot, gloves; the head and neck are a separate skinned mesh (face) with five
+Each character is one skinned mesh: a loose quilted freeride jacket (two colours, snug high collar, hood, long hem over
+the upper thighs, wide sleeves gathered at the wrist), wide trousers stacking on the boot, gloves; the head and neck are a separate skinned mesh (face) with five
 expression morphs. Everything under the clothes is removed, except the neck under the collar.
 Vertex colours carry the colours and baked AO; a '_tint' attribute (1 on the jacket's main panels) lets the game
 recolour jackets per skier. Helmet, goggles, neck gaiter, beanie, pompom, sculpted hair and eyes are separate skinned
@@ -291,8 +291,15 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     chin_y = mk['joint-mouth'].y - 0.03
     neck = mk['joint-neck']
     reg = {i: region(dom[i], weights.get(i, {}), V[i].y, hip_y, chin_y, None) for i in used}
+    # T7 (freeride) : veste longue sur le haut des cuisses (extérieur, avant, arrière), entrejambe dégagé : la veste
+    # descend à ~13 cm sous l'articulation de la hanche, sauf entre les jambes (elle suit ainsi chaque cuisse)
+    tc_x = sum(V[i].x for i in used if dom[i].startswith(('spine', 'pelvis'))) / max(1, sum(1 for i in used if dom[i].startswith(('spine', 'pelvis'))))
+    for i in used:
+        if reg[i] == 'pants' and dom[i].startswith('thigh') and V[i].y > hip_y - 0.135 and abs(V[i].x - tc_x) > 0.075:
+            reg[i] = 'both'
 
     JK, PT, GL, SK = hexrgb(opts['jacket']), hexrgb(opts['pants']), hexrgb('#1b1d22'), hexrgb(SKIN_TONES[opts['skin']])
+    hem_y = hip_y - 0.13                                                        # T7 (freeride) : veste longue
     ACC = hexrgb(opts['accent'])
     verts_out, cols, tints, wout, polys, fcol, psrc, skin_base, vsrc = [], [], [], [], [], [], [], {}, {}
 
@@ -319,15 +326,63 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         return start, len(polys)
 
     # quilted jacket: baffles across the torso and sleeves, hem flared over the hips, high collar
+    # T7 (freeride) : veste ample. Sous la poitrine, le torse tombe droit (enveloppe par secteur angulaire de la section
+    # la plus large) ; manches en cylindres larges autour des os, resserrées au poignet ; ourlet plus bas.
+    sc_ = (mk['joint-l-upper-leg'] - mk['joint-l-knee']).length / 0.42          # échelle du gabarit (femme : ~0,9)
+    tors = [i for i in used if dom[i].startswith(('spine', 'pelvis'))]
+    cx_ = sum(V[i].x for i in tors) / len(tors); cz_ = sum(V[i].z for i in tors) / len(tors)
+    chest_y, NS = mk['SPINE_C'].y, 24
+    sect = lambda q: int((math.atan2(q.x - cx_, q.z - cz_) + math.pi) / (2 * math.pi) * NS) % NS
+    env = [0.0] * NS
+    for i in used:
+        if dom[i].startswith(('spine', 'pelvis', 'thigh')) and hip_y - 0.03 < V[i].y < chest_y:
+            k = sect(V[i]); env[k] = max(env[k], math.hypot(V[i].x - cx_, V[i].z - cz_))
+    env = [max(env[(k + j) % NS] for j in (-1, 0, 1)) for k in range(NS)]   # enveloppe lissée
+
+    def seg_r(p, a, b):
+        ab = b - a; t = max(0.0, min(1.0, (p - a).dot(ab) / max(1e-6, ab.dot(ab))))
+        return (p - (a + ab * t)).length, t
+
+    # trousers: straight legs from hip to boot (below the knee the shell becomes a cylinder around the leg axis)
+    def p_off(i):
+        # T7 (freeride) : pantalon large, jambes en cylindres autour des os, qui s'évase et s'empile sur la chaussure
+        p, d = V[i], dom[i]
+        o = 0.04
+        if d.startswith('calf'):
+            s = 'l' if d.endswith('_l') else 'r'
+            k, a = mk['joint-%s-knee' % s], mk['joint-%s-ankle' % s]
+            t = max(0.0, min(1.0, (k.y - p.y) / max(0.05, k.y - a.y)))
+            axis = k.lerp(a, t)
+            r = (Vector((p.x, 0, p.z)) - Vector((axis.x, 0, axis.z))).length
+            want = (0.098 + 0.018 * t) * sc_                                     # s'évase sur la chaussure
+            o = max(0.02, want - r)
+        if d.startswith('thigh'):
+            s = 'l' if d.endswith('_l') else 'r'
+            r, t = seg_r(p, mk['joint-%s-upper-leg' % s], mk['joint-%s-knee' % s])
+            o = max(0.03, (0.11 - 0.008 * t) * sc_ - r)
+        return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     def j_off(i):
         p, d = V[i], dom[i]
-        base = 0.034 if d.startswith(('spine', 'pelvis', 'clavicle')) else 0.026 if d.startswith('upperarm') else 0.022
+        base = 0.045 if d.startswith(('spine', 'pelvis', 'clavicle')) else 0.026 if d.startswith('upperarm') else 0.022
+        r_ax = math.hypot(p.x - cx_, p.z - cz_)
+        if d.startswith(('spine', 'pelvis', 'thigh')) and hem_y < p.y < chest_y and r_ax > 0.06:
+            base = max(base, env[sect(p)] + 0.045 - r_ax)                       # tombe droit depuis la poitrine
+        if d.startswith(('upperarm', 'lowerarm')):
+            s_ = d[-1]
+            sh_, el_, wr_ = mk['joint-%s-shoulder' % s_], mk['joint-%s-elbow' % s_], mk['joint-%s-hand' % s_]
+            if d.startswith('upperarm'):
+                r, t = seg_r(p, sh_, el_); want = 0.074 * sc_
+            else:
+                r, t = seg_r(p, el_, wr_); want = (0.068 - 0.022 * max(0.0, (t - 0.72) / 0.28)) * sc_   # poignet resserré
+            base = max(0.016, want - r)
         if d == 'neck_01':                                                        # T7 : col montant ajusté, qui se resserre sur le cou
             t = max(0.0, min(1.0, (p.y - neck.y) / max(0.02, chin_y - 0.035 - neck.y)))
             base = 0.028 - 0.016 * t
-        if d.startswith(('pelvis', 'thigh')):
-            base = 0.042 + 0.012 * max(0.0, min(1.0, (hip_y + 0.04 - p.y) / 0.1))  # hem sits just clear of the hips
+        if d.startswith(('pelvis', 'thigh')) and not (hem_y < p.y < chest_y and r_ax > 0.06):
+            base = 0.05 + 0.012 * max(0.0, min(1.0, (hip_y + 0.04 - p.y) / 0.1))   # hem sits just clear of the hips
         quilt = 0.006 * abs(math.sin((p.y if d.startswith(('spine', 'pelvis')) else (p - mk['joint-l-shoulder']).length * 1.6) * math.pi / 0.11))
+        if reg[i] == 'both':                       # T7 : là où la veste recouvre le pantalon, toujours 1,5 cm au-dessus
+            base = max(base, p_off(i) + 0.015)
         return base + quilt
 
     def j_col(i, p):
@@ -335,27 +390,18 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         return JK
 
     def j_tint(i, p):
-        c = j_col(i, p)
-        return 1.0 if c == JK else 0.0
+        # T7 (freeride) : deux couleurs par veste (teintées par personne) : empiècement des épaules et avant-bras = 1,4
+        d = dom[i]
+        if d.startswith('lowerarm') or (p.y > chest_y + 0.035 and not d.startswith('neck')):
+            return 1.4                     # proche de 1 : l'interpolation entre les deux couleurs ne traverse aucune autre teinte
+        return 1.0
 
     jk_rng = add_shell('jacket', j_off, j_col, j_tint)
 
-    # trousers: straight legs from hip to boot (below the knee the shell becomes a cylinder around the leg axis)
-    def p_off(i):
-        p, d = V[i], dom[i]
-        o = 0.026
-        if d.startswith('calf'):
-            s = 'l' if d.endswith('_l') else 'r'
-            k, a = mk['joint-%s-knee' % s], mk['joint-%s-ankle' % s]
-            t = max(0.0, min(1.0, (k.y - p.y) / max(0.05, k.y - a.y)))
-            axis = k.lerp(a, t)
-            r = (Vector((p.x, 0, p.z)) - Vector((axis.x, 0, axis.z))).length
-            want = 0.085 + 0.012 * t                                              # flares a little over the boot
-            o = max(0.02, want - r)
-        if d.startswith('thigh'):
-            o = 0.03
-        return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     pt_rng = add_shell('pants', p_off, lambda i, p: PT if p.y > 0.16 else hexrgb('#16181c'), lambda i, p: 0.0)
+    # contrôle : le pantalon ne traverse jamais la veste (même sommet du corps, mêmes poids : l'écart se conserve en pose)
+    bad = [i for i in used if reg[i] == 'both' and j_off(i) < p_off(i) + 0.012]
+    assert not bad, 'pantalon au-dessus de la veste en %d sommets' % len(bad)
 
     # T7 : ouvertures refermées. Chaque bord libre d'un vêtement (col, poignets, ourlet, bas de pantalon) est prolongé
     # par une bande de doublure qui revient sur la surface d'en dessous : peau du cou, avant-bras, pantalon, tige de la
@@ -363,7 +409,6 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     # poids du bord, elle suit donc le mouvement comme le reste du vêtement. Les bords sont protégés de la décimation.
     from collections import Counter
     LINING, FLEECE = hexrgb('#1d2026'), hexrgb(opts.get('lining', '#3a3f48'))
-    hem_y = hip_y - 0.065
 
     def rim_edges(rng):
         ec = Counter((min(a, b), max(a, b)) for p in polys[rng[0]:rng[1]] for a, b in zip(p, p[1:] + p[:1]))
@@ -373,29 +418,59 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         edges, fold = rim_edges(rng), {}
         for a, b in edges:
             d = dom[vsrc[a]]
+            ring = None                                            # (axe a, axe b, rayon) : bord intérieur en anneau régulier
             if kind == 'pants':
                 if not d.startswith(('calf', 'foot')):
                     continue                                       # taille du pantalon : sous la veste
-                inset, col = (lambda j: max(0.006, p_off(j) - 0.025)), LINING   # revient vers la tige de la chaussure
+                inset, col = (lambda j: 0.0), LINING               # revient vers la tige de la chaussure
+                s_ = d[-1]; ring = (mk['joint-%s-knee' % s_], mk['joint-%s-ankle' % s_], 0.05 * sc_)
             elif d in ('neck_01', 'head', 'spine_03', 'clavicle_l', 'clavicle_r') and V[vsrc[a]].y > neck.y - 0.03:
                 inset, col = (lambda j: 0.003), FLEECE             # col doublé de polaire, posé sur la peau du cou
             elif d.startswith(('lowerarm', 'hand', 'upperarm')):
                 inset, col = (lambda j: 0.004), LINING             # poignet resserré sur l'avant-bras (sous le gant)
+                s_ = d[-1]; ring = (mk['joint-%s-elbow' % s_], mk['joint-%s-hand' % s_], 0.03 * sc_)
             else:
-                inset, col = (lambda j: p_off(j) + 0.0015), LINING  # ourlet posé sur le pantalon
+                inset, col = (lambda j: p_off(j) - 0.004), LINING   # ourlet qui rentre sous la surface du pantalon (aucun interstice)
                 for v in (a, b):
-                    verts_out[v].y = hem_y                         # ourlet droit
+                    if verts_out[v].y < hip_y - 0.09:
+                        verts_out[v].y = hem_y                     # ourlet droit (l'échancrure de l'entrejambe reste)
             ids = []
             for v in (a, b):
                 if v not in fold:
                     j = vsrc[v]
-                    fold[v] = len(verts_out); verts_out.append(V[j] + nrm[j] * inset(j)); cols.append(col); tints.append(0.0); wout.append(wout[v])
+                    q = V[j] + nrm[j] * inset(j)
+                    if ring:                                       # anneau autour de l'axe de l'os, à la hauteur du bord
+                        ab = ring[1] - ring[0]; t = max(0.0, min(1.0, (verts_out[v] - ring[0]).dot(ab) / ab.dot(ab)))
+                        c = ring[0] + ab * t; rd = verts_out[v] - c; rd -= ab.normalized() * rd.dot(ab.normalized())
+                        q = c + rd.normalized() * ring[2]
+                    fold[v] = len(verts_out); verts_out.append(q); cols.append(col); tints.append(0.0); wout.append(wout[v])
                 ids.append(fold[v])
             polys.append([b, a, ids[0], ids[1]]); fcol.append(col); psrc.append(('fold', -1))
             rimv.update((a, b, ids[0], ids[1]))
     rimv = set()
+    n0 = len(polys)
     close(jk_rng, 'jacket')
+    nf = len(polys)
     close(pt_rng, 'pants')
+
+    # T7 (freeride) : bas de pantalon et poignets plus larges que la chaussure ou le gant : chaque ouverture est fermée
+    # par un fond de doublure (éventail sur le bord intérieur de la bande) que la chaussure ou le gant traverse ; vu
+    # d'en dessous, aucun jour
+    def cap(lo, hi, bones):
+        for side in ('l', 'r'):
+            loop = [(p[2], p[3]) for p, k in zip(polys[lo:hi], psrc[lo:hi]) if k[0] == 'fold' and wout[p[2]]
+                    and max(wout[p[2]], key=wout[p[2]].get) in tuple(b + '_' + side for b in bones)]
+            if not loop:
+                continue
+            ids = {v for e in loop for v in e}
+            ctr = sum((verts_out[v] for v in ids), Vector()) / len(ids)
+            ci = len(verts_out); verts_out.append(ctr); cols.append(LINING); tints.append(0.0); wout.append(dict(wout[next(iter(ids))]))
+            for fa, fb in loop:
+                polys.append([fb, fa, ci]); fcol.append(LINING); psrc.append(('fold', -1))
+            rimv.update(ids | {ci})
+    nend = len(polys)
+    cap(nf, nend, ('calf', 'foot'))
+    cap(n0, nf, ('lowerarm', 'hand'))
     # gloved fists closed round the pole grip (the open MakeHuman hands are dropped): a padded mitten centred on
     # the palm, ~7.5 cm past the wrist along the hand bone, with a gauntlet cuff over the sleeve end
     for s_ in ('l', 'r'):
@@ -471,12 +546,13 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     hc = Vector((neck.x, neck.y - 0.03, neck.z - 0.005))
     rx = abs(mk['joint-l-clavicle'].x - mk['joint-r-clavicle'].x) * 0.62
     hood = [hc + Vector((rx * math.sin(a), 0.012 * math.cos(a * 2), -abs(rx * 0.95 * math.cos(a)) - 0.035)) for a in (math.radians(v) for v in range(-100, 101, 10))]
-    add_tube(hood, 0.038, JK, lambda p: W(spine_03=0.6, neck_01=0.4), tint=1.0, sides=10)
+    hood = [q + Vector((0, 0.006, -0.022)) for q in hood]                         # T7 (freeride) : capuche ample
+    add_tube(hood, 0.058, JK, lambda p: W(spine_03=0.6, neck_01=0.4), tint=1.4, sides=12)
     # back protector pack and straps
     top_y, bot_y = sp_c.y + 0.02, sp_b.y - 0.1
     pb, pn = surf(0.0, (top_y + bot_y) / 2, -1)
-    add_box(pb, Vector((0, 0, -1)), Vector((0, 1, 0)), (0.27, top_y - bot_y, 0.085), hexrgb('#1c1f25'), W(spine_02=0.5, spine_03=0.5))
-    add_box(pb + Vector((0, 0.03, -0.088)), Vector((0, 0, -1)), Vector((0, 1, 0)), (0.18, 0.12, 0.012), hexrgb(opts['accent']), W(spine_02=0.5, spine_03=0.5))
+    add_box(pb, Vector((0, 0, -1)), Vector((0, 1, 0)), (0.3, top_y - bot_y + 0.04, 0.13), hexrgb('#1c1f25'), W(spine_02=0.5, spine_03=0.5))   # sac freeride
+    add_box(pb + Vector((0, 0.04, -0.132)), Vector((0, 0, -1)), Vector((0, 1, 0)), (0.2, 0.14, 0.014), hexrgb(opts['accent']), W(spine_02=0.5, spine_03=0.5))
     for sx in (-1, 1):
         sh = mk['joint-%s-shoulder' % ('l' if sx > 0 else 'r')]
         pf, _ = surf(sx * 0.085, sh.y - 0.12, 1)
@@ -581,6 +657,47 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                 for b in range(10):
                     b1 = (b + 1) % 10
                     hair['p'].append([base + a * 10 + b, base + a * 10 + b1, base + (a + 1) * 10 + b1, base + (a + 1) * 10 + b]); hair['fc'].append((1.0, 1.0, 1.0))
+    # T7 (freeride) : mèches qui dépassent du bonnet ou du casque, autour des tempes et de la nuque : volumes effilés
+    # fermés (aucun jour), légèrement recourbés vers l'extérieur ; plus longues chez les femmes. Visibles avec les deux
+    # équipements (sous le casque comme sous le bonnet).
+    from mathutils.bvhtree import BVHTree
+    hbvh = BVHTree.FromPolygons([tuple(v) for v in V], [list(f) for f in hface])
+    lr = random.Random(11 if long_ else 5)
+    def head_pt(a, y):
+        o = Vector((head_c.x, y, head_c.z)); d = Vector((math.sin(a), 0, math.cos(a)))
+        hit = hbvh.ray_cast(o, d, 0.3)
+        return (hit[0] if hit[0] else o + d * 0.09), d
+    angs = [math.radians(x) for x in (range(64, 297, 9) if long_ else range(72, 289, 10))]
+    hair['nsmooth'] = len(hair['v'])                                            # seule la coque est lissée
+    for a in angs:
+        a += math.radians(lr.uniform(-3, 3))
+        c = math.cos(a)                                                          # 1 devant, -1 derrière
+        side, back = abs(math.sin(a)), max(0.0, -c)
+        y_low = eye_y + (0.014 + (-0.075 - 0.014) * back if not long_ else -0.03 + ((chin_y - 0.045 - eye_y) + 0.03) * back)
+        base, d = head_pt(a, y_low + 0.012)
+        base += d * 0.009
+        L = (0.07 + 0.02 * side - 0.02 * back if long_ else 0.035 + 0.015 * side) * lr.uniform(0.75, 1.15)
+        tg = Vector((math.cos(a), 0, -math.sin(a)))                              # tangente horizontale
+        dr = (Vector((0, -1, 0)) * 0.88 + d * 0.3 + tg * lr.uniform(-0.25, 0.25)).normalized()
+        w0, t0 = (0.019 if long_ else 0.016), 0.009
+        start = len(hair['v']); rings = 4
+        hair['v'].append(base - dr * 0.004); hair['t'].append(5.0)              # centre du fond (fermé)
+        for k in range(rings):
+            sf = k / rings; cc = base + dr * (L * sf) + d * (0.008 * sf * sf)
+            w, th = w0 * (1 - 0.8 * sf), t0 * (1 - 0.6 * sf)
+            for j in range(6):
+                q = 2 * math.pi * j / 6
+                hair['v'].append(cc + tg * (math.cos(q) * w * 0.5) + d * (math.sin(q) * th * 0.5)); hair['t'].append(5.0)
+        hair['v'].append(base + dr * L + d * 0.008); hair['t'].append(5.0)       # pointe
+        tip = len(hair['v']) - 1
+        for j in range(6):
+            j1 = (j + 1) % 6
+            hair['p'].append([start, start + 1 + j1, start + 1 + j]); hair['fc'].append((1.0, 1.0, 1.0))
+            for k in range(rings - 1):
+                r0, r1 = start + 1 + k * 6, start + 1 + (k + 1) * 6
+                hair['p'].append([r0 + j, r0 + j1, r1 + j1, r1 + j]); hair['fc'].append((1.0, 1.0, 1.0))
+            rl = start + 1 + (rings - 1) * 6
+            hair['p'].append([rl + j, rl + j1, tip]); hair['fc'].append((1.0, 1.0, 1.0))
     topv = max(hv, key=lambda i: V[i].y)
     pp = V[topv] + Vector((0, 0.035, -0.01))
     pom = {'v': [], 't': [], 'p': [], 'fc': [], 'smooth': 0}
@@ -629,6 +746,14 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     if len(keep) < len(polys):
         print('faces en double ou dégénérées retirées :', len(polys) - len(keep))
         polys[:], fcol[:], psrc[:] = [polys[k] for k in keep], [fcol[k] for k in keep], [psrc[k] for k in keep]
+    if os.environ.get('HM_DEBUG'):                 # orientation : une arête orientée ne doit servir qu'une fois
+        from collections import Counter
+        de = Counter((p[k], p[(k + 1) % len(p)]) for p in polys for k in range(len(p)))
+        bad = Counter()
+        for k_, p in enumerate(polys):
+            if any(de[(p[k], p[(k + 1) % len(p)])] > 1 for k in range(len(p))):
+                bad[psrc[k_][0]] += 1
+        print('ORIENTATION', name, dict(bad))
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(G(p.x, p.y, p.z)) for p in verts_out], [], polys)
     me.update()
@@ -717,8 +842,10 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         gm.from_pydata([tuple(G(p.x, p.y, p.z)) for p in P['v']], [], P['p']); gm.update()
         if P['smooth']:
             bm = bmesh.new(); bm.from_mesh(gm)
+            bm.verts.ensure_lookup_table()
+            sv = [v for v in bm.verts if v.index < P.get('nsmooth', len(bm.verts))]   # T7 : les mèches ajoutées ensuite ne sont pas lissées
             for _ in range(P['smooth']):
-                bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+                bmesh.ops.smooth_vert(bm, verts=sv, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
             bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
             bm.to_mesh(gm); bm.free(); gm.update()
         ca = gm.color_attributes.new('Color', 'FLOAT_COLOR', 'CORNER')
@@ -892,7 +1019,7 @@ def paint_skin(mv, faces, fgroup, mk, margin, out, female, size=1024):
         sx = 1 if e.x > mid else -1                                     # sourcils : arc net, effilé vers l'extérieur
         by = 0.027 if female else 0.024                                  # hauteur des sourcils (plus bas chez les hommes)
         pts = [(e.x + (t - 2.4) * 0.0075 * sx, e.y + by + 0.004 * math.sin(t / 6 * math.pi) - 0.003 * (t / 6), t / 6) for t in [k * 0.5 for k in range(13)]]
-        best, wid = np.full(X.shape, 1.0), np.zeros(X.shape)
+        best, wid = np.full(X.shape, 1.0), np.full(X.shape, 0.004)
         for (ax, ay, ta), (bx, by, tb) in zip(pts, pts[1:]):
             vx, vy = bx - ax, by - ay
             t = np.clip(((X - ax) * vx + (Y - ay) * vy) / (vx * vx + vy * vy), 0, 1)
@@ -1000,7 +1127,7 @@ def main():
         gobs.append(face)
         for go in gobs:
             if go.name.endswith(('_helmet', '_beanie', '_goggles', '_hair', '_gaiter')):
-                finish(go, 1.0 if go.name.endswith('_goggles') else 0.6 if go.name.endswith(('_hair', '_gaiter')) else 0.45)   # T7 : bandeau du masque tracé à la bonne densité
+                finish(go, 1.0 if go.name.endswith(('_goggles', '_hair')) else 0.6 if go.name.endswith('_gaiter') else 0.45)   # mèches fines : pas de décimation   # T7 : bandeau du masque tracé à la bonne densité
         objs.append(ob); rigs.append(ao); gears += gobs
         paint_skin(mv, faces, fgroup, mk, margin, os.path.join(ASSETS_DIR, 'skin_%s.jpg' % g), g == 'female')
         print('STYLE', name, 'globe %.4f m' % opts['eye_r'])
