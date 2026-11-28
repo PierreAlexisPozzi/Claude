@@ -303,6 +303,20 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     ACC = hexrgb(opts['accent'])
     verts_out, cols, tints, wout, polys, fcol, psrc, skin_base, vsrc = [], [], [], [], [], [], [], {}, {}
 
+    def joint_blend(i):
+        """T7 (freeride) : vêtements amples loin de l'os : autour du genou et du coude, poids fondus sur ±10 cm (8 cm au
+        coude) le long du membre ; la jambe de pantalon ne se replie plus sur elle-même derrière le genou plié"""
+        w, d = weights.get(i, {'pelvis': 1.0}), dom[i]
+        for up, lo, j0, j1, j2, half in (('thigh', 'calf', 'upper-leg', 'knee', 'ankle', 0.1), ('upperarm', 'lowerarm', 'shoulder', 'elbow', 'hand', 0.08)):
+            if d.startswith((up, lo)):
+                sd = d[-1]; a_, k_, b_ = mk['joint-%s-%s' % (sd, j0)], mk['joint-%s-%s' % (sd, j1)], mk['joint-%s-%s' % (sd, j2)]
+                ax = ((k_ - a_).normalized() + (b_ - k_).normalized()).normalized()
+                x = (V[i] - k_).dot(ax)
+                if abs(x) < half:
+                    u = (x + half) / (2 * half); u = u * u * (3 - 2 * u)
+                    return {'%s_%s' % (up, sd): 1 - u, '%s_%s' % (lo, sd): u}
+        return w
+
     def add_shell(kind, offset_fn, col_fn, tint_fn):
         idx, start = {}, len(polys)
         for f in body:
@@ -319,7 +333,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                         skin_base[len(verts_out)] = i
                     vsrc[len(verts_out)] = i
                     p = V[i] + nrm[i] * offset_fn(i)
-                    verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(weights.get(i, {'pelvis': 1.0}))
+                    verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(joint_blend(i) if kind != 'skin' else weights.get(i, {'pelvis': 1.0}))
                 ids.append(idx[i])
             polys.append(ids); psrc.append((kind, faces_index[id(f)]))
             fcol.append(col_fn(max(f, key=lambda i: V[i].y if kind == 'skin' else 0), sum((V[i] for i in f), Vector()) / len(f)))
@@ -354,12 +368,19 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             t = max(0.0, min(1.0, (k.y - p.y) / max(0.05, k.y - a.y)))
             axis = k.lerp(a, t)
             r = (Vector((p.x, 0, p.z)) - Vector((axis.x, 0, axis.z))).length
-            want = (0.098 + 0.018 * t) * sc_                                     # s'évase sur la chaussure
+            want = (0.098 + 0.018 * t - 0.012 * max(0.0, 1 - t / 0.2) ** 2) * sc_   # resserré au genou, s'évase sur la chaussure
             o = max(0.02, want - r)
         if d.startswith('thigh'):
             s = 'l' if d.endswith('_l') else 'r'
             r, t = seg_r(p, mk['joint-%s-upper-leg' % s], mk['joint-%s-knee' % s])
-            o = max(0.03, (0.11 - 0.008 * t) * sc_ - r)
+            kn = max(0.0, min(1.0, (t - 0.75) / 0.25)) ** 2                        # resserré au genou (repli moindre)
+            o = max(0.03, (0.11 - 0.008 * t - 0.02 * kn) * sc_ - r)
+        if d.startswith(('thigh', 'calf')):        # T7 : tissu froncé derrière le genou (pas de coque retournée genou plié)
+            s = d[-1]; kp = mk['joint-%s-knee' % s]
+            along = abs(p.y - kp.y)
+            if along < 0.13 and p.z < kp.z:
+                wb = max(0.0, min(1.0, (kp.z - p.z) / 0.035)) * (1 - along / 0.13) ** 2
+                o = o + (0.016 - o) * wb
         return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     def j_off(i):
         p, d = V[i], dom[i]
@@ -419,9 +440,9 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         for a, b in edges:
             d = dom[vsrc[a]]
             ring = None                                            # (axe a, axe b, rayon) : bord intérieur en anneau régulier
-            if kind == 'pants':
-                if not d.startswith(('calf', 'foot')):
-                    continue                                       # taille du pantalon : sous la veste
+            if kind == 'pants' and not d.startswith(('calf', 'foot')):
+                inset, col = (lambda j: 0.004), LINING             # ceinture : revient sur le corps (fermée ensuite par un fond)
+            elif kind == 'pants':
                 inset, col = (lambda j: 0.0), LINING               # revient vers la tige de la chaussure
                 s_ = d[-1]; ring = (mk['joint-%s-knee' % s_], mk['joint-%s-ankle' % s_], 0.05 * sc_)
             elif d in ('neck_01', 'head', 'spine_03', 'clavicle_l', 'clavicle_r') and V[vsrc[a]].y > neck.y - 0.03:
@@ -468,9 +489,24 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             for fa, fb in loop:
                 polys.append([fb, fa, ci]); fcol.append(LINING); psrc.append(('fold', -1))
             rimv.update(ids | {ci})
+            if os.environ.get('HM_DEBUG'):             # orientation du fond : sa normale doit sortir du membre
+                j0, j1 = {'calf': ('knee', 'ankle'), 'lowerarm': ('elbow', 'hand')}[bones[0]]
+                ax = mk['joint-%s-%s' % (side, j1)] - mk['joint-%s-%s' % (side, j0)]
+                out_ = sum(1 for fa, fb in loop if (verts_out[fa] - verts_out[fb]).cross(verts_out[ci] - verts_out[fb]).dot(ax) > 0)
+                print('FOND', bones[0], side, 'vers l extérieur', out_, '/', len(loop))
     nend = len(polys)
     cap(nf, nend, ('calf', 'foot'))
     cap(n0, nf, ('lowerarm', 'hand'))
+    # ceinture du pantalon : vue d'en dessous en schuss, on voyait dans le pantalon par la taille ; un fond horizontal
+    # (éventail depuis le centre de la ceinture) le ferme
+    belt = [(p[2], p[3]) for p, k in zip(polys[nf:nend], psrc[nf:nend]) if k[0] == 'fold' and wout[p[2]]
+            and not max(wout[p[2]], key=wout[p[2]].get).startswith(('calf', 'foot'))]
+    if belt:
+        ids = {v for e in belt for v in e}
+        ci = len(verts_out); verts_out.append(sum((verts_out[v] for v in ids), Vector()) / len(ids)); cols.append(LINING); tints.append(0.0); wout.append({'pelvis': 1.0})
+        for fa, fb in belt:
+            polys.append([fb, fa, ci]); fcol.append(LINING); psrc.append(('fold', -1))
+        rimv.update(ids | {ci})
     # gloved fists closed round the pole grip (the open MakeHuman hands are dropped): a padded mitten centred on
     # the palm, ~7.5 cm past the wrist along the hand bone, with a gauntlet cuff over the sleeve end
     for s_ in ('l', 'r'):

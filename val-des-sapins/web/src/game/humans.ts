@@ -16,7 +16,8 @@ export let skierShade, skierTint, skierFlutter, skierFTime, SKI_GEO, SKI_MAT, la
 export function __set_faceHold(v) { return (faceHold = v); }
 /* T7 : contrôle des jours entre le corps et les vêtements (planche personnages, persos.spec) : 1 = faces arrière des
    pièces du personnage en magenta ; 2 = idem sur faces avant noires (masque) ; 3 = diagnostic : faces arrière de la
-   veste en magenta, des autres pièces (pantalon, gants, doublures, sac) en jaune. Une face arrière visible, c'est l'intérieur
+   veste en magenta, des autres pièces (pantalon, gants, doublures, sac) en jaune ; 4 = faces arrière colorées d'après leur
+   position au repos (rouge = hauteur / 2 m, bleu = 0,5 + 2,5 × avant) pour situer un défaut. Une face arrière visible, c'est l'intérieur
    d'un vêtement ou d'une pièce vu par une ouverture. Hors contrôle : 0, pièces en simple face comme avant. */
 export const HUMAN_DBG = { value: 0 };
 export function setHumanDebug(mode) {
@@ -201,8 +202,10 @@ export function humanMaterial(U, o = {}) {
   m.onBeforeCompile = sh => {
     grainHook.call(m, sh);
     Object.assign(sh.uniforms, U); sh.uniforms.uDbgBack = HUMAN_DBG;
-    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform float uDbgBack;', 'human-dbg');
-    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <dithering_fragment>', '#include <dithering_fragment>\n  if (uDbgBack > 0.5) { if (!gl_FrontFacing) gl_FragColor = uDbgBack > 2.5 && (vTint < 0.5 || vTint > 1.5) ? vec4(1.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 1.0, 1.0); else if (uDbgBack > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }', 'human-dbg');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform float uDbgBack;\nvarying vec3 vDbgP;', 'human-dbg');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nvarying vec3 vDbgP;', 'human-dbg');
+    sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vDbgP = position;', 'human-dbg');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <dithering_fragment>', '#include <dithering_fragment>\n  if (uDbgBack > 0.5) { if (!gl_FrontFacing) gl_FragColor = uDbgBack > 3.5 ? vec4(vDbgP.y / 2.0, fract(vDbgP.x * 5.0), 0.5 + vDbgP.z * 2.5, 1.0) : uDbgBack > 2.5 && (vTint < 0.5 || vTint > 1.5) ? vec4(1.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 1.0, 1.0); else if (uDbgBack > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }', 'human-dbg');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\n' + (cloth ? CLOTH_VERT_DECL : 'attribute float aTint;\nvarying float vTint;'), 'human');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vTint = aTint;', 'human');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform vec3 uHair;\nuniform vec3 uJacket2;\nuniform float uShade;\nvarying float vTint;', 'human');
