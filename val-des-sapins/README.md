@@ -68,7 +68,55 @@ test (exécutions reproductibles au bit près).
 | `lefrance` | Le France : deux ailes et une section en pont, hauteur libre > 6 m, aucun obstacle sur la piste Boulevard, ailes hors piste (T6) |
 | `shops` | commerces d'OSM : plus de la moitié placés en vitrine, la plupart des immeubles en logements au rez-de-chaussée, chaque commerçant devant un commerce réel (T6) |
 | `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
+| `heads` | têtes proches (T7) : visage subdivisé (Loop) à moins de 8 m avec ses cinq expressions et des poids de peau valides ; cheveux sous le bonnet seulement, tour de cou avec le casque seulement |
+| `photo` | mode photo (T7) : jeu figé, profondeur de champ, image PNG téléchargée, retour à l'heure et au champ du jeu, contrat d'identifiants du HUD |
+| `persos` | vêtements sans jour (T7) : masque des faces arrière dans les poses du jeu (dos en schuss, télésiège, col, poignet, ourlet, bas de pantalon, col et nuque d'une habitante tête tournée) ; aucun jour toléré ; planche complète avec `VDS_PERSOS=1` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+
+**Tranche T7 — personnages en réalisme stylisé, vêtements de ski sans jour, mode photo** (mesures :
+`review/mesures_T7.md`, planches : `review/planche_T7_*.jpg`) :
+- **Style repris à ta demande** : les visages réalistes faisaient peur. Ils passent en **réalisme stylisé**, avec des
+  qualités génériques et non la copie d'un jeu existant : traits adoucis par des morphes MakeHuman (CC0 : un peu plus
+  jeunes, yeux un peu plus grands, nez plus fin, joues plus pleines, coins de la bouche relevés), **peau peinte** sur
+  fond neutre et teintée par personne (joues, nez et oreilles rosés, lèvres, ligne de cils, sourcils nets, ombre de
+  barbe légère), iris plus grands, peau mate sans pores ni ridules.
+- **Cheveux sculptés** sous le bonnet, avec une queue de cheval pour les femmes, à la place des cartes de mèches. La
+  couleur des cheveux par personne est enfin appliquée : la ligne qui la réglait était restée en commentaire.
+- **Vêtements sans jour** : chaque ouverture est refermée par une doublure qui revient sur la surface d'en dessous :
+  - col en polaire, posé sur la peau du cou, qui continue sous le col ;
+  - poignets, posés sur l'avant-bras sous le gant ;
+  - ourlet de la veste, posé sur le pantalon ;
+  - bas de pantalon, revenant vers la chaussure ;
+  - bords du bonnet, du casque et des cheveux ;
+  - bouts de capuche et de sangles fermés.
+
+  Les doublures portent les poids de peau du bord, elles suivent donc le mouvement par le skinning, comme le reste du
+  vêtement. Il n'y a pas de simulation de tissu.
+- **Équipement** :
+  - col montant ajusté ;
+  - tour de cou en polaire pour les skieurs casqués ;
+  - masque en bandeau fermé, tracé autour de la tête (écran bombé aux coins arrondis, monture en mousse, sangle sur le
+    casque) ;
+  - casque uni à bord net ;
+  - bonnet ajusté.
+
+  Aucun logo.
+- **Mouvement secondaire** : le pompon et la queue de cheval suivent la tête par un ressort amorti (ils traînent à
+  l'accélération et rebondissent, 3 cm au plus, 1 cm en vertical).
+- **Contrôle des jours** (`tests/persos.spec.ts`) : les faces arrière des pièces du personnage s'affichent en magenta
+  (`__ski.humanDebug`) ; une face arrière visible, c'est l'intérieur d'un vêtement vu par une ouverture. Le test vérifie
+  huit vues sensibles dans les poses du jeu (aucun jour toléré). Témoin : la version d'avant y montre jusqu'à 1 785
+  pixels de jour au col. La planche complète se lance avec `VDS_PERSOS=1`.
+- **Mode photo** (touche P, Échap pour sortir ; « Photo » dans le menu « Plus » sur tactile) :
+  - le jeu est figé ;
+  - caméra libre autour du skieur ;
+  - réglages : distance, hauteur, flou d'arrière-plan (profondeur de champ), heure du soleil, champ ;
+  - « Enregistrer l'image » télécharge un PNG, sans toucher aux sauvegardes.
+- **Chaîne Blender** :
+  - rejouée d'abord à l'identique (octet pour octet) avant toute modification ;
+  - données MakeHuman téléchargées fichier par fichier depuis un commit épinglé de MPFB 2, empreintes vérifiées
+    (`python3 tools/makehuman_fetch.py`, puis `MH_DATA=web/.cache/raw/makehuman .bpyenv/bin/python blender/humans.py`) ;
+  - rien de brut n'est versionné.
 
 **Tranche T6 (première livraison) — Aime 2000, Le France, commerces réels, téléphone** (mesures :
 `review/mesures_T6.md`, commerces : `review/commerces_osm.md`, planches : `review/planche_T6_*.jpg`) :
@@ -251,15 +299,15 @@ Autres éléments trouvés dans le catalogue (recherche : sapin, épicéa, chale
 - Les pieds des skieurs sont recalés sur la neige quand le corps s'incline (le ski intérieur ne s'enfonce plus, l'extérieur ne flotte plus).
 - `tools/glb_slim.py` (lancé par `tools/slim_assets.py`) : couleurs de sommets sur 8 bits, normales sur 8 bits (KHR_mesh_quantization), UV supprimées quand elles ne servent pas.
 
-## Personnages réalistes (corps MakeHuman habillés pour le ski)
+## Personnages (corps MakeHuman habillés pour le ski ; réalisme stylisé depuis T7)
 - **Corps** : maillage de base MakeHuman et morphes de genre, d'origine, de musculature et de corpulence (données publiées en CC0 par MakeHuman en 2020), poids de skinning `weights.game_engine.json` (CC0 déclaré dans le fichier). Seules les **données** sont lues, par nos propres scripts : aucun code MakeHuman ou MPFB n'est exécuté. Le squelette (20 os) est le nôtre, tendu entre les repères d'articulation du maillage ; doigts et orteils sont fusionnés dans la main et le pied.
 - **Vêtements de ski** modélisés sur le corps (`blender/humans.py`) : veste matelassée (surpiqûres en relief, col montant, ourlet droit au-dessus des hanches, tissu lissé pour qu'il ne colle pas au corps), pantalon droit qui tombe sur la chaussure, gants, casque et masque. Tout ce qui est sous les vêtements est supprimé ; un seul maillage skinné par personnage (~7 600 triangles), homme et femme.
 - **Animation** : les solveurs de pose existants restent maîtres ; chaque image, chaque os est orienté le long du membre résolu (direction vers l'articulation suivante + référence avant pour la torsion), la hauteur des hanches est recalée. Skis, chaussures et bâtons restent les pièces rigides.
 - **Autres skieurs** : les 10 plus proches de la caméra (4 sur mobile) reçoivent un corps réaliste, avec couleur de veste, teinte de peau et taille propres ; au-delà, l'ancien modèle instancié prend le relais. Les habitants nommés ont un corps du bon genre et la couleur de veste de leur commerce.
 - `glb_slim` gère désormais les modèles skinnés (matrices de liaison, poids sur 8 bits).
-- **Équipement ajusté** : casque et masque sont générés à partir de la surface de la tête elle-même (coque à ~2,4 cm du crâne avec aérations, rebord et sangle du masque ; masque en bandeau sur les yeux avec écran teinté et cadre), au lieu d'une sphère générique trop grosse. Aucun modèle de casque ou de masque de ski n'existe sur BlendSwap (et les téléchargements y restent bloqués) : ce sont nos propres modèles, sur les proportions d'un équipement réel.
+- **Équipement ajusté** : casque généré à partir de la surface de la tête elle-même (coque unie à ~2,4 cm du crâne, bord net) ; depuis T7, masque en bandeau fermé tracé autour de la tête (écran bombé, monture en mousse, sangle) et tour de cou en polaire, au lieu d'une sphère générique trop grosse. Aucun modèle de casque ou de masque de ski n'existe sur BlendSwap (et les téléchargements y restent bloqués) : ce sont nos propres modèles, sur les proportions d'un équipement réel.
 - **Habitants du village** : bonnet en maille côtelée avec pompon, yeux visibles ; skieurs, moniteur et pisteuse gardent casque et masque. Couleurs de casque et de bonnet propres à chacun.
-- **Peau** : texture photo MakeHuman (CC0, « young caucasian male / female ») recadrée sur l'îlot de la tête en 512 px, sourcils peints dans l'espace UV ; la teinte de peau varie par personnage.
+- **Peau** : depuis T7, peinte par `blender/humans.py` (1024 px, fond neutre) ; la couleur de peau est celle de chaque personnage (5 teintes réelles). La texture photo MakeHuman n'est plus utilisée.
 - **Veste** : capuche roulée au col, dorsale avec bretelles, poche poitrine et poches de hanches, fermeture éclair.
 - **Expressions du visage** : le visage est un maillage à part (tête et cou, détail conservé autour des paupières, de la bouche et des sourcils) qui porte cinq morphes tirés des unités d'expression MakeHuman (CC0) : clignement, sourire, bouche ouverte, sourcils levés, yeux plissés. En jeu : clignements irréguliers (parfois doubles), sourire des habitants qui s'élargit quand on approche, sourcils levés quand ils saluent, mâchoire qui bouge pendant le dialogue ; le joueur se concentre à grande vitesse et sourit après une figure réussie. Les habitants tournent la tête vers vous à moins de 10 m.
 - `shop_signs.png` est stocké en palette 256 couleurs (30 Ko au lieu de 524 Ko, sans différence visible).

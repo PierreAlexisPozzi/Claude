@@ -318,6 +318,7 @@ function swayStep(H, dt) {
   }
   const o = H.U.uSway.value.subVectors(S.x, _swH), L = o.length();
   if (L > 0.03) o.multiplyScalar(0.03 / L);
+  o.y = Math.max(-0.01, Math.min(0.01, o.y));   // vertical limité à 1 cm : le pompon ne décolle pas du bonnet
   o.multiplyScalar(1 / (H.scale || 1));   // repère du maillage : axes du monde (racine sans rotation), à l'échelle du personnage
 }
 

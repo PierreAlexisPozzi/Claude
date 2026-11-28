@@ -37,7 +37,7 @@ Plagne Centre – Aime 2000 de La Plagne : aucun lien avec la station ni avec se
 | OpenStreetMap (restaurants, bars et cafés : position, genre, terrasse déclarée) | ODbL 1.0 — © les contributeurs d'OpenStreetMap | Emplacement des terrasses depuis T5 ter (`tools/osm_venues.py`, extrait de l'API OSM, liste : `review/terrasses_osm.md`) ; noms commerciaux non repris dans le jeu |
 | IGN RGE ALTI (via tuiles Mapterhorn) | Licence ouverte Etalab 2.0 | Relief du secteur |
 | Copernicus DEM GLO-30 (via tuiles Mapterhorn) | Licence Copernicus (libre, attribution) | Relief lointain et horizon |
-| MakeHuman — maillage de base, morphes, poids, textures de peau, unités d'expression | CC0 | Corps et visages des personnages (`blender/humans.py`) |
+| MakeHuman (via MPFB 2, commit épinglé) — maillage de base, morphes du corps et du visage, poids, unités d'expression | CC0 1.0 (assets ; le code GPL de MPFB n'est ni téléchargé ni exécuté) | Corps et visages des personnages (`blender/humans.py`, liste et empreintes : `tools/makehuman_fetch.py`) ; depuis T7, peau peinte par nos scripts (plus de texture photo MakeHuman) |
 
 ## Matières
 

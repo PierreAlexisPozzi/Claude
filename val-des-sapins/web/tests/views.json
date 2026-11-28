@@ -928,6 +928,44 @@
   "hour": 16.5
  },
  {
+  "id": "visage-lucie-sourire",
+  "title": "Lucie · grand sourire",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.85,
+   "open": 0,
+   "brows": 0.3,
+   "squint": 0
+  }
+ },
+ {
+  "id": "visage-henri-parle",
+  "title": "Henri · en parlant",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.7,
+   "open": 0.4,
+   "brows": 0.25,
+   "squint": 0
+  }
+ },
+ {
   "id": "jeu-depart",
   "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
   "kind": "jeu"
