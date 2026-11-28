@@ -2,7 +2,7 @@
 
 Le plan regroupe deux chantiers indépendants ; ils sont livrés séparément :
 - **T8a** : expressions, regard, micro-mouvements (cette page, partie 1) ;
-- **T8b** : forêts, mélèzes, rochers, barres rocheuses, horizon (partie 2, à venir).
+- **T8b** : forêts, mélèzes, rochers, barres rocheuses, horizon (partie 2).
 
 Rendu logiciel (SwiftShader) : temps **indicatifs**. Personnages originaux ; seules les données MakeHuman (CC0) sont
 utilisées.
@@ -58,3 +58,73 @@ du jeu :
 - Les yeux des skieurs casqués sont cachés par le masque : regard et expressions des yeux ne servent qu'aux habitants
   en bonnet.
 - La grimace (chute) étire les lèvres, ce qui peut se lire comme un sourire plissé sur un visage au repos.
+
+## Partie 2 — T8b : forêts, mélèzes, rochers, barres rocheuses, horizon
+
+### Données
+- **Couverture du sol d'après OpenStreetMap** (ODbL, même extrait que les terrasses et les commerces) :
+  `tools/osm_landcover.py`, rapport `review/couverture_osm.md`.
+  - 45 bois et forêts (225,5 ha sur l'extrait), 8 zones de roche nue (15,2 ha), 2 d'éboulis (2,2 ha).
+  - Contours simplifiés à 2 m près : 2 324 points ramenés à 1 811. Un seul multipolygone, aucune clairière cartographiée.
+- **Ce qui n'est pas dans les données** : les essences (quelques `leaf_type=needleleaved` seulement). Le mélange
+  épicéas / mélèzes est un **choix du jeu**, inspiré de l'écologie générale des Alpes internes : le mélèze, pionnier,
+  domine vers la limite des arbres, en lisière et sur les arbres isolés. Ce n'est pas une donnée de terrain.
+- Les **barres rocheuses** ne sont pas cartographiées non plus : elles sont déduites de la pente du relief IGN, là où
+  elle dépasse environ 44°.
+
+### Forêts
+- Arbres placés dans les polygones de bois, en bouquets et trouées (bruit), un peu plus clairs en lisière ; arbres
+  isolés hors des bois, plus nombreux près des lisières, jamais sur la roche ni les éboulis.
+- Plafonds inchangés (22 000 arbres sur ordinateur, 9 000 sur tactile) :
+
+| | Avant (T8a) | Après (T8b) | Dans les bois d'OSM | Mélèzes |
+|---|---|---|---|---|
+| Ordinateur | 11 660 arbres, sur toutes les pentes sous 2 110 m | **20 365** | 94 % | 33 % (6 787) |
+| Tactile | 6 157 | **8 540** | 93 % | 33 % (2 850) |
+
+- Les mélèzes poussent en peuplements : 43 % des morceaux de 48 m portent les deux essences (jusqu'à 5 maillages
+  instanciés au lieu de 3 dans ces morceaux proches).
+
+### Mélèze d'hiver (`blender/larch.py`, modèle original)
+- Sans aiguilles en hiver : tronc droit gris-brun, branches qui montent puis retombent, rameaux pendants à courts
+  rameaux, quelques cônes, peu de neige.
+- Atlas de rameaux de 512 × 512 rendu sous Cycles, même disposition que celui de l'épicéa : rameaux nus, version
+  enneigée, bande blanche.
+- 2 variantes proches de 2 543 et 2 375 triangles, occlusion ambiante cuite ; servies : `larch_near.glb` 133 Ko,
+  `larch_twigs.ktx2` 214 Ko, `conifer_far.glb` 8 Ko.
+- Silhouette lointaine : celle de l'épicéa (70 triangles), avec une forme de mélange « larch » et des couleurs en
+  attribut. Le nuanceur choisit l'essence par instance : **aucun appel de dessin ni sommet de plus** au loin, ombres
+  comprises (matériau de profondeur adapté, ombres lointaines aussi).
+- Les sorties de `blender/trees.py` (épicéa) sont inchangées à l'octet. `larch.py` vérifie que sa silhouette
+  d'épicéa est identique à celle de `trees.py` et redonne des fichiers identiques à chaque exécution.
+- Rameaux fins : l'alpha est renforcé avec le niveau de mipmap, sinon le mélèze s'effaçait au-delà de 50 m.
+
+### Rochers et barres rocheuses
+- 3 400 rochers sur ordinateur (560 avant), 2 400 sur tactile (522 avant) :
+  - 2 101 dans la roche nue et les éboulis d'OSM : gros blocs dans la roche, petits dans les éboulis ;
+  - 190 barres rocheuses (110 sur tactile), chacune un chapelet de 3 à 8 dalles (moins si la pente faiblit) de 6 à
+    12 m le long de la courbe de niveau, face verticale vers l'aval, avec parfois une seconde strate au-dessus (gradins) ;
+  - blocs épars sur les pentes raides, comme avant.
+- Le relief du jeu (`H()`) et la physique ne changent pas : les barres sont un relief visuel.
+
+### Horizon
+- Critère fixé avant de commencer :
+  - sur les trois vues horaires, les forêts lointaines montrent le même mélange d'essences que le domaine ;
+  - les bois d'OSM qui débordent du secteur restent boisés au-delà de sa limite ;
+  - aucune couture visible ;
+  - appels de dessin et suite de `rnd` inchangés.
+- Réalisé :
+  - masque de forêt du relief lointain étendu aux bois d'OSM hors du secteur ;
+  - teinte gris-brun des peuplements de mélèzes, avec la même règle que dans le domaine ;
+  - 2 010 bouquets lointains de plus dans ces bois (1 500 sur tactile) ;
+  - épicéa ou mélèze par instance (8 % de mélèzes : l'horizon est surtout en fond de vallée, plus bas).
+- Vue d'horizon recadrée : la caméra était dans un siège du télésiège du Bécoin. Elle est maintenant à 60 m de la gare,
+  hors de la ligne. Les vues « avant » ont été reprises avec ce cadrage.
+
+### Générateur partagé
+- `rnd` (graine 9917) sert aussi aux rochers, à l'horizon et aux PNJ. Les anciens tirages sont refaits à l'identique
+  (candidats, mélange, 8 tirages par arbre, 6 par rocher, bouquets lointains). Le nouveau placement a ses propres
+  générateurs.
+- Contrôle (`vegetation.spec`) : niveau, taille et carrure des 12 premiers PNJ, et 16 000 bouquets lointains d'avant,
+  identiques à T8a (`tests/baselines/rnd-pnj.json`).
+

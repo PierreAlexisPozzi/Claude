@@ -71,8 +71,26 @@ test (exécutions reproductibles au bit près).
 | `heads` | têtes proches (T7) : visage subdivisé (Loop) à moins de 8 m avec ses cinq expressions et des poids de peau valides ; cheveux sous le bonnet seulement, tour de cou avec le casque seulement |
 | `photo` | mode photo (T7) : jeu figé, profondeur de champ, image PNG téléchargée, retour à l'heure et au champ du jeu, contrat d'identifiants du HUD |
 | `micro` | micro-mouvements et regard sur plusieurs images (T8) : regard dans ±20° / ±12° et changeant (saccades), respiration présente et bornée, balancement du pompon non nul, ≤ 3 cm et 1 cm en vertical |
+| `vegetation` | paysage (T8) : plus de 80 % des arbres dans les bois d'OSM, mélèzes entre 12 et 50 %, silhouette lointaine commune aux deux essences, morceaux de 350 m inchangés ; aucun arbre ni rocher sur les pistes, sous les remontées, dans les bâtiments, sur les terrasses, près des personnes, dans le snowpark ou au départ ; rochers dans la roche nue et les éboulis, barres rocheuses ; suite du générateur partagé inchangée (PNJ et bouquets lointains identiques à T8a) |
 | `persos` | vêtements sans jour (T7) : masque des faces arrière dans les poses du jeu (dos en schuss, télésiège, col, poignet, ourlet, bas de pantalon, col et nuque d'une habitante tête tournée) ; au plus 400 px par vue (liserés rasants) ; planche complète avec `VDS_PERSOS=1`, attribution par pièce avec `VDS_PERSOS_PARTS=1` |
-| `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+| `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysages, forêts, rochers, horizon à trois heures ; quelques paysages aussi sur téléphone) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
+
+**Tranche T8b — forêts, mélèzes, rochers, barres rocheuses, horizon** (mesures : `review/mesures_T8.md`, partie 2 ;
+planches : `review/planche_T8b_*.jpg`) :
+- **Forêts aux emplacements réels** : les bois et forêts d'OpenStreetMap (ODbL, `tools/osm_landcover.py`, rapport
+  `review/couverture_osm.md`) remplacent la répartition au hasard sous 2 110 m. Arbres en bouquets et trouées, plus
+  clairs en lisière ; arbres isolés ailleurs, surtout près des lisières.
+- **Mélèzes d'hiver** (`blender/larch.py`, modèle original) : sans aiguilles, rameaux pendants gris-brun, peu de neige.
+  Ils forment des peuplements, plus nombreux vers la limite des arbres et en lisière ; environ un tiers des arbres.
+  Les données ne disent pas l'essence : **ce mélange est un choix du jeu**. Au loin, épicéa et mélèze partagent une
+  silhouette dont la forme est choisie par instance : pas d'appel de dessin de plus.
+- **Rochers** : gros blocs dans la roche nue d'OSM (Grande Rochette), petits dans les éboulis, blocs épars sur les
+  pentes raides.
+- **Barres rocheuses** : dalles en chapelets le long des courbes de niveau, là où la pente dépasse ~44°, en gradins.
+  C'est un relief visuel : le relief et la physique ne changent pas.
+- **Horizon** : les bois d'OSM qui débordent du secteur restent boisés au loin ; les forêts lointaines prennent la teinte
+  gris-brun des mélèzes avec la même règle que dans le domaine.
+- La suite du générateur partagé ne change pas : PNJ et bouquets lointains identiques, vérifiés par `vegetation`.
 
 **Tranche T8a — expressions, regard, micro-mouvements** (mesures : `review/mesures_T8.md`, planche :
 `review/planche_T8a_expressions.jpg`) :
@@ -269,6 +287,7 @@ et la liste des fichiers ; comme les artefacts ne servent ni `.glb` ni `.bin`, c
 ## Modèles et matières Blender (bpy 5.3, module Python)
 - Scripts dans `blender/` (voir `blender/README.md`), exécutés avec Blender comme module Python ; les sorties brutes (`assets/`) sont allégées par `tools/slim_assets.py`, puis compressées pour le jeu par `npm run assets` dans `web/` (meshopt, KTX2, tuiles).
 - Épicéas : atlas d'aiguilles rendu sous Cycles depuis ~30 000 aiguilles modélisées, 3 variantes proches (~2 600 triangles, branches tombantes, rideaux en peigne, coussins de neige, occlusion ambiante cuite), silhouette lointaine de 70 triangles.
+- Mélèzes d'hiver (T8, `blender/larch.py`) : atlas de rameaux nus à courts rameaux et cônes, rendu sous Cycles (version enneigée), 2 variantes proches (~2 500 triangles, branches montantes puis tombantes, rideaux de rameaux pendants), silhouette lointaine partagée avec l'épicéa (forme de mélange et couleurs en attribut).
 - Skieur : pièces de vêtement modélisées dans le repère de chaque articulation (sections anatomiques, doudoune matelassée, plis aux coudes et genoux, casque à visière) ; skieurs du domaine en deux poses (descente, télésiège).
 - Matières tuilables cuites (bruit 4D sur tore, sans raccord) : calcaire stratifié pour les falaises (projection verticale sur les parois, variation à grande échelle, neige dans les couloirs), mélèze grisé pour madriers et bardage, granit pour les maçonneries.
 - Perspective atmosphérique : voile bleuté à longue portée sur toutes les matières.
