@@ -16,7 +16,7 @@ import { skier } from './humans';
 import { H } from './terrain';
 import { camera, canvas, post, renderer, scene } from './render';
 
-export const PHOTO = { open: false, yaw: 0, pitch: 0.12, dist: 3.4, aperture: 0.45, hour: 12, fov: 50, h0: 12, fov0: 62, touchHidden: true };
+export const PHOTO = { open: false, yaw: 0, pitch: 0.12, dist: 3.4, dy: 0, aperture: 0.45, hour: 12, fov: 50, h0: 12, fov0: 62, touchHidden: true };
 let bokeh: BokehPass | null = null;
 const from = new THREE.Vector3(), at = new THREE.Vector3();
 
@@ -62,7 +62,7 @@ export function togglePhoto(on = !PHOTO.open): void {
 export function photoFrame(): void {
   if (!PHOTO.open || !skier) return;
   const c = skier.root.position;
-  at.set(c.x, c.y + 0.95, c.z);
+  at.set(c.x, c.y + 0.95 + PHOTO.dy, c.z);   // dy : point visé plus bas (planche personnages, corps entier)
   const cp = Math.cos(PHOTO.pitch), sp = Math.sin(PHOTO.pitch);
   from.set(at.x + Math.sin(PHOTO.yaw) * cp * PHOTO.dist, at.y + sp * PHOTO.dist, at.z + Math.cos(PHOTO.yaw) * cp * PHOTO.dist);
   from.y = Math.max(from.y, H(from.x, from.z) + 0.25);

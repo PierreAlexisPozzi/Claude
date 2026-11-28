@@ -112,7 +112,7 @@ export function assignHumans() {
     for (const H of pool) if (!keep.has(H.k)) H.k = -1; else keep.delete(H.k);
     for (const H of pool) if (H.k < 0 && keep.size) {
       const k = keep.values().next().value; keep.delete(k); H.k = k;
-      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : npcs[k].jacket || JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]); U.uIris.value.set(IRIS[(k * 11) % IRIS.length]);   // T7 : couleur des yeux U.uHair.value.set(HAIR[(k * 13) % HAIR.length]);
+      const U = H.U, pr = npcs[k].person; U.uJacket.value.set(pr ? pr.jacket : npcs[k].jacket || JACKETS[k % JACKETS.length]); U.uSkinTone.value.set(SKIN_TONES[(k * 7) % SKIN_TONES.length]); U.uIris.value.set(IRIS[(k * 11) % IRIS.length]); U.uHair.value.set(HAIR[(k * 13) % HAIR.length]);   // T7 : yeux et cheveux
       U.uHelmet.value.set(HELMETS[(k * 5) % HELMETS.length]); U.uBeanie.value.set(BEANIES[(k * 3) % BEANIES.length]);
       setGear(H, npcs[k].gear || (pr && !pr.skis ? 'beanie' : 'helmet'));
     }
@@ -408,7 +408,7 @@ RIG_PARTS = [['pelvis', 1], ['torso_a', 'A'], ['torso_b', 'B'], ['head_a', 'A'],
 PANTS_C = ['#232a3c', '#2b2b2e', '#c9b79a', '#3b4a5e', '#1d2a22', '#5a4632'];
 FREE_LINES = [];
 _rb = { root: new THREE.Matrix4(), m: new THREE.Matrix4(), x: new V3(), y: new V3(), z: new V3(), up: new V3(), fw: new V3(), lat: new V3(), H: new V3(), K: new V3(), A: new V3(), S: new V3(), E: new V3(), W: new V3(), T: new V3(), q: new THREE.Quaternion(), q3: new THREE.Quaternion(), nrm: new V3() };
-SKIN_TONES = ['#ffffff', '#f6e2d4', '#e2b89a', '#b98a6c', '#87604a'];
+SKIN_TONES = ['#f0d0b9', '#e9c3a6', '#d6a582', '#b07c5c', '#7d5640'];   // T7 : couleurs de peau (la texture peinte est neutre)
    // multipliers on the photographed light skin
 HELMETS = ['#f2f3f5', '#16181c', '#c9322b', '#2f6fe0', '#e9b72f', '#7d848e', '#f2f3f5', '#2a2d33'];
 BEANIES = ['#b5302a', '#2a3550', '#e9b72f', '#3f6b3a', '#ece8df', '#6b3a7a', '#d96a2a'];

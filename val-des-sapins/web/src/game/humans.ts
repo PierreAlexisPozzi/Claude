@@ -14,6 +14,14 @@ import { loopSubdivide } from './subdivide';
 export let skierShade, skierTint, skierFlutter, skierFTime, SKI_GEO, SKI_MAT, lathe, skier, H_CHILD, _hm1, _hm2, _hq1, _hq2, _hv, CLOTH_T, CLOTH_VERT_DECL, CLOTH_FRAG, faceHold, AXY, AXZ, AXNY, axisW, playerHuman, playerJ;
 
 export function __set_faceHold(v) { return (faceHold = v); }
+/* T7 : contrôle des jours entre le corps et les vêtements (planche personnages, persos.spec) : 1 = faces arrière des
+   pièces du personnage en magenta ; 2 = idem sur faces avant noires (masque). Une face arrière visible, c'est l'intérieur
+   d'un vêtement ou d'une pièce vu par une ouverture. Hors contrôle : 0, pièces en simple face comme avant. */
+export const HUMAN_DBG = { value: 0 };
+export function setHumanDebug(mode) {
+  HUMAN_DBG.value = mode;
+  scene.traverse(o => { const m = o.material; if (m && m.userData && m.userData.U && !m.userData.noDbg) { const side = mode ? THREE.DoubleSide : THREE.FrontSide; if (m.side !== side) { m.side = side; m.needsUpdate = true; } } });
+}
 
 export function fabricTex(seed, quilt) {
   const S = 128, n = tileNoise(S, 32, seed, 2), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S);
@@ -84,7 +92,7 @@ export function humanBasis(m, d, r) {   // rotation whose columns are (d, r orth
 export function humanUniforms(skinTone, jacket, shade) {
   const v = () => ({ value: new V3() });
   return { uJacket: { value: new THREE.Color(jacket) }, uSkinTone: { value: new THREE.Color(skinTone) }, uHelmet: { value: new THREE.Color('#f2f3f5') }, uBeanie: { value: new THREE.Color('#b5302a') }, uShade: shade || { value: 1 },
-    uFlutter: { value: 0 }, uClothT: CLOTH_T, uEyeL: { value: new V3() }, uEyeR: { value: new V3() }, uIris: { value: new THREE.Color('#5a7a8c') }, uKnitC: { value: new V3() }, uKnitY0: { value: 0 }, uHair: { value: new THREE.Color('#4a2f1d') }, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 } };
+    uFlutter: { value: 0 }, uClothT: CLOTH_T, uEyeL: { value: new V3() }, uEyeR: { value: new V3() }, uIris: { value: new THREE.Color('#5a7a8c') }, uKnitC: { value: new V3() }, uKnitY0: { value: 0 }, uHair: { value: new THREE.Color('#4a2f1d') }, uShL: v(), uShR: v(), uElL: v(), uElR: v(), uWrL: v(), uWrR: v(), uKnL: v(), uKnR: v(), uAnL: v(), uAnR: v(), uHipY: { value: 0.95 }, uSway: v() };
 }
 
 export function clothHook(sh) {
@@ -103,58 +111,40 @@ export function clothHook(sh) {
   sh.fragmentShader = patchShader(sh.fragmentShader, '#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  if (vCloth > 0.5) normal = clothBump(normal, clothH);', 'cloth');
 }
 
-/* T7 : peau (prototype T3 « visage », review/etude_outils.md) : micro-relief de pores et de ridules effacé quand il
-   devient plus fin qu'un pixel (les visages lointains gardent l'aspect actuel), rugosité variable, diffusion sous la
-   surface approchée (lumière enveloppée et rougie au terminateur) ; sourcils : les taches sombres peintes dans la peau
-   MakeHuman deviennent des poils fins sur fond de peau. */
-const SKIN_COMMON = `
-float vdsHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vdsCell(vec2 p) {
-  vec2 i = floor(p), f = fract(p); float d = 1.0;
-  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 o = vec2(float(x), float(y)); vec2 r = o + vec2(vdsHash(i + o), vdsHash(i + o + 17.0)) - f; d = min(d, dot(r, r)); }
-  return sqrt(d);
-}
-float vdsSkinH(vec2 uv) {
-  float fp = 1.0 - smoothstep(0.25, 0.7, length(fwidth(uv * 720.0)));
-  float fl = 1.0 - smoothstep(0.25, 0.7, length(fwidth(uv * 160.0)));
-  float pores = smoothstep(0.0, 0.42, vdsCell(uv * 720.0));
-  float lines = 0.5 + 0.5 * sin(uv.y * 160.0 * 6.28 + vdsHash(floor(uv * 40.0)) * 6.28);
-  return 0.5 + (pores - 0.5) * 0.8 * fp + (lines - 0.5) * 0.25 * fl;
-}`;
+/* T7 : peau en réalisme stylisé. La texture est peinte (blender/humans.py : teinte unie, joues, nez et oreilles rosés,
+   lèvres, ligne de cils, sourcils nets) ; le nuanceur n'ajoute plus de pores ni de ridules (l'aspect photo faisait peur)
+   et garde une peau douce : rugosité uniforme, diffusion sous la surface approchée (lumière enveloppée et rougie au
+   terminateur), léger reflet sur les pommettes et le nez. */
 function skinHook(sh) {
-  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\n' + SKIN_COMMON, 'skin');
-  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
-  #ifdef USE_MAP
-  { float brow = 0.0;   // taches sombres peintes (sourcils), élargies aux texels voisins : la forme est remplie
-    for (int by = -1; by <= 1; by++) for (int bx = -1; bx <= 1; bx++) {
-      vec3 tx = texture2D(map, vMapUv + vec2(float(bx), float(by)) * 0.0055).rgb;
-      brow = max(brow, smoothstep(0.2, 0.07, dot(tx, vec3(0.299, 0.587, 0.114))) * (bx == 0 && by == 0 ? 1.0 : 0.8)); }
-    if (brow > 0.0) {
-      float hairs = smoothstep(0.42, 0.8, vdsHash(floor(vMapUv * vec2(1100.0, 1100.0)))) * (1.0 - smoothstep(0.3, 0.9, length(fwidth(vMapUv * 1100.0))) * 0.5);
-      vec3 skinNear = pow(uSkinTone, vec3(2.2)) * vec3(0.66, 0.47, 0.37), hairCol = vec3(0.028, 0.019, 0.013);
-      diffuseColor.rgb = mix(diffuseColor.rgb, mix(skinNear * 0.8, hairCol, 0.6 + 0.4 * hairs), brow);
-    }
-    diffuseColor.rgb *= vec3(1.03, 0.99, 0.96); }
-  #endif`, 'skin');
-  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-  #ifdef USE_MAP
-  { float h = vdsSkinH(vMapUv);
-    vec3 sp = -vViewPosition, sx = dFdx(sp), sy = dFdy(sp);
-    vec2 dh = vec2(dFdx(h), dFdy(h)) * 0.0007;
-    vec3 r1 = cross(sy, normal), r2 = cross(normal, sx); float det = dot(sx, r1);
-    vec3 grad = sign(det) * (dh.x * r1 + dh.y * r2);
-    normal = normalize(abs(det) * normal - grad); }
-  #endif`, 'skin');
-  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-  #ifdef USE_MAP
-  roughnessFactor = clamp(roughnessFactor * (0.72 + 0.35 * vdsSkinH(vMapUv)), 0.3, 1.0);
-  #endif`, 'skin');
   sh.fragmentShader = patchShader(sh.fragmentShader, '#include <lights_fragment_end>', `#include <lights_fragment_end>
   #if NUM_DIR_LIGHTS > 0
   { vec3 L = directionalLights[0].direction; float nl = dot(normal, L);
-    float wrap = max(0.0, (nl + 0.5) / 1.5) - max(0.0, nl);
-    reflectedLight.directDiffuse += diffuseColor.rgb * vec3(0.95, 0.25, 0.12) * wrap * directionalLights[0].color * 1.1; }
+    float wrap = max(0.0, (nl + 0.6) / 1.6) - max(0.0, nl);
+    reflectedLight.directDiffuse += diffuseColor.rgb * vec3(0.95, 0.3, 0.16) * wrap * directionalLights[0].color * 1.2; }
   #endif`, 'skin');
+}
+
+/* T7 : cheveux sculptés (coque ajustée sous le bonnet, queue de cheval) : mèches dessinées par le nuanceur autour de
+   l'axe vertical de la tête (relief et nuance), reflet doux ; teinte par personne (uHair). */
+function hairHook(sh) {
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nvarying vec3 vHairP;', 'hair');
+  sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vHairP = position;', 'hair');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', `#include <common>
+varying vec3 vHairP; uniform vec3 uKnitC;
+float hairH(vec3 p) {
+  vec3 q = p - uKnitC; float a = atan(q.x, q.z);
+  float w = sin(a * 70.0 + sin(p.y * 40.0) * 1.5) * 0.5 + sin(a * 190.0 + p.y * 30.0) * 0.3 + sin(a * 23.0) * 0.2;
+  return 0.5 + 0.5 * w;
+}`, 'hair');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
+  { float f = 1.0 - smoothstep(0.3, 0.9, length(fwidth(vHairP)) * 220.0);
+    diffuseColor.rgb *= 0.8 + 0.35 * mix(0.5, hairH(vHairP), f); }`, 'hair');
+  sh.fragmentShader = patchShader(sh.fragmentShader, '#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  { float h = hairH(vHairP) * (1.0 - smoothstep(0.3, 0.9, length(fwidth(vHairP)) * 220.0));
+    vec3 sp = -vViewPosition, sx = dFdx(sp), sy = dFdy(sp);
+    vec2 dh = vec2(dFdx(h), dFdy(h)) * 0.0015;
+    vec3 r1 = cross(sy, normal), r2 = cross(normal, sx); float det = dot(sx, r1);
+    normal = normalize(abs(det) * normal - sign(det) * (dh.x * r1 + dh.y * r2)); }`, 'hair');
 }
 
 /* T7 : yeux. Le globe d'origine porte un iris en couleurs de sommets, d'un bleu uniforme qui semblait lumineux. Le
@@ -169,11 +159,11 @@ function eyeHook(sh) {
   { vec3 c = vEyeP.x < 0.5 * (uEyeL.x + uEyeR.x) ? uEyeL : uEyeR, d = normalize(vEyeP - c);
     float th = acos(clamp(d.z, -1.0, 1.0)), ph = atan(d.y, d.x);
     float fib = 0.5 + 0.5 * sin(ph * 46.0 + sin(ph * 9.0) * 2.0) * (0.6 + 0.4 * sin(th * 60.0));
-    vec3 iris = pow(uIris, vec3(2.2)) * (0.42 + 0.42 * fib) * mix(1.15, 0.55, smoothstep(0.2, 0.48, th));
-    iris = mix(iris, vec3(0.02), smoothstep(0.42, 0.5, th));                                  // anneau limbique
-    iris = mix(vec3(0.008), iris, smoothstep(0.13, 0.16, th));                                // pupille
-    vec3 sclera = mix(vec3(0.82, 0.78, 0.74), vec3(0.8, 0.55, 0.5), smoothstep(1.0, 1.6, th) * 0.5);
-    diffuseColor.rgb = mix(iris, sclera, smoothstep(0.5, 0.56, th)); }`, 'eye');
+    vec3 iris = pow(uIris, vec3(2.2)) * (0.55 + 0.45 * fib) * mix(1.35, 0.7, smoothstep(0.22, 0.56, th));   // T7 : iris plus grand et plus clair
+    iris = mix(iris, vec3(0.025), smoothstep(0.5, 0.58, th));                                 // anneau limbique
+    iris = mix(vec3(0.008), iris, smoothstep(0.15, 0.18, th));                                // pupille
+    vec3 sclera = mix(vec3(0.86, 0.83, 0.8), vec3(0.82, 0.62, 0.58), smoothstep(1.0, 1.6, th) * 0.45);
+    diffuseColor.rgb = mix(iris, sclera, smoothstep(0.58, 0.63, th)); }`, 'eye');
 }
 
 /* T7 : bonnet tricoté. Les couleurs de sommets du bonnet portaient une occlusion cuite par triangle (aspect facetté) :
@@ -203,31 +193,44 @@ float knitH(vec3 p) {
 }
 
 export function humanMaterial(U, o = {}) {
-  const { cloth, skin, eye, knit, ...mo } = o;
+  const { cloth, skin, eye, knit, hair, sway, ...mo } = o;
   const m = new THREE.MeshStandardMaterial(Object.assign({ vertexColors: true, roughness: 0.8, metalness: 0 }, mo));
   m.userData.grainU = { value: new THREE.Vector3(0.25, 0.35, 2.2) };
   m.userData.U = U;
   m.onBeforeCompile = sh => {
     grainHook.call(m, sh);
-    Object.assign(sh.uniforms, U);
+    Object.assign(sh.uniforms, U); sh.uniforms.uDbgBack = HUMAN_DBG;
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform float uDbgBack;', 'human-dbg');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <dithering_fragment>', '#include <dithering_fragment>\n  if (uDbgBack > 0.5) { if (!gl_FrontFacing) gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); else if (uDbgBack > 1.5) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }', 'human-dbg');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\n' + (cloth ? CLOTH_VERT_DECL : 'attribute float aTint;\nvarying float vTint;'), 'human');
     sh.vertexShader = patchShader(sh.vertexShader, '#include <begin_vertex>', '#include <begin_vertex>\n  vTint = aTint;', 'human');
-    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform float uShade;\nvarying float vTint;', 'human');
+    sh.fragmentShader = patchShader(sh.fragmentShader, '#include <common>', '#include <common>\nuniform vec3 uJacket;\nuniform vec3 uSkinTone;\nuniform vec3 uHelmet;\nuniform vec3 uBeanie;\nuniform vec3 uHair;\nuniform float uShade;\nvarying float vTint;', 'human');
     sh.fragmentShader = patchShader(sh.fragmentShader, '#include <color_fragment>', `#include <color_fragment>
   if ( vTint > 0.5 && vTint < 1.5 ) diffuseColor.rgb *= pow( uJacket, vec3( 2.2 ) );     // jacket panels take the skier's colour (display -> linear)
   else if ( vTint > 1.5 && vTint < 2.5 ) diffuseColor.rgb *= pow( uSkinTone, vec3( 2.2 ) ); // skin tone
   else if ( vTint > 2.5 && vTint < 3.5 ) diffuseColor.rgb *= pow( uHelmet, vec3( 2.2 ) );   // helmet shell
-  else if ( vTint > 3.5 ) diffuseColor.rgb *= pow( uBeanie, vec3( 2.2 ) );                 // knitted beanie
+  else if ( vTint > 3.5 && vTint < 4.5 ) diffuseColor.rgb *= pow( uBeanie, vec3( 2.2 ) );  // knitted beanie
+  else if ( vTint > 4.5 ) diffuseColor.rgb *= pow( uHair, vec3( 2.2 ) );                    // T7 : cheveux sculptés
   diffuseColor.rgb *= uShade;`, 'human');
     if (cloth) clothHook(sh);
     if (skin) skinHook(sh);
     if (eye) eyeHook(sh);
     if (knit) knitHook(sh, knit === 'pompom');
+    if (hair) hairHook(sh);
+    if (sway) {   // T7 : mouvement secondaire (pompon, queue de cheval) : décalage du ressort de la tête, après le skinning
+      sh.vertexShader = patchShader(sh.vertexShader, '#include <common>', '#include <common>\nuniform vec3 uSway;' + (sway === 'hair' ? '\nuniform vec3 uKnitC;\nuniform float uKnitY0;' : ''), 'sway');
+      sh.vertexShader = patchShader(sh.vertexShader, '#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed += uSway * ' + (sway === 'hair'
+        ? 'smoothstep(uKnitY0 - 0.03, uKnitY0 - 0.17, position.y) * smoothstep(0.1, 0.12, length(position.xz - uKnitC.xz));'   // queue de cheval seulement
+        : '1.0;'), 'sway');
+    }
   };
+  if (eye) m.userData.noDbg = true;   // globes dans la tête : jamais vus de l'intérieur
   if (cloth) m.customProgramCacheKey = () => 'human-cloth';
   if (skin) m.customProgramCacheKey = () => 'human-skin';
   if (eye) m.customProgramCacheKey = () => 'human-eye';
   if (knit) m.customProgramCacheKey = () => 'human-knit-' + knit;
+  if (hair) m.customProgramCacheKey = () => 'human-hair';
+  if (sway) m.customProgramCacheKey = () => 'human-' + (knit ? 'knit-' + knit : 'hair') + '-sway';
   return m;
 }
 
@@ -240,7 +243,7 @@ export function makeHuman(kind, o = {}) {
   root.traverse(x => { if (x.isBone) { const n = known(x.name) ? x.name : x.name.replace(/_\d+$/, ''); if (known(n)) bones[n] = x; } if (x.isSkinnedMesh) { const p = x.name === kind ? 'body' : x.name.slice(kind.length + 1); parts[p] = x; if (p === 'body') mesh = x; } });
   if (!mesh) return null;
   const U = humanUniforms(o.skin || '#ffffff', o.jacket || '#c7302a', o.shade), skinTex = BLEND.tex[kind === 'hm_female' ? 'skin_female' : 'skin_male'];
-  const MAT = { body: { roughness: 0.8, cloth: true }, face: { map: skinTex || null, roughness: 0.66, skin: true }, helmet: { roughness: 0.32 }, goggles: { roughness: 0.18, metalness: 0.2 }, beanie: { roughness: 0.96, knit: 'beanie' }, pompom: { roughness: 1, knit: 'pompom' }, eyes: { roughness: 0.05, envMapIntensity: 1.6, eye: true } };
+  const MAT = { body: { roughness: 0.8, cloth: true }, face: { map: skinTex || null, roughness: 0.72, skin: true }, hair: { roughness: 0.5, hair: true, sway: 'hair' }, helmet: { roughness: 0.32 }, gaiter: { roughness: 0.95 }, goggles: { roughness: 0.18, metalness: 0.2 }, beanie: { roughness: 0.96, knit: 'beanie' }, pompom: { roughness: 1, knit: 'pompom', sway: 'pompom' }, eyes: { roughness: 0.05, envMapIntensity: 1.6, eye: true } };
   for (const [p, m] of Object.entries(parts)) {
     if (!m.geometry.userData.prepped) {   // once per source geometry: display-space colours, tint attribute
       const g = m.geometry, c = g.getAttribute('color');
@@ -272,7 +275,6 @@ export function makeHuman(kind, o = {}) {
   for (const b of Object.values(bones)) b.userData.rest = { q: b.quaternion.clone(), p: b.position.clone() };
   const H = { root, mesh, bones, rest, kind, parts, U, hipOff: hipMid.sub(rest.pelvis.pos), scale: 1,
     face: face && md ? { m: face, idx: md, cur: { blink: 0, smile: 0, open: 0, brows: 0, squint: 0 }, blinkT: 9, next: 1 + Math.random() * 3, talk: 0 } : null };
-  buildHair(H, kind);   // T7 (avant setGear : la visibilité suit l'équipement)
   setGear(H, o.gear || 'helmet');
   root.traverse(x => x.layers.set(SMALL_LAYER));   // T4 : comme les autres skieurs, hors de la carte d'ombre lointaine
   scene.add(root);
@@ -283,65 +285,7 @@ export function makeHuman(kind, o = {}) {
    passe de Loop, calculée une fois par modèle, expressions et poids de peau compris : subdivide.ts) ; au-delà, il
    revient au maillage d'origine. */
 const FACE_HI = new WeakMap();
-/* T7 : cheveux en cartes sous le bonnet (têtes proches) : bandes de mèches qui descendent du bord du bonnet, écartées
-   de 3 mm de la tête (centre et bord du bonnet en pose de repos), plus longues à l'arrière ; queue de cheval pour les
-   femmes. Texture de mèches procédurale, transparence à seuil ; liées à l'os de la tête comme le bonnet. */
-let HAIR_TEX = null;
-function hairTex() {
-  if (HAIR_TEX) return HAIR_TEX;
-  const W = 128, Hh = 256, c = document.createElement('canvas'); c.width = W; c.height = Hh; const g = c.getContext('2d');
-  g.clearRect(0, 0, W, Hh);
-  let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let k = 0; k < 260; k++) {
-    const x = r() * W, len = Hh * (0.55 + 0.45 * r()), w = 0.8 + r() * 1.4, l = 0.75 + r() * 0.5;
-    const grad = g.createLinearGradient(0, 0, 0, len); grad.addColorStop(0, `rgba(${255 * l | 0},${255 * l | 0},${255 * l | 0},1)`); grad.addColorStop(0.85, `rgba(${255 * l | 0},${255 * l | 0},${255 * l | 0},0.9)`); grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.strokeStyle = grad; g.lineWidth = w; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + (r() - 0.5) * 10, len * 0.4, x + (r() - 0.5) * 16, len * 0.7, x + (r() - 0.5) * 20, len); g.stroke();
-  }
-  HAIR_TEX = new THREE.CanvasTexture(c); HAIR_TEX.colorSpace = THREE.SRGBColorSpace; HAIR_TEX.anisotropy = 4;
-  return HAIR_TEX;
-}
-function buildHair(H, kind) {
-  const B = H.parts.beanie; if (!B || !B.skeleton) return;
-  const P = B.geometry.attributes.position, SI = B.geometry.attributes.skinIndex, bb = new THREE.Box3().setFromBufferAttribute(P), C = bb.getCenter(new V3());
-  const head = SI ? SI.getX(0) : 0, fem = kind === 'hm_female', N = 36, rim = [];
-  for (let i = 0; i < N; i++) rim.push({ y: Infinity, r: 0 });
-  for (let i = 0; i < P.count; i++) {   // bord du bonnet : point le plus bas par secteur angulaire
-    const x = P.getX(i) - C.x, z = P.getZ(i) - C.z, a = Math.atan2(x, z), k = ((Math.round(a / (2 * Math.PI) * N) % N) + N) % N;
-    if (P.getY(i) < rim[k].y) rim[k] = { y: P.getY(i), r: Math.hypot(x, z) };
-  }
-  const pos = [], uv = [], si = [], sw = [], idx = [], add = (x, y, z, u, v) => { pos.push(x, y, z); uv.push(u, v); si.push(head, 0, 0, 0); sw.push(1, 0, 0, 0); return pos.length / 3 - 1; };
-  for (let k = 0; k < N; k++) {
-    const R = rim[k]; if (!isFinite(R.y)) continue;
-    const a = k / N * 2 * Math.PI, f = Math.cos(a);                     // f = 1 devant (+z), -1 derrière
-    if (f > 0.55 && !fem) continue;                                        // front dégagé ; frange courte pour les femmes
-    const L = f > 0.55 ? 0.025 : f > -0.2 ? (fem ? 0.09 : 0.045) : fem ? 0.16 : 0.06, r0 = R.r + 0.003, half = Math.PI / N * 1.15;
-    const seg = 3, base = pos.length / 3;
-    for (let j = 0; j <= seg; j++) for (const da of [-half, half]) {
-      // sur le crâne, pas au bord du bonnet (plus large) : rentré de 7 mm, et resserré vers le bas sur les côtés
-      const t = j / seg, ang = a + da, rr = f < -0.2 ? r0 - 0.007 + 0.004 * t : r0 - 0.009 - 0.01 * t;
-      add(C.x + Math.sin(ang) * rr, R.y + 0.012 - L * t, C.z + Math.cos(ang) * rr, (da < 0 ? 0 : 1) * 0.5 + (k % 2) * 0.5, 1 - t);
-    }
-    for (let j = 0; j < seg; j++) { const q = base + j * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
-  }
-  if (fem) {   // queue de cheval : deux cartes croisées sous l'arrière du bonnet
-    const R = rim[Math.round(N / 2) % N], y0 = R.y + 0.01, z0 = C.z - R.r - 0.01;
-    for (const rot of [0, Math.PI / 2]) {
-      const base = pos.length / 3;
-      for (let j = 0; j <= 4; j++) for (const s of [-1, 1]) { const t = j / 4, w = 0.035 * (1 - 0.5 * t); add(C.x + Math.cos(rot) * s * w, y0 - 0.26 * t, z0 - 0.02 * t + Math.sin(rot) * s * w, s < 0 ? 0 : 1, 1 - t); }
-      for (let j = 0; j < 4; j++) { const q = base + j * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-  geo.setIndex(idx); geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ map: hairTex(), color: H.U.uHair.value, roughness: 0.55, alphaTest: 0.45, side: THREE.DoubleSide, alphaToCoverage: true });
-  mat.color = H.U.uHair.value;   // même objet : la couleur suit la personne (assignHumans)
-  const M = new THREE.SkinnedMesh(geo, mat); M.bind(B.skeleton, B.bindMatrix); M.frustumCulled = false; M.visible = false; M.castShadow = false;
-  B.parent.add(M); H.hair = M;
-}
-
-const HEAD_PARTS = { face: 1, eyes: 2, beanie: 2, pompom: 2 };   // passes de subdivision par pièce
+const HEAD_PARTS = { face: 1, eyes: 2, beanie: 2, pompom: 2, hair: 1 };   // passes de subdivision par pièce
 export function headDetail(H, cam, allow = true) {
   if (!H.parts || !H.parts.face) return;
   if (!H.lo) { H.lo = {}; for (const p in HEAD_PARTS) if (H.parts[p]) H.lo[p] = H.parts[p].geometry; }
@@ -353,12 +297,32 @@ export function headDetail(H, cam, allow = true) {
     else M.geometry = lo;
   }
   H.faceHi = near;
-  if (H.hair) H.hair.visible = near && H.gear !== 'helmet';
 }
 
 // faces: random blinks (sometimes doubled), expressions eased towards a mood, a moving jaw when talking.
 // Morphs come from MakeHuman's expression units (blender/humans.py: blink, smile, open, brows, squint).
+/* T7 : mouvement secondaire. Un point lesté suit la tête par un ressort amorti (oscillation d'environ 1,7 Hz) : à
+   l'accélération, au freinage, en virage ou à la réception d'un saut, pompon et queue de cheval traînent un peu puis
+   rebondissent. Décalage limité à 3 cm, remis à zéro après un saut de position (téléportation) ; figé si dt = 0. */
+let _swH = null;   // créé au premier appel : V3 vient d'un module chargé après celui-ci (imports circulaires)
+function swayStep(H, dt) {
+  const b = H.bones.head; if (!b || dt <= 0) return;
+  _swH = _swH || new V3();
+  b.getWorldPosition(_swH);
+  const S = H.sw || (H.sw = { x: _swH.clone(), v: new V3() });
+  if (S.x.distanceToSquared(_swH) > 0.25) { S.x.copy(_swH); S.v.set(0, 0, 0); }
+  const k = 110, c = 7, h = Math.min(dt, 1 / 30);
+  for (let i = 0; i < 2; i++) {   // deux demi-pas : stable à 30 images/s
+    const ax = k * (_swH.x - S.x.x) - c * S.v.x, ay = k * (_swH.y - S.x.y) - c * S.v.y, az = k * (_swH.z - S.x.z) - c * S.v.z;
+    S.v.x += ax * h / 2; S.v.y += ay * h / 2; S.v.z += az * h / 2; S.x.addScaledVector(S.v, h / 2);
+  }
+  const o = H.U.uSway.value.subVectors(S.x, _swH), L = o.length();
+  if (L > 0.03) o.multiplyScalar(0.03 / L);
+  o.multiplyScalar(1 / (H.scale || 1));   // repère du maillage : axes du monde (racine sans rotation), à l'échelle du personnage
+}
+
 export function animateFace(H, dt, mood) {
+  swayStep(H, dt);
   const F = H.face; if (!F) return;
   F.blinkT += dt;
   if (F.blinkT > F.next) { F.blinkT = 0; F.next = (Math.random() < 0.15 ? 0.25 : 2.2 + Math.random() * 4); }
@@ -378,9 +342,8 @@ export function animateFace(H, dt, mood) {
 export function setGear(H, g) {
   if (H.gear === g) return; H.gear = g;
   const P = H.parts, hel = g === 'helmet';
-  for (const k of ['helmet', 'goggles']) if (P[k]) P[k].visible = hel;
-  for (const k of ['beanie', 'pompom', 'eyes']) if (P[k]) P[k].visible = !hel;
-  if (H.hair) H.hair.visible = !hel && !!H.faceHi;
+  for (const k of ['helmet', 'goggles', 'gaiter']) if (P[k]) P[k].visible = hel;   // T7 : tour de cou avec le casque
+  for (const k of ['beanie', 'pompom', 'eyes', 'hair']) if (P[k]) P[k].visible = !hel;   // T7 : cheveux sculptés sous le bonnet
 }
 
 // aim one bone: world rotation mapping its rest (direction, reference) frame onto the target (direction, reference)
@@ -445,7 +408,7 @@ export function playerHumanSync(dt = 1 / 60) {
 
 // swap the player's rigid body for the realistic one; skis, boots and poles stay
 export function initPlayerHuman() {
-  const H = makeHuman('hm_male', { jacket: '#c7302a', skin: '#ffffff', shade: skierShade, gear: 'helmet' }); if (!H) return;
+  const H = makeHuman('hm_male', { jacket: '#c7302a', skin: '#e9c3a6', shade: skierShade, gear: 'helmet' }); if (!H) return;   // T7 : peau peinte neutre, teinte réelle
   H.U.uHelmet.value.set('#f2f3f5');
   const R = H.rest, S = skier;
   H.scale = 0.87 / (R.thigh_l.len + R.calf_l.len);
@@ -634,8 +597,9 @@ void clothField() {
     float q = fract(coord / 0.078), puff = pow(max(sin(3.14159 * q), 0.0), 0.55);           // baffles, rounded between the stitches
     clothH += 0.0075 * puff; clothAO = mix(0.62, 1.0, smoothstep(0.0, 0.16, min(q, 1.0 - q)));   // shadowed stitch lines
     clothH += 0.0012 * (cNoise(p * 42.0) - 0.5);                                              // soft irregularity of the down
-    float rip = max(step(0.9, fract(p.x * 190.0 + p.z * 190.0)), step(0.9, fract(p.y * 190.0))) * fine;   // ripstop grid
-    clothCol *= 1.0 - 0.06 * rip; clothH += 0.00015 * rip;
+    vec2 rg = vec2(p.x * 190.0 + p.z * 190.0, p.y * 190.0), rw = fwidth(rg) + 1e-4;              // ripstop grid (T7 : lissé, sans crénelage)
+    vec2 rl = smoothstep(0.9 - rw, 0.9 + rw, fract(rg)); float rip = max(rl.x, rl.y) * fine;
+    clothCol *= 1.0 - 0.035 * rip; clothH += 0.0001 * rip;
     if (!arm && abs(p.x) < 0.007 && p.z > 0.0) { clothCol *= 0.35; clothH -= 0.002; clothAO *= 0.8; }   // centre zip
     if (!arm && abs(abs(p.x) - 0.022) < 0.003 && p.z > 0.0) clothAO *= 0.85;                 // storm flap edges
     clothRough = 0.42 + 0.22 * (1.0 - puff);                                                  // satin crowns, duller stitches

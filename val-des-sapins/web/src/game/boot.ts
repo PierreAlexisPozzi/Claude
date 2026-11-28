@@ -13,7 +13,7 @@ import { $, IS_TOUCH, V3, clamp } from './core';
 import { fauna, initFauna, updateFauna } from './fauna';
 import { buildMarkers } from './furniture';
 import { fillFacts, refreshTracker, stackHud, updateLevelChip } from './hud';
-import { __set_faceHold, buildSkier, faceHold, initPlayerHuman, playerHuman, skier } from './humans';
+import { __set_faceHold, buildSkier, faceHold, initPlayerHuman, playerHuman, setHumanDebug, skier } from './humans';
 import { dlgActs, openDialog, toggleJournal } from './journal';
 import { buildLiftMeshes, buildTowers, layoutLift } from './lifts';
 import { __set_clock, applyQuality, clock, frame, startGame } from './loop';
@@ -81,7 +81,7 @@ steps = [
   ['Balisage…', () => { LIFTS.forEach(buildLiftMeshes); buildTowers(); buildMarkers(); buildMapImage(); fillMapLists(); initNPCs(); buildSled(); initNearTrees(); initNearRocks(); buildFurniture(); initFauna(); fillFacts(); batchScene(); }],
 ];
 window.__ski = {
-  P, H, input, queued, camera, skier, LIFTS, PISTES, kickers, rails, trees, zoneAt, normalAt, stepSim, STEP, ALT0, startGame, sled, stick, steerIn, touchFrame, get jumpHold() { return jumpHold; },
+  P, H, input, queued, camera, get skier() { return skier; }, LIFTS, PISTES, kickers, rails, trees, zoneAt, normalAt, stepSim, STEP, ALT0, startGame, sled, stick, steerIn, touchFrame, get jumpHold() { return jumpHold; },
   step(n) { for (let i = 0; i < n; i++) stepSim(STEP); },
   teleport(x, z, yaw) { P.tunnel = null; P.pos.set(x, H(x, z), z); P.vel.set(0, 0, 0); P.yaw = yaw ?? 0; P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; __set_camSnap(true); },
   teleportTunnel(i, s, yaw) { const T = tunnels[i], k = clamp(T.i0 + Math.round(s / 4), 0, T.S.length - 1), q = T.S[k]; P.tunnel = T; P.pos.set(q.x, T.hs[k], q.z); P.vel.set(0, 0, 0); P.yaw = yaw ?? pisteHeading(T.piste, k); P.state = 'ski'; P.air = null; P.lift = null; P.rail = null; __set_camSnap(true); },
@@ -92,7 +92,7 @@ window.__ski = {
   NEAR, BUILDINGS, obstacleList: obstacles, THREE, firPrototype, assembleBuilding, get playerHuman() { return playerHuman; }, set faceHold(v) { __set_faceHold(v); }, humanPool, renderInfo() { renderer.render(scene, camera); const r = renderer.info.render; return { tris: r.triangles, calls: r.calls, geos: renderer.info.memory.geometries }; },
   camNow() { updateCamera(0, true); },
   nearNow() { NEAR.acc = 1; for (let i = 0; i < 40; i++) { updateNearTrees(camera.position, 99); updateNearRocks(camera.position); updateNearBuildings(camera.position, 1e4); } updateFurniture(camera.position); updateLabels(camera.position); updateFauna(0.016, clock, camera.position); },
-  fauna, FURN, rocks, POOLS, batch: BATCH, setHour: setSunTime, SKY, TERRACES, FRONTS, get TERRACE_FOLK() { return TERRACE_FOLK; }, get LE_FRANCE() { return LE_FRANCE; }, photoMode(on) { togglePhoto(on); }, PHOTO, get REJECTED() { return REJECTED; }, get SLID() { return SLID; }, get venues() { return PLAGNE ? PLAGNE.venues || [] : []; }, get shops() { return PLAGNE ? PLAGNE.shops || [] : []; }, farHeight, anyH, groomW, zoneGrid,
+  fauna, FURN, rocks, POOLS, batch: BATCH, setHour: setSunTime, SKY, TERRACES, FRONTS, get TERRACE_FOLK() { return TERRACE_FOLK; }, get LE_FRANCE() { return LE_FRANCE; }, photoMode(on) { togglePhoto(on); }, humanDebug(m) { setHumanDebug(m); }, PHOTO, get REJECTED() { return REJECTED; }, get SLID() { return SLID; }, get venues() { return PLAGNE ? PLAGNE.venues || [] : []; }, get shops() { return PLAGNE ? PLAGNE.shops || [] : []; }, farHeight, anyH, groomW, zoneGrid,
   trailTick(dt) { __set_clock(clock + (dt)); updateTrails(dt, clock); }, trailStats() { return { me: trailsMe ? trailsMe.i : 0, others: trailsOthers ? trailsOthers.i : 0 }; },
   tunnelLocal, SLALOM, GHOSTS, LINE, trackT, get pose() { return pose; }, get plant() { return plant; }, get FREE_LINES() { return FREE_LINES; }, get chrono() { return chrono; }, RIDER, MISSIONS, PEOPLE, DEFIS, missionTargets, riderEvent, chronoPistes, medalTimes, missionStep, riderLevel, talk(id) { openDialog(person(id)); }, dlgChoose(i) { dlgActs[i][1](); }, dlgText() { return $('dlgText').textContent; }, journal: toggleJournal, get chrono() { return chrono; }, saveRider, unlockAll() { RIDER.allOpen = true; fillMapLists(); }, resetChallenges() { Object.assign(RIDER, { xp: 0, stats: STATS0(), tiers: {}, runs: {}, missions: {}, active: null, legacyLifts: [] }); saveRider(); fillMapLists(); updateMarkers(); refreshTracker(); updateLevelChip(); }, teleportLiftTop, get obstacles() { return obstacles.length; },
   setVel(x, y, z) { P.vel.set(x, y, z); }, stackHud,

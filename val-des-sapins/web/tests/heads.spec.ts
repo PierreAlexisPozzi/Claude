@@ -1,10 +1,10 @@
 /* Têtes proches (T7) : à moins de 8 m de la caméra, le visage, les yeux et le bonnet prennent leur version subdivisée
-   (passe de Loop : 4 fois plus de triangles par passe), avec les cinq expressions et des poids de peau valides ; les
-   mèches de cheveux ne s'affichent que sous un bonnet. */
+   (passe de Loop : 4 fois plus de triangles par passe), avec les cinq expressions et des poids de peau valides. Depuis
+   la reprise du style (T7) : cheveux sculptés sous le bonnet seulement, tour de cou avec le casque seulement. */
 import { test, expect } from '@playwright/test';
 import { openGame, start, pump } from './helpers';
 
-test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveux sous le bonnet', async ({ page }) => {
+test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveux et tour de cou selon l’équipement', async ({ page }) => {
   test.setTimeout(10 * 60_000);
   await openGame(page, 'web');
   await page.evaluate(() => (window as any).__ski.quality('medium'));
@@ -26,7 +26,7 @@ test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveu
       let bad = 0; for (let i = 0; i < sw.count; i++) { const t = sw.getX(i) + sw.getY(i) + sw.getZ(i) + sw.getW(i); if (!(Math.abs(t - 1) < 1e-3)) bad++; }
       let bad0 = 0; const s0 = lo.attributes.skinWeight; for (let i = 0; i < s0.count; i++) { const t = s0.getX(i) + s0.getY(i) + s0.getZ(i) + s0.getW(i); if (!(Math.abs(t - 1) < 1e-3)) bad0++; }
       let nan = 0; const P = F.attributes.position.array; for (let i = 0; i < P.length; i++) if (!Number.isFinite(P[i])) nan++;
-      out.push({ tri: F.index.count / 3, tri0: lo.index.count / 3, morphs: (F.morphAttributes.position || []).length, morphs0: (lo.morphAttributes.position || []).length, bad, bad0, nan, gear: H.gear, hair: H.hair ? H.hair.visible : null });
+      out.push({ tri: F.index.count / 3, tri0: lo.index.count / 3, morphs: (F.morphAttributes.position || []).length, morphs0: (lo.morphAttributes.position || []).length, bad, bad0, nan, gear: H.gear, hair: H.parts.hair ? H.parts.hair.visible : null, gaiter: H.parts.gaiter ? H.parts.gaiter.visible : null });
     }
     return out;
   });
@@ -38,6 +38,7 @@ test('têtes proches : maillage subdivisé, expressions et poids gardés, cheveu
     expect(h.morphs).toBeGreaterThanOrEqual(5);
     expect(h.bad).toBe(0);
     expect(h.nan).toBe(0);
-    if (h.hair !== null) expect(h.hair).toBe(h.gear !== 'helmet');
+    expect(h.hair).toBe(h.gear !== 'helmet');
+    expect(h.gaiter).toBe(h.gear === 'helmet');
   }
 });
