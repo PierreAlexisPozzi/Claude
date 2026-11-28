@@ -1,0 +1,1028 @@
+{
+ "pistes": [
+  {
+   "name": "Mira",
+   "ok": true,
+   "falls": 2,
+   "t": 211,
+   "idx": 690,
+   "n": 693
+  },
+  {
+   "name": "Gavotte",
+   "ok": true,
+   "falls": 0,
+   "t": 158,
+   "idx": 500,
+   "n": 503
+  },
+  {
+   "name": "Écartée",
+   "ok": true,
+   "falls": 0,
+   "t": 119,
+   "idx": 423,
+   "n": 426
+  },
+  {
+   "name": "Mont Saint-Sauveur",
+   "ok": true,
+   "falls": 1,
+   "t": 126,
+   "idx": 394,
+   "n": 397
+  },
+  {
+   "name": "Puy du Fou",
+   "ok": false,
+   "falls": 1,
+   "t": 294,
+   "idx": 393,
+   "n": 398
+  },
+  {
+   "name": "Rochette",
+   "ok": true,
+   "falls": 0,
+   "t": 87,
+   "idx": 343,
+   "n": 346
+  },
+  {
+   "name": "Capella",
+   "ok": true,
+   "falls": 1,
+   "t": 89,
+   "idx": 337,
+   "n": 340
+  },
+  {
+   "name": "Pavane",
+   "ok": true,
+   "falls": 0,
+   "t": 83,
+   "idx": 273,
+   "n": 276
+  },
+  {
+   "name": "Marie Chantal",
+   "ok": true,
+   "falls": 0,
+   "t": 66,
+   "idx": 265,
+   "n": 268
+  },
+  {
+   "name": "Bridge",
+   "ok": true,
+   "falls": 1,
+   "t": 83,
+   "idx": 257,
+   "n": 260
+  },
+  {
+   "name": "Dou du Praz",
+   "ok": true,
+   "falls": 1,
+   "t": 77,
+   "idx": 254,
+   "n": 257
+  },
+  {
+   "name": "Stade de slalom Jean-Luc Crétier",
+   "ok": true,
+   "falls": 0,
+   "t": 61,
+   "idx": 252,
+   "n": 255
+  },
+  {
+   "name": "Ramy",
+   "ok": true,
+   "falls": 0,
+   "t": 67,
+   "idx": 244,
+   "n": 247
+  },
+  {
+   "name": "Grande Pente",
+   "ok": true,
+   "falls": 0,
+   "t": 64,
+   "idx": 239,
+   "n": 242
+  },
+  {
+   "name": "Loup Garou",
+   "ok": true,
+   "falls": 1,
+   "t": 81,
+   "idx": 237,
+   "n": 240
+  },
+  {
+   "name": "Java",
+   "ok": true,
+   "falls": 0,
+   "t": 55,
+   "idx": 210,
+   "n": 213
+  },
+  {
+   "name": "Pavane II",
+   "ok": true,
+   "falls": 0,
+   "t": 69,
+   "idx": 197,
+   "n": 200
+  },
+  {
+   "name": "Émile Allais",
+   "ok": true,
+   "falls": 0,
+   "t": 49,
+   "idx": 186,
+   "n": 189
+  },
+  {
+   "name": "Verdons",
+   "ok": true,
+   "falls": 1,
+   "t": 59,
+   "idx": 185,
+   "n": 188
+  },
+  {
+   "name": "Boulevard",
+   "ok": true,
+   "falls": 0,
+   "t": 61,
+   "idx": 174,
+   "n": 177
+  },
+  {
+   "name": "Crête-Côte",
+   "ok": true,
+   "falls": 0,
+   "t": 47,
+   "idx": 171,
+   "n": 174
+  },
+  {
+   "name": "Reservoir",
+   "ok": true,
+   "falls": 0,
+   "t": 52,
+   "idx": 165,
+   "n": 168
+  },
+  {
+   "name": "Petite Rochette",
+   "ok": true,
+   "falls": 0,
+   "t": 54,
+   "idx": 156,
+   "n": 159
+  },
+  {
+   "name": "Jean-Marie",
+   "ok": true,
+   "falls": 0,
+   "t": 38,
+   "idx": 150,
+   "n": 153
+  },
+  {
+   "name": "Lovatière",
+   "ok": true,
+   "falls": 1,
+   "t": 38,
+   "idx": 142,
+   "n": 145
+  },
+  {
+   "name": "Les Coqs",
+   "ok": true,
+   "falls": 1,
+   "t": 49,
+   "idx": 136,
+   "n": 139
+  },
+  {
+   "name": "Les Dolines",
+   "ok": true,
+   "falls": 0,
+   "t": 49,
+   "idx": 128,
+   "n": 131
+  },
+  {
+   "name": "Liaison Aime 2000",
+   "ok": false,
+   "falls": 0,
+   "t": 396,
+   "idx": 13,
+   "n": 132
+  },
+  {
+   "name": "Golf",
+   "ok": true,
+   "falls": 1,
+   "t": 55,
+   "idx": 124,
+   "n": 127
+  },
+  {
+   "name": "Liaison Plagne Centre",
+   "ok": true,
+   "falls": 0,
+   "t": 32,
+   "idx": 120,
+   "n": 123
+  },
+  {
+   "name": "Vega",
+   "ok": true,
+   "falls": 0,
+   "t": 37,
+   "idx": 115,
+   "n": 118
+  },
+  {
+   "name": "La Vallée de la Mort",
+   "ok": true,
+   "falls": 1,
+   "t": 38,
+   "idx": 112,
+   "n": 115
+  },
+  {
+   "name": "Snowpark",
+   "ok": true,
+   "falls": 0,
+   "t": 31,
+   "idx": 111,
+   "n": 114
+  },
+  {
+   "name": "Cornegidouille",
+   "ok": true,
+   "falls": 1,
+   "t": 39,
+   "idx": 110,
+   "n": 113
+  },
+  {
+   "name": "Samba",
+   "ok": true,
+   "falls": 0,
+   "t": 28,
+   "idx": 102,
+   "n": 105
+  },
+  {
+   "name": "Mira II",
+   "ok": true,
+   "falls": 0,
+   "t": 29,
+   "idx": 104,
+   "n": 107
+  },
+  {
+   "name": "Palsembleu",
+   "ok": true,
+   "falls": 0,
+   "t": 34,
+   "idx": 98,
+   "n": 101
+  },
+  {
+   "name": "École Aime 2000",
+   "ok": true,
+   "falls": 0,
+   "t": 42,
+   "idx": 97,
+   "n": 100
+  },
+  {
+   "name": "Gavotte II",
+   "ok": true,
+   "falls": 0,
+   "t": 25,
+   "idx": 96,
+   "n": 99
+  },
+  {
+   "name": "Boulevard II",
+   "ok": true,
+   "falls": 0,
+   "t": 48,
+   "idx": 93,
+   "n": 96
+  },
+  {
+   "name": "Liaison Plagne Villages",
+   "ok": true,
+   "falls": 0,
+   "t": 30,
+   "idx": 91,
+   "n": 94
+  },
+  {
+   "name": "Edmond Blanchoz",
+   "ok": true,
+   "falls": 0,
+   "t": 25,
+   "idx": 80,
+   "n": 83
+  },
+  {
+   "name": "Trieuse",
+   "ok": true,
+   "falls": 0,
+   "t": 29,
+   "idx": 79,
+   "n": 82
+  },
+  {
+   "name": "Soleil",
+   "ok": true,
+   "falls": 0,
+   "t": 20,
+   "idx": 75,
+   "n": 78
+  },
+  {
+   "name": "Les Arolles",
+   "ok": true,
+   "falls": 0,
+   "t": 27,
+   "idx": 76,
+   "n": 78
+  },
+  {
+   "name": "Golf II",
+   "ok": true,
+   "falls": 0,
+   "t": 42,
+   "idx": 76,
+   "n": 79
+  },
+  {
+   "name": "Liaison Plagne Centre II",
+   "ok": true,
+   "falls": 1,
+   "t": 18,
+   "idx": 65,
+   "n": 68
+  },
+  {
+   "name": "Edmond Blanchoz II",
+   "ok": true,
+   "falls": 0,
+   "t": 24,
+   "idx": 62,
+   "n": 65
+  },
+  {
+   "name": "Liaison Plagne Centre III",
+   "ok": true,
+   "falls": 0,
+   "t": 23,
+   "idx": 60,
+   "n": 63
+  },
+  {
+   "name": "Dou du Praz II",
+   "ok": true,
+   "falls": 0,
+   "t": 19,
+   "idx": 59,
+   "n": 62
+  },
+  {
+   "name": "Golf III",
+   "ok": true,
+   "falls": 0,
+   "t": 15,
+   "idx": 58,
+   "n": 61
+  },
+  {
+   "name": "Chevrette",
+   "ok": true,
+   "falls": 0,
+   "t": 18,
+   "idx": 55,
+   "n": 58
+  },
+  {
+   "name": "Trieuse II",
+   "ok": true,
+   "falls": 0,
+   "t": 16,
+   "idx": 54,
+   "n": 57
+  },
+  {
+   "name": "Liaison Plagne Centre IV",
+   "ok": true,
+   "falls": 0,
+   "t": 22,
+   "idx": 53,
+   "n": 56
+  },
+  {
+   "name": "Chevrette II",
+   "ok": true,
+   "falls": 0,
+   "t": 16,
+   "idx": 53,
+   "n": 56
+  },
+  {
+   "name": "Liaison Plagne Centre V",
+   "ok": true,
+   "falls": 0,
+   "t": 21,
+   "idx": 52,
+   "n": 55
+  },
+  {
+   "name": "École Aime 2000 II",
+   "ok": true,
+   "falls": 1,
+   "t": 20,
+   "idx": 52,
+   "n": 55
+  },
+  {
+   "name": "Liaison Aime 2000 II",
+   "ok": true,
+   "falls": 0,
+   "t": 15,
+   "idx": 49,
+   "n": 52
+  },
+  {
+   "name": "André Martzolf",
+   "ok": true,
+   "falls": 0,
+   "t": 13,
+   "idx": 48,
+   "n": 51
+  },
+  {
+   "name": "Variante Emile Allais",
+   "ok": true,
+   "falls": 0,
+   "t": 16,
+   "idx": 48,
+   "n": 51
+  },
+  {
+   "name": "Bretelle Trieuse",
+   "ok": true,
+   "falls": 0,
+   "t": 19,
+   "idx": 47,
+   "n": 50
+  },
+  {
+   "name": "Liaison Plagne Centre VI",
+   "ok": true,
+   "falls": 0,
+   "t": 19,
+   "idx": 45,
+   "n": 48
+  },
+  {
+   "name": "Liaison Plagne Villages II",
+   "ok": true,
+   "falls": 0,
+   "t": 21,
+   "idx": 45,
+   "n": 48
+  },
+  {
+   "name": "Frisbee",
+   "ok": true,
+   "falls": 0,
+   "t": 13,
+   "idx": 43,
+   "n": 46
+  },
+  {
+   "name": "Trieuse III",
+   "ok": true,
+   "falls": 0,
+   "t": 19,
+   "idx": 43,
+   "n": 46
+  },
+  {
+   "name": "Variante Emile Allais II",
+   "ok": true,
+   "falls": 0,
+   "t": 14,
+   "idx": 41,
+   "n": 44
+  },
+  {
+   "name": "Praconduit",
+   "ok": true,
+   "falls": 0,
+   "t": 14,
+   "idx": 39,
+   "n": 42
+  },
+  {
+   "name": "Liaison Plagne Centre VII",
+   "ok": true,
+   "falls": 0,
+   "t": 22,
+   "idx": 38,
+   "n": 41
+  },
+  {
+   "name": "Les Mines",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 37,
+   "n": 40
+  },
+  {
+   "name": "Mira III",
+   "ok": true,
+   "falls": 0,
+   "t": 15,
+   "idx": 37,
+   "n": 40
+  },
+  {
+   "name": "Mont Saint-Sauveur II",
+   "ok": true,
+   "falls": 0,
+   "t": 15,
+   "idx": 36,
+   "n": 39
+  },
+  {
+   "name": "Liaison Aime 2000 III",
+   "ok": true,
+   "falls": 1,
+   "t": 17,
+   "idx": 36,
+   "n": 39
+  },
+  {
+   "name": "Liaison Aime 2000 IV",
+   "ok": true,
+   "falls": 0,
+   "t": 15,
+   "idx": 34,
+   "n": 37
+  },
+  {
+   "name": "Retour Lagrange Vacances - Aspen",
+   "ok": true,
+   "falls": 0,
+   "t": 12,
+   "idx": 34,
+   "n": 37
+  },
+  {
+   "name": "Liaison Plagne Centre VIII",
+   "ok": true,
+   "falls": 0,
+   "t": 13,
+   "idx": 33,
+   "n": 36
+  },
+  {
+   "name": "Liaison Plagne Villages III",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 32,
+   "n": 35
+  },
+  {
+   "name": "Biquet",
+   "ok": true,
+   "falls": 0,
+   "t": 13,
+   "idx": 29,
+   "n": 32
+  },
+  {
+   "name": "École Aime 2000 III",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 29,
+   "n": 32
+  },
+  {
+   "name": "Crête-Côte II",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 28,
+   "n": 31
+  },
+  {
+   "name": "Morbleu",
+   "ok": true,
+   "falls": 0,
+   "t": 9,
+   "idx": 28,
+   "n": 31
+  },
+  {
+   "name": "Liaison Plagne Centre IX",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 27,
+   "n": 30
+  },
+  {
+   "name": "Liaison Plagne Villages IV",
+   "ok": true,
+   "falls": 0,
+   "t": 14,
+   "idx": 27,
+   "n": 30
+  },
+  {
+   "name": "Liaison Plagne Soleil",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 25,
+   "n": 28
+  },
+  {
+   "name": "Liaison Plagne Centre X",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 24,
+   "n": 27
+  },
+  {
+   "name": "Retour MMV",
+   "ok": true,
+   "falls": 0,
+   "t": 13,
+   "idx": 24,
+   "n": 27
+  },
+  {
+   "name": "Départ MMV",
+   "ok": true,
+   "falls": 0,
+   "t": 14,
+   "idx": 23,
+   "n": 26
+  },
+  {
+   "name": "Liaison Aime 2000 V",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 23,
+   "n": 26
+  },
+  {
+   "name": "Bridge II",
+   "ok": true,
+   "falls": 0,
+   "t": 9,
+   "idx": 21,
+   "n": 24
+  },
+  {
+   "name": "Liaison tracé de l'ancien téléski des Leitchoums",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 20,
+   "n": 23
+  },
+  {
+   "name": "Liaison Mélèzes",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 19,
+   "n": 22
+  },
+  {
+   "name": "Liaison Plagne Villages V",
+   "ok": true,
+   "falls": 0,
+   "t": 8,
+   "idx": 18,
+   "n": 21
+  },
+  {
+   "name": "Liaison Plagne Centre XI",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 18,
+   "n": 21
+  },
+  {
+   "name": "Liaison Plagne Villages VI",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 16,
+   "n": 19
+  },
+  {
+   "name": "Liaison Plagne Villages VII",
+   "ok": true,
+   "falls": 0,
+   "t": 8,
+   "idx": 16,
+   "n": 19
+  },
+  {
+   "name": "Accès half-pipe",
+   "ok": true,
+   "falls": 0,
+   "t": 4,
+   "idx": 8,
+   "n": 11
+  },
+  {
+   "name": "Half-pipe",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 37,
+   "n": 40
+  },
+  {
+   "name": "Sortie half-pipe",
+   "ok": true,
+   "falls": 0,
+   "t": 3,
+   "idx": 9,
+   "n": 12
+  },
+  {
+   "name": "Accès Télésiège Bergerie",
+   "ok": true,
+   "falls": 0,
+   "t": 4,
+   "idx": 9,
+   "n": 12
+  },
+  {
+   "name": "Accès Télésiège Colorado",
+   "ok": true,
+   "falls": 0,
+   "t": 4,
+   "idx": 9,
+   "n": 12
+  },
+  {
+   "name": "Accès Télésiège Bécoin",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 17,
+   "n": 20
+  },
+  {
+   "name": "Accès Télésiège Colorado",
+   "ok": true,
+   "falls": 0,
+   "t": 8,
+   "idx": 15,
+   "n": 18
+  },
+  {
+   "name": "Accès Télésiège Bergerie",
+   "ok": true,
+   "falls": 0,
+   "t": 4,
+   "idx": 9,
+   "n": 12
+  },
+  {
+   "name": "Accès Télésiège Bécoin",
+   "ok": true,
+   "falls": 0,
+   "t": 8,
+   "idx": 15,
+   "n": 18
+  },
+  {
+   "name": "Accès Téléski Dromadaire",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 28,
+   "n": 31
+  },
+  {
+   "name": "Accès Téléski Stade",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 13,
+   "n": 16
+  },
+  {
+   "name": "Accès Télésiège Bécoin",
+   "ok": true,
+   "falls": 0,
+   "t": 4,
+   "idx": 8,
+   "n": 11
+  },
+  {
+   "name": "Accès Télésiège Boulevard",
+   "ok": true,
+   "falls": 0,
+   "t": 6,
+   "idx": 14,
+   "n": 17
+  },
+  {
+   "name": "Accès Téléski Dou du Praz",
+   "ok": true,
+   "falls": 0,
+   "t": 6,
+   "idx": 11,
+   "n": 14
+  },
+  {
+   "name": "Accès Télésiège Bécoin",
+   "ok": true,
+   "falls": 0,
+   "t": 10,
+   "idx": 17,
+   "n": 20
+  },
+  {
+   "name": "Accès Téléski Aime-la-Plagne",
+   "ok": true,
+   "falls": 0,
+   "t": 19,
+   "idx": 14,
+   "n": 17
+  },
+  {
+   "name": "Accès Téléski Stade",
+   "ok": true,
+   "falls": 0,
+   "t": 6,
+   "idx": 16,
+   "n": 19
+  },
+  {
+   "name": "Accès Télésiège Golf",
+   "ok": true,
+   "falls": 0,
+   "t": 7,
+   "idx": 14,
+   "n": 17
+  },
+  {
+   "name": "Accès Télécabine Télébus",
+   "ok": true,
+   "falls": 0,
+   "t": 11,
+   "idx": 24,
+   "n": 27
+  },
+  {
+   "name": "Accès Télésiège Mélèzes",
+   "ok": true,
+   "falls": 0,
+   "t": 3,
+   "idx": 6,
+   "n": 9
+  },
+  {
+   "name": "Accès Téléski Chevrette",
+   "ok": true,
+   "falls": 0,
+   "t": 9,
+   "idx": 16,
+   "n": 19
+  }
+ ],
+ "lifts": [
+  {
+   "name": "Télésiège Golf",
+   "ok": true,
+   "t": 23,
+   "d": 0
+  },
+  {
+   "name": "Téléski Stade",
+   "ok": true,
+   "t": 14,
+   "d": 0
+  },
+  {
+   "name": "Télésiège 1800",
+   "ok": true,
+   "t": 21,
+   "d": 0
+  },
+  {
+   "name": "Téléski Crêtes",
+   "ok": true,
+   "t": 18,
+   "d": 0
+  },
+  {
+   "name": "Téléski Aollets",
+   "ok": true,
+   "t": 70,
+   "d": 0
+  },
+  {
+   "name": "Téléski Chevrette",
+   "ok": true,
+   "t": 13,
+   "d": 0
+  },
+  {
+   "name": "Télésiège Bergerie",
+   "ok": true,
+   "t": 46,
+   "d": 0
+  },
+  {
+   "name": "Télésiège Mélèzes",
+   "ok": true,
+   "t": 14,
+   "d": 0
+  },
+  {
+   "name": "Télésiège Boulevard",
+   "ok": true,
+   "t": 16,
+   "d": 0
+  },
+  {
+   "name": "Télécabine Télémétro",
+   "ok": true,
+   "t": 37,
+   "d": 0
+  },
+  {
+   "name": "Télécabine Télébus",
+   "ok": true,
+   "t": 16,
+   "d": 0
+  },
+  {
+   "name": "Téléski Praconduit",
+   "ok": true,
+   "t": 8,
+   "d": 0
+  },
+  {
+   "name": "Téléski Dromadaire",
+   "ok": true,
+   "t": 26,
+   "d": 0
+  },
+  {
+   "name": "Téléski Dou du Praz",
+   "ok": true,
+   "t": 23,
+   "d": 0
+  },
+  {
+   "name": "Téléski Aime-la-Plagne",
+   "ok": true,
+   "t": 10,
+   "d": 0
+  },
+  {
+   "name": "Télésiège Bécoin",
+   "ok": true,
+   "t": 39,
+   "d": 0
+  },
+  {
+   "name": "Télésiège Colorado",
+   "ok": true,
+   "t": 47,
+   "d": 0
+  }
+ ]
+}

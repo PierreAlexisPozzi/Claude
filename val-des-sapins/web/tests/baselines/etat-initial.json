@@ -1,0 +1,69 @@
+{
+ "pos": [
+  -1246.060767,
+  592.675051,
+  218.230586
+ ],
+ "yaw": -1.212259,
+ "state": "ski",
+ "pistes": 126,
+ "lifts": [
+  "Télésiège Golf",
+  "Téléski Stade",
+  "Télésiège 1800",
+  "Téléski Crêtes",
+  "Téléski Aollets",
+  "Téléski Chevrette",
+  "Télésiège Bergerie",
+  "Télésiège Mélèzes",
+  "Télésiège Boulevard",
+  "Télécabine Télémétro",
+  "Télécabine Télébus",
+  "Téléski Praconduit",
+  "Téléski Dromadaire",
+  "Téléski Dou du Praz",
+  "Téléski Aime-la-Plagne",
+  "Télésiège Bécoin",
+  "Télésiège Colorado"
+ ],
+ "buildings": 158,
+ "trees": null,
+ "people": [
+  "lucie",
+  "marco",
+  "sophie",
+  "paul",
+  "yanis",
+  "henri",
+  "jeanne",
+  "mireille",
+  "rene",
+  "bastien",
+  "elodie",
+  "chloe",
+  "nadia",
+  "joseph",
+  "thomas"
+ ],
+ "missions": [
+  "location",
+  "ravito",
+  "saucissons",
+  "croissants",
+  "testproduit",
+  "fondue",
+  "cartes",
+  "beaufort",
+  "couloir",
+  "carving",
+  "egare",
+  "shooting"
+ ],
+ "ri": {
+  "tris": 3906321,
+  "calls": 365,
+  "geos": 170
+ },
+ "credits": "Secteur Plagne Centre – Aime 2000, adaptation libre et non officielle, sans lien avec la station. Relief : IGN RGE ALTI (Licence Ouverte Etalab 2.0) et Copernicus DEM GLO-30, via Mapterhorn et TerraPrinter. Bâtiments : IGN BD TOPO® édition 2026-09-15 (Licence Ouverte Etalab 2.0). Pistes, remontées, noms, emplacement des commerces, restaurants et bars, bois et rochers : © les contributeurs d’OpenStreetMap (ODbL). Snowpark et half-pipe ajoutés pour le jeu.",
+ "facts": "5 vertes31 bleues8 rouges9 noiresSnowpark17 remontées5 villages85 canons à neige"
+}

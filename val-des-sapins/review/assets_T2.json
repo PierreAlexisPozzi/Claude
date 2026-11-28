@@ -1,0 +1,152 @@
+[
+ {
+  "source": "baluster_mask.png",
+  "sortie": "baluster_mask.ktx2",
+  "avant": 4478,
+  "apres": 8094
+ },
+ {
+  "source": "building_parts.glb",
+  "sortie": "building_parts.glb",
+  "avant": 148672,
+  "apres": 59992
+ },
+ {
+  "source": "lift_atlas.jpg",
+  "sortie": "lift_atlas.ktx2",
+  "avant": 14314,
+  "apres": 102304
+ },
+ {
+  "source": "lift_vehicles.glb",
+  "sortie": "lift_vehicles.glb",
+  "avant": 388388,
+  "apres": 181176
+ },
+ {
+  "source": "masonry_albedo.jpg",
+  "sortie": "masonry_albedo.ktx2",
+  "avant": 44768,
+  "apres": 245285
+ },
+ {
+  "source": "masonry_normal.jpg",
+  "sortie": "masonry_normal.ktx2",
+  "avant": 217507,
+  "apres": 339175
+ },
+ {
+  "source": "massif_albedo.jpg",
+  "sortie": "massif_albedo.ktx2",
+  "avant": 64849,
+  "apres": 338431
+ },
+ {
+  "source": "massif_normal.jpg",
+  "sortie": "massif_normal.ktx2",
+  "avant": 144097,
+  "apres": 338971
+ },
+ {
+  "source": "rock_albedo.jpg",
+  "sortie": "rock_albedo.ktx2",
+  "avant": 54377,
+  "apres": 286661
+ },
+ {
+  "source": "rock_normal.jpg",
+  "sortie": "rock_normal.ktx2",
+  "avant": 190277,
+  "apres": 339720
+ },
+ {
+  "source": "rooms_atlas.jpg",
+  "sortie": "rooms_atlas.ktx2",
+  "avant": 42788,
+  "apres": 305418
+ },
+ {
+  "source": "shop_signs.png",
+  "sortie": "shop_signs.ktx2",
+  "avant": 30573,
+  "apres": 122880
+ },
+ {
+  "source": "shops_atlas.jpg",
+  "sortie": "shops_atlas.ktx2",
+  "avant": 71822,
+  "apres": 463827
+ },
+ {
+  "source": "skiers_real.glb",
+  "sortie": "skiers_real.glb",
+  "avant": 1157804,
+  "apres": 582104
+ },
+ {
+  "source": "skiers_rig.glb",
+  "sortie": "skiers_rig.glb",
+  "avant": 165028,
+  "apres": 86568
+ },
+ {
+  "source": "skin_female.jpg",
+  "sortie": "skin_female.ktx2",
+  "avant": 43936,
+  "apres": 296053
+ },
+ {
+  "source": "skin_male.jpg",
+  "sortie": "skin_male.ktx2",
+  "avant": 45434,
+  "apres": 293826
+ },
+ {
+  "source": "snowmobile.glb",
+  "sortie": "snowmobile.glb",
+  "avant": 298140,
+  "apres": 140948
+ },
+ {
+  "source": "snowpack_albedo.jpg",
+  "sortie": "snowpack_albedo.ktx2",
+  "avant": 10773,
+  "apres": 67124
+ },
+ {
+  "source": "snowpack_normal.jpg",
+  "sortie": "snowpack_normal.ktx2",
+  "avant": 156819,
+  "apres": 339199
+ },
+ {
+  "source": "spruce_far.glb",
+  "sortie": "spruce_far.glb",
+  "avant": 7424,
+  "apres": 5444
+ },
+ {
+  "source": "spruce_near.glb",
+  "sortie": "spruce_near.glb",
+  "avant": 485320,
+  "apres": 268444
+ },
+ {
+  "source": "spruce_needles.png",
+  "sortie": "spruce_needles.ktx2",
+  "avant": 330287,
+  "apres": 203162
+ },
+ {
+  "source": "timber_albedo.jpg",
+  "sortie": "timber_albedo.ktx2",
+  "avant": 48143,
+  "apres": 242214
+ },
+ {
+  "source": "timber_normal.jpg",
+  "sortie": "timber_normal.ktx2",
+  "avant": 172216,
+  "apres": 332410
+ }
+]

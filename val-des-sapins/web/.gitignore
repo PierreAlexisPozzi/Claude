@@ -1,0 +1,9 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+dist-artifact/
+.cache/
+dist-exp/
+dist-c1/
+dist-c0/

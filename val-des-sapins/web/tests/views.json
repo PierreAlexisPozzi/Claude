@@ -1,0 +1,1224 @@
+[
+ {
+  "id": "facade-plagne-centre-barre",
+  "title": "Plagne Centre · barre béton (5 étages, IGN)",
+  "kind": "façade",
+  "from": [
+   -290.8,
+   240.5,
+   -268
+  ],
+  "at": [
+   -290.3,
+   248.3,
+   -241.2
+  ]
+ },
+ {
+  "id": "facade-plagne-centre-tour",
+  "title": "Plagne Centre · immeuble le plus haut (14 étages, IGN)",
+  "kind": "façade",
+  "from": [
+   -204.93,
+   242.4,
+   -259.82
+  ],
+  "at": [
+   -192.33,
+   266.37,
+   -213.5
+  ]
+ },
+ {
+  "id": "facade-aime-2000-paquebot",
+  "title": "Aime 2000 · paquebot, façade arrière (côté route : grand soubassement réel)",
+  "kind": "façade",
+  "from": [
+   -837.22,
+   351.46,
+   -749.53
+  ],
+  "at": [
+   -885.98,
+   362.96,
+   -710.06
+  ]
+ },
+ {
+  "id": "facade-plagne-villages-residence",
+  "title": "Plagne Villages · résidence bois",
+  "kind": "façade",
+  "from": [
+   432.68,
+   306.27,
+   -266.71
+  ],
+  "at": [
+   443.9,
+   311.12,
+   -243.4
+  ]
+ },
+ {
+  "id": "facade-plagne-1800-chalet",
+  "title": "Plagne 1800 · chalet",
+  "kind": "façade",
+  "from": [
+   34.92,
+   101.27,
+   -921.45
+  ],
+  "at": [
+   56,
+   102.55,
+   -919.2
+  ]
+ },
+ {
+  "id": "facade-plagne-soleil-residence",
+  "title": "Plagne Soleil · résidence bois",
+  "kind": "façade",
+  "from": [
+   750.23,
+   316.34,
+   -493.56
+  ],
+  "at": [
+   746,
+   316.48,
+   -515.1
+  ]
+ },
+ {
+  "id": "terrasse-aime-2000",
+  "title": "Aime 2000 · front de neige du Paquebot, terrasse (d'après les photos fournies)",
+  "kind": "terrasse",
+  "from": [
+   -917.21,
+   364.52,
+   -680.23
+  ],
+  "at": [
+   -881.44,
+   362.46,
+   -709.15
+  ]
+ },
+ {
+  "id": "terrasse-plagne-centre",
+  "title": "Terrasse · Plagne Centre (HO36, terrasse déclarée dans OSM)",
+  "kind": "terrasse",
+  "from": [
+   -286.24,
+   242.68,
+   -201.27
+  ],
+  "at": [
+   -282.55,
+   240.81,
+   -217.34
+  ]
+ },
+ {
+  "id": "terrasse-plagne-1800",
+  "title": "Terrasse · Plagne 1800",
+  "kind": "terrasse",
+  "from": [
+   56.58,
+   112.97,
+   -1117.65
+  ],
+  "at": [
+   72.74,
+   111.37,
+   -1114.36
+  ]
+ },
+ {
+  "id": "visage-lucie-face",
+  "title": "Lucie · face",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-lucie-trois-quarts",
+  "title": "Lucie · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-lucie-profil",
+  "title": "Lucie · profil",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-marco-face",
+  "title": "Marco · face",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-marco-trois-quarts",
+  "title": "Marco · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-marco-profil",
+  "title": "Marco · profil",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-yanis-face",
+  "title": "Yanis · face",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-yanis-trois-quarts",
+  "title": "Yanis · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-yanis-profil",
+  "title": "Yanis · profil",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-henri-face",
+  "title": "Henri · face",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-henri-trois-quarts",
+  "title": "Henri · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-henri-profil",
+  "title": "Henri · profil",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-jeanne-face",
+  "title": "Jeanne · face",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-jeanne-trois-quarts",
+  "title": "Jeanne · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-jeanne-profil",
+  "title": "Jeanne · profil",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-mireille-face",
+  "title": "Mireille · face",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-mireille-trois-quarts",
+  "title": "Mireille · trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "visage-mireille-profil",
+  "title": "Mireille · profil",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "joueur-trois-quarts",
+  "title": "Skieur du joueur · trois quarts",
+  "kind": "joueur",
+  "rel": {
+   "a": 0.8,
+   "d": 1.5,
+   "h": 0.55,
+   "ly": 0.45
+  }
+ },
+ {
+  "id": "village-plagne-centre",
+  "title": "Plagne Centre · vue d'ensemble",
+  "kind": "village",
+  "from": [
+   -80,
+   324.77,
+   -41
+  ],
+  "at": [
+   -240,
+   249.77,
+   -231
+  ]
+ },
+ {
+  "id": "village-aime-2000",
+  "title": "Aime 2000 · vue d'ensemble",
+  "kind": "village",
+  "from": [
+   -700,
+   419.7,
+   -591
+  ],
+  "at": [
+   -870,
+   364.7,
+   -711
+  ]
+ },
+ {
+  "id": "paysage-sommet-becoin",
+  "title": "Paysage depuis le sommet du Bécoin",
+  "kind": "paysage",
+  "from": [
+   -1245.4,
+   598.73,
+   218.01
+  ],
+  "at": [
+   -240,
+   239.77,
+   -231
+  ]
+ },
+ {
+  "id": "foret-lisiere",
+  "title": "Lisière de forêt au sud de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -60,
+   348.5,
+   260
+  ],
+  "at": [
+   90,
+   333,
+   300
+  ],
+  "phone": true
+ },
+ {
+  "id": "foret-melezes",
+  "title": "Mélèzes d'hiver et épicéas, à l'ouest de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -330,
+   294.6,
+   80
+  ],
+  "at": [
+   -372,
+   311,
+   118
+  ],
+  "phone": true
+ },
+ {
+  "id": "foret-vue-large",
+  "title": "Forêts vers Plagne 1800, vues d'au-dessus de Plagne Centre (T8)",
+  "kind": "paysage",
+  "from": [
+   -100,
+   465,
+   150
+  ],
+  "at": [
+   -150,
+   115,
+   -900
+  ],
+  "phone": true
+ },
+ {
+  "id": "rochers-grande-rochette",
+  "title": "Rochers de la Grande Rochette (T8)",
+  "kind": "paysage",
+  "from": [
+   250,
+   470,
+   820
+  ],
+  "at": [
+   450,
+   675,
+   1150
+  ]
+ },
+ {
+  "id": "barres-rocheuses-ouest",
+  "title": "Pentes raides à l'ouest, vers le Roc du Bécoin (T8)",
+  "kind": "paysage",
+  "from": [
+   -850,
+   543,
+   880
+  ],
+  "at": [
+   -1100,
+   763,
+   1100
+  ]
+ },
+ {
+  "id": "horizon-matin",
+  "title": "Horizon vers l'est-nord-est, 8 h 30 (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 8.5
+ },
+ {
+  "id": "horizon-midi",
+  "title": "Horizon vers l'est-nord-est, 12 h 30 (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 12.5,
+  "phone": true
+ },
+ {
+  "id": "horizon-soir",
+  "title": "Horizon vers l'est-nord-est, 17 h (T8)",
+  "kind": "paysage",
+  "from": [
+   -1189,
+   575.7,
+   247
+  ],
+  "at": [
+   1300,
+   610,
+   -700
+  ],
+  "hour": 17
+ },
+ {
+  "id": "gros-plan-lucie-face",
+  "title": "Lucie · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-lucie-trois-quarts",
+  "title": "Lucie · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-marco-face",
+  "title": "Marco · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-marco-trois-quarts",
+  "title": "Marco · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-yanis-face",
+  "title": "Yanis · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-yanis-trois-quarts",
+  "title": "Yanis · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-henri-face",
+  "title": "Henri · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-henri-trois-quarts",
+  "title": "Henri · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-jeanne-face",
+  "title": "Jeanne · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-jeanne-trois-quarts",
+  "title": "Jeanne · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-mireille-face",
+  "title": "Mireille · gros plan face",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "gros-plan-mireille-trois-quarts",
+  "title": "Mireille · gros plan trois-quarts",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.5,
+   "dy": 0.01,
+   "ly": -0.02
+  }
+ },
+ {
+  "id": "abords-plagne-centre",
+  "title": "Plagne Centre · abords (galerie, mobilier)",
+  "kind": "village",
+  "from": [
+   -170.69,
+   241.73,
+   -228.2
+  ],
+  "at": [
+   -198.64,
+   245.92,
+   -214.27
+  ]
+ },
+ {
+  "id": "facade-plagne-centre-biais",
+  "title": "Plagne Centre · immeuble le plus haut, en biais",
+  "kind": "façade",
+  "from": [
+   -262.48,
+   240.94,
+   -229.66
+  ],
+  "at": [
+   -190.1,
+   266.37,
+   -205.3
+  ]
+ },
+ {
+  "id": "plagne-centre-mi-distance",
+  "title": "Plagne Centre · mi-distance",
+  "kind": "village",
+  "from": [
+   -110,
+   252,
+   -300
+  ],
+  "at": [
+   -240,
+   250,
+   -240
+  ]
+ },
+ {
+  "id": "aime-2000-front-de-neige",
+  "title": "Aime 2000 · front de neige du Paquebot, à hauteur d'homme (comme la photo fournie)",
+  "kind": "terrasse",
+  "from": [
+   -931.4,
+   363.43,
+   -707.7
+  ],
+  "at": [
+   -903.3,
+   364.0,
+   -704.5
+  ]
+ },
+ {
+  "id": "aime-2000-vue-aerienne",
+  "title": "Aime 2000 · vue aérienne du Paquebot depuis le nord-ouest (comme la photo fournie)",
+  "kind": "village",
+  "from": [
+   -1035.7,
+   479.4,
+   -790.9
+  ],
+  "at": [
+   -901.0,
+   356.9,
+   -693.6
+  ]
+ },
+ {
+  "id": "le-france-passage",
+  "title": "Plagne Centre · Le France, la piste Boulevard passe sous l'immeuble",
+  "kind": "village",
+  "from": [
+   75.56,
+   244.8,
+   -142.17
+  ],
+  "at": [
+   91.2,
+   239.0,
+   -200.3
+  ]
+ },
+ {
+  "id": "le-france-facade",
+  "title": "Plagne Centre · Le France depuis le bas de la piste Boulevard (comme la photo fournie)",
+  "kind": "village",
+  "from": [
+   133.25,
+   229.16,
+   -279.05
+  ],
+  "at": [
+   78.68,
+   250.02,
+   -202.59
+  ]
+ },
+ {
+  "id": "visage-lucie-yeux-fermes",
+  "title": "Lucie · face, yeux fermés (contrôle : la cornée ne traverse pas les paupières)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 1,
+   "smile": 0.1,
+   "open": 0,
+   "brows": 0,
+   "squint": 0
+  }
+ },
+ {
+  "id": "visage-lucie-plisses",
+  "title": "Lucie · face, yeux plissés et sourire",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.6,
+   "open": 0.1,
+   "brows": 0.2,
+   "squint": 0.8
+  }
+ },
+ {
+  "id": "visage-lucie-face-soir",
+  "title": "Lucie · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-lucie-trois-quarts-soir",
+  "title": "Lucie · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-lucie-profil-soir",
+  "title": "Lucie · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-face-soir",
+  "title": "Marco · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-trois-quarts-soir",
+  "title": "Marco · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-marco-profil-soir",
+  "title": "Marco · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-face-soir",
+  "title": "Yanis · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-trois-quarts-soir",
+  "title": "Yanis · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-yanis-profil-soir",
+  "title": "Yanis · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-face-soir",
+  "title": "Henri · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-trois-quarts-soir",
+  "title": "Henri · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-henri-profil-soir",
+  "title": "Henri · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-face-soir",
+  "title": "Jeanne · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-trois-quarts-soir",
+  "title": "Jeanne · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-jeanne-profil-soir",
+  "title": "Jeanne · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-face-soir",
+  "title": "Mireille · face, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-trois-quarts-soir",
+  "title": "Mireille · trois quarts, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-mireille-profil-soir",
+  "title": "Mireille · profil, fin d'après-midi (16 h 30)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 1.5708,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hour": 16.5
+ },
+ {
+  "id": "visage-lucie-sourire",
+  "title": "Lucie · grand sourire",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.85,
+   "open": 0,
+   "brows": 0.3,
+   "squint": 0
+  }
+ },
+ {
+  "id": "visage-henri-parle",
+  "title": "Henri · en parlant",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.7,
+   "open": 0.4,
+   "brows": 0.25,
+   "squint": 0
+  }
+ },
+ {
+  "id": "visage-lucie-surprise",
+  "title": "Lucie · surprise (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "lucie",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "surprise": 0.8
+  }
+ },
+ {
+  "id": "visage-henri-triste",
+  "title": "Henri · déçu (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "henri",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "sad": 0.8
+  }
+ },
+ {
+  "id": "visage-marco-effort",
+  "title": "Marco · effort (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "marco",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0,
+   "brows": 0,
+   "squint": 0,
+   "effort": 0.8
+  }
+ },
+ {
+  "id": "visage-jeanne-grimace",
+  "title": "Jeanne · grimace (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "jeanne",
+   "a": 0,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0,
+   "open": 0.15,
+   "brows": 0,
+   "squint": 0,
+   "wince": 0.9
+  }
+ },
+ {
+  "id": "visage-yanis-parle",
+  "title": "Yanis · en parlant, visème « ou » (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "yanis",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.3,
+   "open": 0.3,
+   "brows": 0,
+   "squint": 0,
+   "oo": 0.7
+  }
+ },
+ {
+  "id": "visage-mireille-regard",
+  "title": "Mireille · regard vers la caméra (T8)",
+  "kind": "visage",
+  "person": {
+   "id": "mireille",
+   "a": 0.7854,
+   "d": 0.62,
+   "dy": 0.02,
+   "ly": -0.02
+  },
+  "hold": {
+   "blink": 0,
+   "smile": 0.4,
+   "open": 0,
+   "brows": 0,
+   "squint": 0
+  }
+ },
+ {
+  "id": "jeu-depart",
+  "title": "Caméra de jeu au départ (sommet du Bécoin), HUD affiché",
+  "kind": "jeu"
+ },
+ {
+  "id": "mode-photo",
+  "title": "Mode photo : caméra libre autour du skieur, profondeur de champ, panneau de réglages",
+  "kind": "photo"
+ }
+]
