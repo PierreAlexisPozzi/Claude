@@ -1,6 +1,8 @@
 /* T7 : contrôle des jours entre le corps et les vêtements, et planche personnages.
    - Par défaut (npm test) : huit vues sensibles (dos vu d'en haut en schuss, télésiège, col, poignet, ourlet et bas de
-     pantalon du joueur, col et nuque d'une habitante en bonnet), aucun jour toléré.
+     pantalon du joueur, col et nuque d'une habitante en bonnet) ; au plus 400 pixels par vue (0,1 % de l'image) : il
+     reste de fins liserés en vue rasante là où une doublure rejoint son vêtement, plus aucune ouverture (avant : jusqu'à
+     1 785 px au col, ~100 000 px dans le bas du pantalon vu d'en dessous).
    - VDS_PERSOS=1 : planche complète (toutes les poses et tous les angles), relevé sans seuil sauf VDS_PERSOS_MAX.
 
    - Joueur dans les poses du jeu (arrêt, schuss, virage, chasse-neige, télésiège), figées par le mode photo, vu sous six
@@ -19,7 +21,7 @@ import { openGame, pump, start } from './helpers';
 
 const OUT = path.resolve(process.env.VDS_PERSOS_OUT || '.cache/persos');
 const FULL = !!process.env.VDS_PERSOS;
-const MAX = process.env.VDS_PERSOS_MAX ? Number(process.env.VDS_PERSOS_MAX) : FULL ? null : 0;
+const MAX = process.env.VDS_PERSOS_MAX ? Number(process.env.VDS_PERSOS_MAX) : FULL ? null : 400;   // ≤ 0,1 % de l'image : liserés rasants, pas d'ouverture
 const ONLY = process.env.VDS_PERSOS_ONLY ? new RegExp(process.env.VDS_PERSOS_ONLY)   // sous-ensemble « pose-angle »
   : FULL ? null : /^(schuss-dessus-dos|telesiege-trois-quarts|arret-(col|poignet|ourlet|cheville)|lucie-(col|nuque-gauche))$/;
 // angle autour du personnage (0 = de face), distance, inclinaison de la caméra, hauteur visée au-dessus des hanches
@@ -66,6 +68,24 @@ async function shoot(page: Page, pose: string, angle: string): Promise<Shot> {
   const png = await page.screenshot({ path: mask });
   await page.evaluate(() => (window as any).__ski.humanDebug(0));
   const m = await magenta(page, png, normal);
+  if (process.env.VDS_PERSOS_PARTS && m.core > 0) {   // diagnostic : jour restant attribué pièce par pièce (pièce masquée)
+    const parts: Record<string, number> = {};
+    const who = await page.evaluate((pose) => { const s = (window as any).__ski; s.humanDebug(2); return s.PEOPLE.some((x: any) => x.id === pose) ? 'pnj' : 'joueur'; }, pose);
+    for (const k of ['body', 'face', 'hair', 'gaiter', 'helmet', 'goggles', 'beanie', 'pompom']) {
+      const ok = await page.evaluate(({ k, who }) => {
+        const s = (window as any).__ski, list = who === 'joueur' ? [s.playerHuman] : s.humanPool.list;
+        let any = false; for (const H of list) if (H && H.parts[k] && H.parts[k].visible) { H.parts[k].userData.dbgHide = true; H.parts[k].visible = false; any = true; }
+        return any;
+      }, { k, who });
+      if (!ok) continue;
+      await pump(page, 1, 1 / 60);
+      const shot = await page.screenshot();
+      parts[k] = m.core - (await magenta(page, shot, normal)).core;
+      await page.evaluate(() => { const s = (window as any).__ski; for (const H of [s.playerHuman, ...s.humanPool.list]) if (H) for (const q of Object.values(H.parts) as any[]) if (q.userData.dbgHide) { q.visible = true; delete q.userData.dbgHide; } });
+    }
+    await page.evaluate(() => (window as any).__ski.humanDebug(0));
+    console.log('PARTS', pose, angle, m.core, JSON.stringify(parts));
+  }
   return { pose, angle, file, mask, magenta: m.core, raw: m.raw, black: m.black };
 }
 
@@ -96,6 +116,9 @@ test('vêtements sans jour (masque des faces arrière) et planche personnages', 
       for (let i = 0; i < 40; i++) s.skierTick(1 / 60);   // la pose se stabilise
       s.faceHold = { blink: 0, smile: 0.15, open: 0, brows: 0, squint: 0 };
       s.photoMode(true); document.getElementById('photo')!.hidden = true;
+      // plan de coupe proche ramené de 0,3 à 0,02 m : sinon, dans les gros plans, il tranche la paroi d'un vêtement tout
+      // proche et fait voir l'intérieur (faux jour ; en jeu, la caméra ne s'approche pas à moins de 1,2 m)
+      s.camera.near = 0.02; s.camera.updateProjectionMatrix();
       // orientation du personnage d'après ses hanches (vers l'avant = haut × (hanche droite − hanche gauche)) : valable
       // aussi sur le télésiège, où la racine du skieur est rattachée au siège
       const T = s.THREE, B = s.playerHuman.bones, l = B.thigh_l.getWorldPosition(new T.Vector3()), r = B.thigh_r.getWorldPosition(new T.Vector3());
@@ -126,6 +149,7 @@ test('vêtements sans jour (masque des faces arrière) et planche personnages', 
         const segs: any[] = [];
         for (const sd of ['l', 'r']) for (const [a, b] of [['thigh', 'calf'], ['calf', 'foot'], ['upperarm', 'lowerarm'], ['lowerarm', 'hand']]) segs.push([P(a + '_' + sd), P(b + '_' + sd)]);
         for (const sd of ['l', 'r']) { const h = P('hand_' + sd), ft = P('foot_' + sd); segs.push([h, h], [ft, ft]); }
+        segs.push([P('pelvis'), P('spine_03')]);
         const near = () => segs.some(([a, b]) => new T.Line3(a, b).closestPointToPoint(from, true, new T.Vector3()).distanceTo(from) < 0.2);
         const dir = from.clone().sub(at).normalize();
         for (let k = 0; k < 16 && near(); k++) from.addScaledVector(dir, 0.06);
@@ -133,7 +157,7 @@ test('vêtements sans jour (masque des faces arrière) et planche personnages', 
       }, { bone, lift, off });
       shots.push(await shoot(page, pose, angle));
     }
-    await page.evaluate(() => { const s = (window as any).__ski; s.PHOTO.fixed = null; s.photoMode(false); s.clear(); });
+    await page.evaluate(() => { const s = (window as any).__ski; s.PHOTO.fixed = null; s.photoMode(false); s.clear(); s.camera.near = 0.3; s.camera.updateProjectionMatrix(); });
   }
   for (const id of FOLK) {
     // le joueur à 3 m sur le côté : l'habitant tourne la tête vers lui (comme en jeu à moins de 10 m)

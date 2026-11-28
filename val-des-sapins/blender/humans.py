@@ -32,6 +32,7 @@ from mathutils import Vector, Matrix
 from vds_common import reset, hexrgb, bake_ao_to_vertex_colors, export_glb, tri_count, srgb2lin
 
 DATA = os.environ.get('MH_DATA', '')
+JK_MARGIN = float(os.environ.get('HM_JK_MARGIN', '0.015'))   # veste au-dessus du pantalon (m) ; négatif : témoin du contrôle
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets')
 _FLOOR = {}
 
@@ -301,21 +302,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     JK, PT, GL, SK = hexrgb(opts['jacket']), hexrgb(opts['pants']), hexrgb('#1b1d22'), hexrgb(SKIN_TONES[opts['skin']])
     hem_y = hip_y - 0.13                                                        # T7 (freeride) : veste longue
     ACC = hexrgb(opts['accent'])
-    verts_out, cols, tints, wout, polys, fcol, psrc, skin_base, vsrc = [], [], [], [], [], [], [], {}, {}
-
-    def joint_blend(i):
-        """T7 (freeride) : vêtements amples loin de l'os : autour du genou et du coude, poids fondus sur ±10 cm (8 cm au
-        coude) le long du membre ; la jambe de pantalon ne se replie plus sur elle-même derrière le genou plié"""
-        w, d = weights.get(i, {'pelvis': 1.0}), dom[i]
-        for up, lo, j0, j1, j2, half in (('thigh', 'calf', 'upper-leg', 'knee', 'ankle', 0.1), ('upperarm', 'lowerarm', 'shoulder', 'elbow', 'hand', 0.08)):
-            if d.startswith((up, lo)):
-                sd = d[-1]; a_, k_, b_ = mk['joint-%s-%s' % (sd, j0)], mk['joint-%s-%s' % (sd, j1)], mk['joint-%s-%s' % (sd, j2)]
-                ax = ((k_ - a_).normalized() + (b_ - k_).normalized()).normalized()
-                x = (V[i] - k_).dot(ax)
-                if abs(x) < half:
-                    u = (x + half) / (2 * half); u = u * u * (3 - 2 * u)
-                    return {'%s_%s' % (up, sd): 1 - u, '%s_%s' % (lo, sd): u}
-        return w
+    verts_out, cols, tints, wout, polys, fcol, psrc, skin_base, vsrc, vkind = [], [], [], [], [], [], [], {}, {}, {}
 
     def add_shell(kind, offset_fn, col_fn, tint_fn):
         idx, start = {}, len(polys)
@@ -331,9 +318,9 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
                     idx[i] = len(verts_out)
                     if kind == 'skin':
                         skin_base[len(verts_out)] = i
-                    vsrc[len(verts_out)] = i
+                    vsrc[len(verts_out)] = i; vkind[len(verts_out)] = kind
                     p = V[i] + nrm[i] * offset_fn(i)
-                    verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(joint_blend(i) if kind != 'skin' else weights.get(i, {'pelvis': 1.0}))
+                    verts_out.append(p); cols.append(col_fn(i, p)); tints.append(tint_fn(i, p)); wout.append(weights.get(i, {'pelvis': 1.0}))
                 ids.append(idx[i])
             polys.append(ids); psrc.append((kind, faces_index[id(f)]))
             fcol.append(col_fn(max(f, key=lambda i: V[i].y if kind == 'skin' else 0), sum((V[i] for i in f), Vector()) / len(f)))
@@ -368,19 +355,12 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             t = max(0.0, min(1.0, (k.y - p.y) / max(0.05, k.y - a.y)))
             axis = k.lerp(a, t)
             r = (Vector((p.x, 0, p.z)) - Vector((axis.x, 0, axis.z))).length
-            want = (0.098 + 0.018 * t - 0.012 * max(0.0, 1 - t / 0.2) ** 2) * sc_   # resserré au genou, s'évase sur la chaussure
+            want = (0.098 + 0.018 * t) * sc_                                     # s'évase sur la chaussure
             o = max(0.02, want - r)
         if d.startswith('thigh'):
             s = 'l' if d.endswith('_l') else 'r'
             r, t = seg_r(p, mk['joint-%s-upper-leg' % s], mk['joint-%s-knee' % s])
-            kn = max(0.0, min(1.0, (t - 0.75) / 0.25)) ** 2                        # resserré au genou (repli moindre)
-            o = max(0.03, (0.11 - 0.008 * t - 0.02 * kn) * sc_ - r)
-        if d.startswith(('thigh', 'calf')):        # T7 : tissu froncé derrière le genou (pas de coque retournée genou plié)
-            s = d[-1]; kp = mk['joint-%s-knee' % s]
-            along = abs(p.y - kp.y)
-            if along < 0.13 and p.z < kp.z:
-                wb = max(0.0, min(1.0, (kp.z - p.z) / 0.035)) * (1 - along / 0.13) ** 2
-                o = o + (0.016 - o) * wb
+            o = max(0.03, (0.11 - 0.008 * t) * sc_ - r)
         return o + 0.004 * abs(math.sin(p.y * math.pi / 0.07)) * (1 if dom[i].startswith('thigh') else 0.4)
     def j_off(i):
         p, d = V[i], dom[i]
@@ -403,7 +383,7 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
             base = 0.05 + 0.012 * max(0.0, min(1.0, (hip_y + 0.04 - p.y) / 0.1))   # hem sits just clear of the hips
         quilt = 0.006 * abs(math.sin((p.y if d.startswith(('spine', 'pelvis')) else (p - mk['joint-l-shoulder']).length * 1.6) * math.pi / 0.11))
         if reg[i] == 'both':                       # T7 : là où la veste recouvre le pantalon, toujours 1,5 cm au-dessus
-            base = max(base, p_off(i) + 0.015)
+            base = max(base, p_off(i) + JK_MARGIN)
         return base + quilt
 
     def j_col(i, p):
@@ -421,8 +401,8 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
 
     pt_rng = add_shell('pants', p_off, lambda i, p: PT if p.y > 0.16 else hexrgb('#16181c'), lambda i, p: 0.0)
     # contrôle : le pantalon ne traverse jamais la veste (même sommet du corps, mêmes poids : l'écart se conserve en pose)
-    bad = [i for i in used if reg[i] == 'both' and j_off(i) < p_off(i) + 0.012]
-    assert not bad, 'pantalon au-dessus de la veste en %d sommets' % len(bad)
+    bad = [i for i in used if reg[i] == 'both' and j_off(i) < p_off(i) + JK_MARGIN - 0.003]
+    assert not bad or JK_MARGIN < 0, 'pantalon au-dessus de la veste en %d sommets' % len(bad)
 
     # T7 : ouvertures refermées. Chaque bord libre d'un vêtement (col, poignets, ourlet, bas de pantalon) est prolongé
     # par une bande de doublure qui revient sur la surface d'en dessous : peau du cou, avant-bras, pantalon, tige de la
@@ -801,6 +781,23 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
     cloth = [v for v in bm.verts if v.index < len(tints) and wout[v.index].get('head', 0) < 0.5 and tints[v.index] != 2.0 and psrc_v[v.index] == 'shell']
     for _ in range(6):
         bmesh.ops.smooth_vert(bm, verts=cloth, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    # T7 : après lissage, la veste reste au moins 1,5 cm au-dessus du pantalon, sommet par sommet le long de la normale du
+    # corps (le lissage déplace les deux vêtements différemment)
+    bm.verts.ensure_lookup_table()
+    jac, pan = {}, {}
+    for k, i in vsrc.items():
+        if k < len(bm.verts):
+            (jac if vkind.get(k) == 'jacket' else pan if vkind.get(k) == 'pants' else {})[i] = k
+    pushed = 0
+    for i, kj in jac.items():
+        kp = pan.get(i)
+        if kp is None:
+            continue
+        n = Vector(G(nrm[i].x, nrm[i].y, nrm[i].z)); d = (bm.verts[kj].co - bm.verts[kp].co).dot(n)
+        if d < JK_MARGIN:
+            bm.verts[kj].co += n * (JK_MARGIN - d); pushed += 1
+    if os.environ.get('HM_DEBUG'):
+        print('VESTE repoussée au-dessus du pantalon :', pushed, 'sommets')
     bm.to_mesh(me); bm.free(); me.update()
     ca = me.color_attributes.new('Color', 'FLOAT_COLOR', 'CORNER')
     for poly in me.polygons:
@@ -911,6 +908,40 @@ def build(name, verts, faces, fgroup, weights, opts, rnd):
         go.parent = ao; m2 = go.modifiers.new('arm', 'ARMATURE'); m2.object = ao
         gobs.append(go)
     return ob, ao, mk, gobs, face
+
+
+def pants_through_jacket(ob, opts):
+    """T7 : contrôle sur le maillage livré (après lissage et décimation) : un sommet du pantalon, entre l'ourlet et la
+    taille, traverse la veste s'il n'a pas de veste au-dessus de lui (rayon vers l'extérieur, 5 cm) mais en a une juste
+    en dessous (rayon vers l'intérieur, 5 cm). Bloquant au-delà de 0,5 % des sommets contrôlés."""
+    from mathutils.bvhtree import BVHTree
+    me = ob.data; tint = me.attributes['_tint'].data
+    jf = [list(p.vertices) for p in me.polygons if all(0.5 < tint[v].value < 1.5 for v in p.vertices)]
+    bvh = BVHTree.FromPolygons([tuple(v.co) for v in me.vertices], jf)
+    col = me.color_attributes['Color']; PT = [srgb2lin(c) for c in hexrgb(opts['pants'])]
+    pv = set()
+    for p in me.polygons:
+        for li, v in zip(p.loop_indices, p.vertices):
+            c = col.data[li].color
+            if abs(c[0] - PT[0]) < 0.002 and abs(c[1] - PT[1]) < 0.002 and abs(c[2] - PT[2]) < 0.002 and tint[v].value < 0.5:   # pantalon seul (le sac est d'un gris voisin)
+                pv.add(v)
+    zs = [me.vertices[v].co.z for p in jf for v in p]
+    lo, hi = min(zs), max(zs)                        # repère Blender : z = hauteur
+    cand = [v for v in pv if lo + 0.02 < me.vertices[v].co.z < hi - 0.05]
+    bad = []
+    for v in cand:
+        co, n = me.vertices[v].co, me.vertices[v].normal
+        if bvh.ray_cast(co + n * 0.001, n, 0.05)[0]:
+            continue                                 # veste juste au-dessus (pas une manche plus loin) : recouvert
+        if bvh.ray_cast(co - n * 0.001, -n, 0.05)[0]:
+            bad.append(v)                            # pas de veste au-dessus mais une juste en dessous : il la traverse
+    print('PANTALON/VESTE', ob.name, 'sommets contrôlés', len(cand), 'à travers', len(bad))
+    if os.environ.get('HM_DEBUG') and bad:
+        import collections
+        print('  hauteurs', sorted(collections.Counter(round(me.vertices[v].co.z, 2) for v in bad).items())[:20])
+        print('  côtés', collections.Counter(('g' if me.vertices[v].co.x > 0 else 'd') + ('av' if me.vertices[v].co.y < 0 else 'ar') for v in bad))
+        print('  écart', sorted(round((me.vertices[v].co - bvh.find_nearest(me.vertices[v].co)[0]).length * 1000) for v in bad))
+    assert len(bad) <= 0.005 * max(1, len(cand)), 'le pantalon traverse la veste en %d sommets' % len(bad)
 
 
 def finish(ob, ratio, protect=None):
@@ -1156,6 +1187,7 @@ def main():
         ob, ao, mk, gobs, face = build(name, mv, faces, fgroup, weights, opts, rnd)
         finish(ob, float(os.environ.get('HM_RATIO', '0.26')), protect='rim')
         ob.vertex_groups.remove(ob.vertex_groups['rim'])
+        pants_through_jacket(ob, opts)
         protect_expressions(face)
         finish(face, float(os.environ.get('HM_FACE_RATIO', '0.6')), protect='expr')   # T7 : 0,6 (à 0,35, de longs triangles plissaient le front)
         face.vertex_groups.remove(face.vertex_groups['expr'])

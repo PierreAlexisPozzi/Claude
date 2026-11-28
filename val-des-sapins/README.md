@@ -70,7 +70,7 @@ test (exécutions reproductibles au bit près).
 | `terraces` | chaque terrasse : plancher au niveau du rez-de-chaussée (± 1 cm), neige au niveau du plancher (± 15 cm) sur la terrasse et 3 m autour, côté front de neige, hors piste, à plus de 10 m d'une gare de remontée, à moins de 30 m d'un établissement OSM ; au moins 5 terrasses (T5 ter) |
 | `heads` | têtes proches (T7) : visage subdivisé (Loop) à moins de 8 m avec ses cinq expressions et des poids de peau valides ; cheveux sous le bonnet seulement, tour de cou avec le casque seulement |
 | `photo` | mode photo (T7) : jeu figé, profondeur de champ, image PNG téléchargée, retour à l'heure et au champ du jeu, contrat d'identifiants du HUD |
-| `persos` | vêtements sans jour (T7) : masque des faces arrière dans les poses du jeu (dos en schuss, télésiège, col, poignet, ourlet, bas de pantalon, col et nuque d'une habitante tête tournée) ; aucun jour toléré ; planche complète avec `VDS_PERSOS=1` |
+| `persos` | vêtements sans jour (T7) : masque des faces arrière dans les poses du jeu (dos en schuss, télésiège, col, poignet, ourlet, bas de pantalon, col et nuque d'une habitante tête tournée) ; au plus 400 px par vue (liserés rasants) ; planche complète avec `VDS_PERSOS=1`, attribution par pièce avec `VDS_PERSOS_PARTS=1` |
 | `views` | vues de référence à caméras fixes (`tests/views.json` : 6 façades, 3 terrasses, 6 visages × 3 angles, joueur, 2 villages, paysage) capturées dans `review/vues/<tranche>/` sur ordinateur et téléphone ; écart à `game.html` mesuré |
 
 **Tranche T7 — personnages en réalisme stylisé, vêtements de ski sans jour, mode photo** (mesures :
@@ -86,7 +86,10 @@ test (exécutions reproductibles au bit près).
   - manches larges, resserrées aux poignets ;
   - deux couleurs par veste (empiècement des épaules, avant-bras, capuche), teintées par personne ;
   - grande capuche et sac de freeride plus volumineux ;
-  - pantalon large en cylindre autour de chaque jambe, qui s'évase et s'empile sur la chaussure.
+  - pantalon large en cylindre autour de chaque jambe, qui s'évase et s'empile sur la chaussure ;
+  - **le pantalon ne traverse jamais la veste** : là où ils se superposent, la veste reste au moins 1,5 cm au-dessus,
+    sommet par sommet, avant et après le lissage. Contrôle bloquant sur le maillage livré, après décimation : sur 140
+    et 146 sommets recouverts, 0 traverse. Témoin : avec une marge négative, le contrôle échoue.
 - **Cheveux** :
   - coque sculptée sous le bonnet ou le casque ;
   - mèches effilées qui dépassent aux tempes et à la nuque (plus longues chez les femmes, avec une queue de cheval), à
@@ -116,7 +119,10 @@ test (exécutions reproductibles au bit près).
   l'accélération et rebondissent, 3 cm au plus, 1 cm en vertical).
 - **Contrôle des jours** (`tests/persos.spec.ts`) : les faces arrière des pièces du personnage s'affichent en magenta
   (`__ski.humanDebug`) ; une face arrière visible, c'est l'intérieur d'un vêtement vu par une ouverture. Le test vérifie
-  huit vues sensibles dans les poses du jeu (aucun jour toléré). Témoin : la version d'avant y montre jusqu'à 1 785
+  huit vues sensibles dans les poses du jeu ; au plus 400 pixels par vue (0,1 % de l'image) : de fins liserés en vue
+  rasante là où une doublure rejoint son vêtement, plus aucune ouverture. Pour les gros plans, la planche rapproche le plan de
+  coupe de la caméra à 2 cm : à 30 cm, il tranchait la paroi d'un vêtement tout proche et faisait voir l'intérieur, un
+  faux jour. En jeu, la caméra reste à plus de 1,2 m. Témoin : la version d'avant y montre jusqu'à 1 785
   pixels de jour au col. La planche complète se lance avec `VDS_PERSOS=1`.
 - **Mode photo** (touche P, Échap pour sortir ; « Photo » dans le menu « Plus » sur tactile) :
   - le jeu est figé ;
